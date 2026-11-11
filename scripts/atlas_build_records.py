@@ -15,6 +15,19 @@ from atlas_build_lock import retry_sharing_violation
 from atlas_build_source import SourceIdentity, _sha256_bytes
 
 VERSION = 7
+INDEX_SCHEMA = 1
+_INDEX_SCOPE_FIELDS = (
+    "package",
+    "profile",
+    "target",
+    "features",
+    "toolchain",
+    "target_dir",
+    "command_key",
+    "selection",
+    "environment_digest",
+    "cargo_config_digest",
+)
 
 
 @dataclass(frozen=True)
@@ -132,15 +145,105 @@ def _record_mismatch_reasons(
 
 
 def _spec_key(spec: BuildSpec) -> str:
-    scope = spec.as_dict()
-    scope.pop("source")
-    scope.pop("dependency_digest")
+    scope = {key: spec.as_dict()[key] for key in _INDEX_SCOPE_FIELDS}
     encoded = json.dumps(scope, sort_keys=True, separators=(",", ":")).encode()
     return _sha256_bytes(encoded)
 
 
 def record_path(spec: BuildSpec) -> Path:
     return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_spec_key(spec)}.json"
+
+
+def _record_index_path(directory: Path) -> Path:
+    return directory / "index" / "records.json"
+
+
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate key {key!r}")
+        value[key] = item
+    return value
+
+
+def _scope_key(scope: dict[str, object]) -> str:
+    encoded = json.dumps(scope, sort_keys=True, separators=(",", ":")).encode()
+    return _sha256_bytes(encoded)
+
+
+def _validated_index_scope(key: object, value: object, path: Path) -> dict[str, object]:
+    if (
+        type(key) is not str
+        or len(key) != 64
+        or any(character not in "0123456789abcdef" for character in key)
+        or type(value) is not dict
+        or set(value) != set(_INDEX_SCOPE_FIELDS)
+        or any(type(value[field]) is not str for field in _INDEX_SCOPE_FIELDS)
+        or _scope_key(value) != key
+    ):
+        raise BuildIdentityError(f"malformed source identity record index: {path}")
+    return value
+
+
+def _read_record_index(path: Path) -> dict[str, dict[str, object]]:
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(read_record_text(path), object_pairs_hook=_unique_object)
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        raise BuildIdentityError(
+            f"malformed source identity record index {path}: {error}"
+        ) from error
+    if type(value) is not dict or set(value) != {"schema", "records"}:
+        raise BuildIdentityError(f"malformed source identity record index: {path}")
+    if type(value["schema"]) is not int or value["schema"] != INDEX_SCHEMA:
+        raise BuildIdentityError(f"unsupported source identity record index: {path}")
+    records = value["records"]
+    if type(records) is not dict:
+        raise BuildIdentityError(f"malformed source identity record index: {path}")
+    return {
+        key: _validated_index_scope(key, scope, path)
+        for key, scope in records.items()
+    }
+
+
+def _canonical_record_scope(path: Path, record: dict[str, object]) -> dict[str, object] | None:
+    build = record.get("build")
+    if type(build) is not dict:
+        return None
+    scope = {key: build.get(key) for key in _INDEX_SCOPE_FIELDS}
+    if any(type(value) is not str for value in scope.values()) or _scope_key(scope) != path.stem:
+        return None
+    return scope
+
+
+def _record_family(scope: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in scope.items() if key != "command_key"}
+
+
+def _indexed_record_scopes(
+    directory: Path, candidates: Sequence[Path]
+) -> dict[str, dict[str, object]]:
+    index_path = _record_index_path(directory)
+    prior = _read_record_index(index_path)
+    present = {candidate.stem for candidate in candidates}
+    scopes = {key: scope for key, scope in prior.items() if key in present}
+    for candidate in candidates:
+        if candidate.stem in scopes:
+            continue
+        try:
+            record = read_record(candidate)
+        except BuildIdentityError:
+            continue
+        if record is None:
+            continue
+        scope = _canonical_record_scope(candidate, record)
+        if scope is not None:
+            scopes[candidate.stem] = scope
+    if not index_path.exists() or scopes != prior:
+        _write_atomic(index_path, {"schema": INDEX_SCHEMA, "records": scopes})
+    return scopes
 
 
 def _sibling_record(
@@ -160,12 +263,22 @@ def _sibling_record(
     directory = record_path(spec).parent
     if not directory.is_dir():
         return None
-    for candidate in directory.glob("*.json"):
+    candidates = list(directory.glob("*.json"))
+    scopes = _indexed_record_scopes(directory, candidates)
+    family = _record_family(
+        {key: value for key, value in spec.as_dict().items() if key in _INDEX_SCOPE_FIELDS}
+    )
+    for candidate in candidates:
+        scope = scopes.get(candidate.stem)
+        if scope is None or _record_family(scope) != family:
+            continue
         try:
             record = read_record(candidate)
         except BuildIdentityError:
             continue
         if record is None:
+            continue
+        if _canonical_record_scope(candidate, record) != scope:
             continue
         artifact = record.get("artifact")
         if not isinstance(artifact, dict) or not isinstance(artifact.get("files"), dict):
