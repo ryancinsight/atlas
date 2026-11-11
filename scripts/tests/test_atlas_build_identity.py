@@ -1358,6 +1358,161 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(value["status"], "match")
 
+    def test_progress_sidecar_attributes_one_successful_run(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter(range(100, 180, 10))
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+        ):
+            result = self.build(source_token="timed")
+        sidecars = list(progress.glob("identity-progress-*.json"))
+        self.assertEqual(len(sidecars), 1)
+        payload = json.loads(sidecars[0].read_text(encoding="utf-8"))
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "timed")
+        self.assertEqual(payload["disposition"], "complete")
+        self.assertFalse(payload["certifies_artifacts"])
+        self.assertEqual(payload["clock"], "monotonic_ns")
+        self.assertEqual(payload["origin_ns"], 100)
+        self.assertEqual(
+            payload["stages"],
+            [
+                {
+                    "name": name,
+                    "started_after_ns": index * 10,
+                    "completed_after_ns": (index + 1) * 10,
+                    "status": "completed",
+                }
+                for index, name in enumerate(identity._PROGRESS_STAGES)
+            ],
+        )
+
+    def test_progress_sidecar_keeps_a_failed_command_incomplete(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter((100, 110, 120, 130))
+        running: list[dict[str, object]] = []
+        run_checked = identity._run_checked
+
+        def fail_command(command, cwd, environment):
+            if str(self.build_script) in command:
+                sidecars = list(progress.glob("identity-progress-*.json"))
+                self.assertEqual(len(sidecars), 1)
+                running.append(json.loads(sidecars[0].read_text(encoding="utf-8")))
+                raise identity.IdentityError("command failed with exit code 7")
+            return run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+            patch.object(identity, "_run_checked", side_effect=fail_command),
+        ):
+            with self.assertRaisesRegex(identity.IdentityError, "exit code 7"):
+                self.build(source_token="failed")
+        self.assertEqual(running[0]["disposition"], "incomplete")
+        self.assertFalse(running[0]["certifies_artifacts"])
+        self.assertEqual(running[0]["stages"][-1]["name"], "command")
+        self.assertEqual(running[0]["stages"][-1]["status"], "running")
+        sidecar = next(progress.glob("identity-progress-*.json"))
+        failed = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(failed["disposition"], "incomplete")
+        self.assertEqual(failed["failure"], "BuildIdentityError")
+        self.assertEqual(failed["stages"][-1]["status"], "failed")
+        self.assertEqual(
+            list((self.target / ".atlas" / "source-identity").glob("*.json")), []
+        )
+
+    def test_progress_sidecar_initial_write_cannot_change_success(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        replace = os.replace
+        sleeps: list[float] = []
+
+        def refuse_sidecar(source, destination):
+            if Path(destination).name.startswith("identity-progress-"):
+                raise PermissionError("progress unavailable")
+            replace(source, destination)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", return_value=100),
+            patch.object(build_records.os, "replace", side_effect=refuse_sidecar),
+            patch.object(lock_module.time, "sleep", side_effect=sleeps.append),
+        ):
+            result = self.build(source_token="initial-write")
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "initial-write")
+        self.assertEqual(list(progress.glob("identity-progress-*.json")), [])
+        self.assertEqual(sleeps, [])
+
+    def test_progress_sidecar_final_write_cannot_change_success(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter(range(100, 180, 10))
+        write_atomic = identity._write_atomic
+
+        def fail_complete(path, payload, **kwargs):
+            if (
+                path.name.startswith("identity-progress-")
+                and payload["disposition"] == "complete"
+            ):
+                raise OSError("progress unavailable")
+            write_atomic(path, payload, **kwargs)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+            patch.object(identity, "_write_atomic", side_effect=fail_complete),
+        ):
+            result = self.build(source_token="final-write")
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "final-write")
+        sidecar = next(progress.glob("identity-progress-*.json"))
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(payload["disposition"], "incomplete")
+        self.assertFalse(payload["certifies_artifacts"])
+        self.assertEqual(payload["stages"][-1]["name"], "publication")
+        self.assertEqual(payload["stages"][-1]["status"], "running")
+
+    def test_progress_sidecar_failed_write_preserves_command_failure(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter((100, 110, 120, 130))
+        write_atomic = identity._write_atomic
+        run_checked = identity._run_checked
+
+        def fail_command(command, cwd, environment):
+            if str(self.build_script) in command:
+                raise identity.IdentityError("original command failure")
+            return run_checked(command, cwd, environment)
+
+        def fail_failure_record(path, payload, **kwargs):
+            if path.name.startswith("identity-progress-") and "failure" in payload:
+                raise OSError("progress unavailable")
+            write_atomic(path, payload, **kwargs)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+            patch.object(identity, "_run_checked", side_effect=fail_command),
+            patch.object(identity, "_write_atomic", side_effect=fail_failure_record),
+        ):
+            with self.assertRaisesRegex(identity.IdentityError, "original command failure"):
+                self.build(source_token="failed-write")
+        sidecar = next(progress.glob("identity-progress-*.json"))
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(payload["disposition"], "incomplete")
+        self.assertFalse(payload["certifies_artifacts"])
+        self.assertEqual(payload["stages"][-1]["name"], "command")
+        self.assertEqual(payload["stages"][-1]["status"], "running")
+
     def test_the_same_revision_at_another_root_reuses_and_cleans_nothing(self) -> None:
         """Each pre-push run exports the pushed revision to a new temporary path.
 

@@ -11,7 +11,7 @@ from typing import Callable, Sequence
 
 from atlas_build_artifacts import UNVERIFIED, recorded_artifact_identity
 from atlas_build_lease import BuildIdentityError
-from atlas_build_lock import retry_sharing_violation
+from atlas_build_lock import SHARING_RETRY_ATTEMPTS, retry_sharing_violation
 from atlas_build_source import SourceIdentity, _sha256_bytes
 
 VERSION = 7
@@ -411,13 +411,20 @@ def read_record(path: Path) -> dict[str, object] | None:
     return value
 
 
-def _write_atomic(path: Path, value: dict[str, object]) -> None:
+def _write_atomic(
+    path: Path,
+    value: dict[str, object],
+    *,
+    replace_attempts: int = SHARING_RETRY_ATTEMPTS,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     payload = json.dumps(value, sort_keys=True, indent=2) + "\n"
     try:
         temporary.write_text(payload, encoding="utf-8", newline="\n")
-        retry_sharing_violation(lambda: os.replace(temporary, path), path)
+        retry_sharing_violation(
+            lambda: os.replace(temporary, path), path, attempts=replace_attempts
+        )
     except (OSError, BuildIdentityError) as error:
         try:
             temporary.unlink(missing_ok=True)
