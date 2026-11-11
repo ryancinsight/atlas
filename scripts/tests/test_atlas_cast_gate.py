@@ -227,6 +227,38 @@ def test_historical_cast_refuses_conflicting_profiles(tmp_path, monkeypatch, sou
         )
 
 
+@pytest.mark.parametrize("workspace", ["sibling", "escaped"])
+def test_historical_cast_checks_explicit_workspace(tmp_path, workspace):
+    export = tmp_path / "export"
+    member = export / "member"
+    root = (export if workspace == "sibling" else tmp_path) / "workspace"
+    member.mkdir(parents=True)
+    root.mkdir()
+    manifest = member / "Cargo.toml"
+    relative = "../workspace" if workspace == "sibling" else "../../workspace"
+    manifest.write_text(
+        f'[package]\nname = "core"\nversion = "0.1.0"\nworkspace = "{relative}"\n',
+        encoding="utf-8",
+    )
+    workspace_manifest = root / "Cargo.toml"
+    content = '[workspace]\nmembers = ["../member"]\n'
+    workspace_manifest.write_text(content, encoding="utf-8")
+    command = historical_clippy(export, "member/Cargo.toml", tmp_path / "sites.json")
+    binding = dict(root=export, manifest=manifest, command_cwd=export, selection=["core", "ops"])
+    if workspace == "sibling":
+        assert gate.historical_cast_command(command, **binding)[-3:] == (
+            "cast-history", "--config", 'profile.cast-history.inherits="dev"',
+        )
+        workspace_manifest.write_text(
+            content + "[profile.cast-history]\ndebug-assertions = false\n", encoding="utf-8",
+        )
+        message = "reserved Cargo profile cast-history"
+    else:
+        message = "Cargo workspace .* lies outside the export"
+    with pytest.raises(ValueError, match=message):
+        gate.historical_cast_command(command, **binding)
+
+
 def test_a_standalone_manifest_is_linted_in_place(tmp_path):
     command = gate.clippy_command(tmp_path, [], manifest="fuzz/Cargo.toml")
     assert command[command.index("--manifest-path") + 1] == str(tmp_path / "fuzz" / "Cargo.toml")

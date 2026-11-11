@@ -1174,20 +1174,31 @@ def _check_historical_profile(
     path = manifest.resolve(strict=True)
     if not path.is_relative_to(export):
         raise ValueError("historical cast manifest lies outside its export")
-    for directory in (path.parent, *path.parent.parents):
-        ancestor = directory / "Cargo.toml"
-        if ancestor.is_file():
-            data = tomllib.loads(ancestor.read_text(encoding="utf-8-sig"))
-            profiles = data.get("profile", {})
-            if not isinstance(profiles, dict):
-                raise ValueError(f"Cargo profile table is malformed in {ancestor}")
-            if HISTORICAL_CAST_PROFILE in profiles:
-                raise ValueError(f"reserved Cargo profile {HISTORICAL_CAST_PROFILE} is defined in {ancestor}")
-            workspace = data.get("package", {}).get("workspace")
-            if workspace is not None and not (directory / workspace).resolve().is_relative_to(export):
-                raise ValueError(f"Cargo workspace from {ancestor} lies outside the export")
-        if directory == export:
-            break
+    pending = [
+        directory / "Cargo.toml" for directory in (path.parent, *path.parent.parents)
+        if directory.is_relative_to(export) and (directory / "Cargo.toml").is_file()
+    ]
+    checked: set[pathlib.Path] = set()
+    while pending:
+        candidate = pending.pop()
+        source = candidate.resolve(strict=True)
+        if not source.is_relative_to(export):
+            raise ValueError(f"Cargo manifest {candidate} lies outside the export")
+        if source in checked:
+            continue
+        checked.add(source)
+        data = tomllib.loads(source.read_text(encoding="utf-8-sig"))
+        profiles = data.get("profile", {})
+        if not isinstance(profiles, dict):
+            raise ValueError(f"Cargo profile table is malformed in {candidate}")
+        if HISTORICAL_CAST_PROFILE in profiles:
+            raise ValueError(f"reserved Cargo profile {HISTORICAL_CAST_PROFILE} is defined in {candidate}")
+        workspace = data.get("package", {}).get("workspace")
+        if workspace is not None:
+            target = (source.parent / workspace / "Cargo.toml").resolve()
+            if not target.is_relative_to(export):
+                raise ValueError(f"Cargo workspace from {candidate} lies outside the export")
+            pending.append(target)
 
 
 def historical_cast_command(
