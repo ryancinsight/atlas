@@ -58,10 +58,19 @@ runs:
         scripts="$GITHUB_ACTION_PATH/../../../scripts"
         "$PYTHON" -I "$scripts/python_source_loader.py" \
           --module "atlas_workflow_lint=$scripts/atlas_workflow_lint.py" \
+          --module "workflow_checkout_prefix=$scripts/workflow_checkout_prefix.py" \
           --module "process_tree=$scripts/process_tree.py" \
           --module "windows_process=$scripts/windows_process.py" \
           --module "darwin_process=$scripts/darwin_process.py" \
           "$scripts/tests/test_atlas_workflow_lint.py"
+        "$PYTHON" -I "$scripts/python_source_loader.py" \
+          --module "atlas_workflow_lint=$scripts/atlas_workflow_lint.py" \
+          --module "workflow_checkout_prefix=$scripts/workflow_checkout_prefix.py" \
+          --module "test_atlas_workflow_lint=$scripts/tests/test_atlas_workflow_lint.py" \
+          --module "process_tree=$scripts/process_tree.py" \
+          --module "windows_process=$scripts/windows_process.py" \
+          --module "darwin_process=$scripts/darwin_process.py" \
+          "$scripts/tests/test_workflow_checkout_prefix.py"
     - name: Lint the candidate workflows
       shell: bash
       env:
@@ -73,6 +82,7 @@ runs:
         set -euo pipefail
         scripts="$GITHUB_ACTION_PATH/../../../scripts"
         "$PYTHON" -I "$scripts/python_source_loader.py" \
+          --module "workflow_checkout_prefix=$scripts/workflow_checkout_prefix.py" \
           --module "process_tree=$scripts/process_tree.py" \
           --module "windows_process=$scripts/windows_process.py" \
           --module "darwin_process=$scripts/darwin_process.py" \

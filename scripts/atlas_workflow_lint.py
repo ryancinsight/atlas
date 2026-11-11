@@ -1,4 +1,4 @@
-"""Bind and lint Git candidate workflows byte-exactly."""
+"""Bind and lint Git candidate workflows byte-exactly; checkout paths follow `workflow_checkout_prefix`."""
 
 import argparse
 import os
@@ -13,6 +13,7 @@ from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 from yaml.tokens import ScalarToken
 
 import process_tree
+import workflow_checkout_prefix as checkout_prefix
 
 CONFIG_NAMES = ("actionlint.yaml", "actionlint.yml")
 FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -72,30 +73,32 @@ def _scalar(node: Node | None, name: str) -> ScalarNode | None:
     return node
 
 
-def _step_uses(steps: Node | None) -> list[ScalarNode]:
+def _step_uses(steps: Node | None) -> list[tuple[ScalarNode, checkout_prefix.Checkouts]]:
     if steps is None:
         return []
     if not isinstance(steps, SequenceNode):
         raise WorkflowSourceError("'steps' must be a sequence")
-    return [uses for step in steps.value if (uses := _scalar(_field(step, "uses"), "uses"))]
+    pairs = [(uses, step) for step in steps.value if (uses := _scalar(_field(step, "uses"), "uses"))]
+    defined = [(uses, checkout_prefix.checkout(uses.value, step, _field)) for uses, step in pairs]
+    return checkout_prefix.preceding(defined)
 
 
-def _references(document: Node, kind: str) -> list[tuple[ScalarNode, str]]:
+def _references(document: Node, kind: str) -> list[tuple[ScalarNode, str, checkout_prefix.Checkouts]]:
     if kind == "action":
         runs = _field(document, "runs")
         using = _scalar(_field(runs, "using"), "using")
         if using is None or using.value != "composite":
             return []
-        return [(uses, "action") for uses in _step_uses(_field(runs, "steps"))]
+        return [(uses, "action", {}) for uses, _ in _step_uses(_field(runs, "steps"))]
     jobs = _field(document, "jobs")
     if not isinstance(jobs, MappingNode):
         raise WorkflowSourceError("workflow 'jobs' must be a mapping")
-    found: list[tuple[ScalarNode, str]] = []
+    found: list[tuple[ScalarNode, str, checkout_prefix.Checkouts]] = []
     for _, job in jobs.value:
         reusable = _scalar(_field(job, "uses"), "uses")
         if reusable is not None:
-            found.append((reusable, "workflow"))
-        found.extend((uses, "action") for uses in _step_uses(_field(job, "steps")))
+            found.append((reusable, "workflow", {}))
+        found.extend((uses, "action", seen) for uses, seen in _step_uses(_field(job, "steps")))
     return found
 
 
@@ -140,6 +143,18 @@ def _target(root: Path, reference: str, kind: str) -> Path:
     return resolved
 
 
+def _local_target(root: Path, reference: str, kind: str, seen: checkout_prefix.Checkouts) -> tuple[Path, str | None]:
+    stripped, checkout = checkout_prefix.resolve(reference, seen)
+    if checkout is None:
+        return _target(root, reference, kind), None
+    if not checkout.holds_candidate:
+        raise WorkflowSourceError(f"action comes from a checkout the candidate does not define: {reference!r}")
+    try:
+        return _target(root, stripped, kind), checkout.prefix
+    except WorkflowSourceError as error:
+        raise WorkflowSourceError(f"{error} (as {reference!r} under checkout {checkout.prefix!r})") from error
+
+
 def _scalar_token(node: ScalarNode, tokens: list[ScalarToken], path: Path) -> ScalarToken:
     matches = [
         token
@@ -173,6 +188,11 @@ def _sigil_offset(text: str, token: ScalarToken, path: Path) -> int:
 
 def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, list[Path]]:
     """Replace only validated leading `$` bytes in one YAML document."""
+    projected, targets = _project(source, path, root, kind)
+    return projected, [target for target, _ in targets]
+
+
+def _project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, list[tuple[Path, str | None]]]:
     try:
         text = source.decode("utf-8", "strict")
     except UnicodeDecodeError as error:
@@ -183,17 +203,17 @@ def project(source: bytes, path: Path, root: Path, kind: str) -> tuple[bytes, li
     ambiguous = _ambiguous(document)
     tokens = [token for token in yaml.scan(text, Loader=yaml.SafeLoader) if isinstance(token, ScalarToken)]
     offsets: list[int] = []
-    targets: list[Path] = []
-    for node, target_kind in _references(document, kind):
+    targets: list[tuple[Path, str | None]] = []
+    for node, target_kind, checkouts in _references(document, kind):
         if node.value.startswith("./"):
-            targets.append(_target(root, node.value, target_kind))
+            targets.append(_local_target(root, node.value, target_kind, checkouts))
             continue
         if not node.value.startswith("$/"):
             continue
         if id(node) in ambiguous:
             raise WorkflowSourceError(f"aliased same-repository reference in {path}")
         offsets.append(_sigil_offset(text, _scalar_token(node, tokens, path), path))
-        targets.append(_target(root, node.value, target_kind))
+        targets.append((_target(root, node.value, target_kind), None))
     projected = bytearray(source)
     for offset in offsets:
         projected[offset] = ord(".")
@@ -314,17 +334,20 @@ def _collect(
         relative, kind = pending.pop(0)
         source = _candidate_bytes(root, candidate, relative, modes[relative])
         inputs[relative] = source
-        content, targets = project(source, root.joinpath(*relative.split("/")), root, kind)
+        content, targets = _project(source, root.joinpath(*relative.split("/")), root, kind)
         if kind == "workflow":
             projected[relative] = content
-        for target in targets:
+        for target, prefix in targets:
             target_relative = target.relative_to(root).as_posix()
             if target_relative in workflows:
                 continue
             directory = target.parent.relative_to(root).as_posix()
             for metadata, mode in _metadata(root, candidate, directory):
                 modes[metadata] = mode
-                inputs[metadata] = _candidate_bytes(root, candidate, metadata, mode)
+                source = _candidate_bytes(root, candidate, metadata, mode)
+                path = metadata if prefix is None else f"{prefix}/{metadata}"
+                if inputs.setdefault(path, source) != source:
+                    raise WorkflowSourceError(f"lint input path has two different sources: {path}")
                 if metadata not in queued:
                     queued.add(metadata)
                     pending.append((metadata, "action"))

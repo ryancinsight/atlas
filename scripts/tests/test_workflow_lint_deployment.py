@@ -74,7 +74,7 @@ class WorkflowLintDeploymentTests(unittest.TestCase):
         for step in (test_step, lint_step):
             command = step["run"]
             self.assertIn('python_source_loader.py"', command)
-            for module in ("process_tree", "windows_process", "darwin_process"):
+            for module in ("workflow_checkout_prefix", "process_tree", "windows_process", "darwin_process"):
                 self.assertIn(f'--module "{module}=$scripts/{module}.py"', command)
             self.assertEqual(
                 set(step["env"]),
@@ -85,6 +85,11 @@ class WorkflowLintDeploymentTests(unittest.TestCase):
             test_step["run"],
         )
         self.assertIn('tests/test_atlas_workflow_lint.py"', test_step["run"])
+        self.assertIn('tests/test_workflow_checkout_prefix.py"', test_step["run"])
+        self.assertIn(
+            '--module "test_atlas_workflow_lint=$scripts/tests/test_atlas_workflow_lint.py"',
+            test_step["run"],
+        )
         for option, variable in (
             ("actionlint", "ACTIONLINT"),
             ("shellcheck", "SHELLCHECK"),
