@@ -1,29 +1,27 @@
 """Local actions reached through the `path:` of an `actions/checkout` step.
 
 A job that runs `actions/checkout` with `path: P` and later calls `uses: ./P/<rest>` finds the action at
-`<rest>` in that checkout. The lint guard resolves `./P/<rest>` as `./<rest>` in the candidate only while that
-checkout is shown to hold the candidate's tree. Within one job, in step order:
+`<rest>` in that checkout. The lint guard resolves `./P/<rest>` as `./<rest>` in the candidate only when each
+link below is on an allow-list. Within one job, in step order:
 
-* every step whose `uses` names `actions/checkout@<anything>`, in any letter case, is read. Its location is
-  known when `with.path` is a plain relative path: a string scalar with no `${{`, no backslash, and no empty,
-  `.` or `..` component. A step with no path (the workspace root), any other path, or a `with` block that
-  cannot be read input by input (not one mapping, a merge key, a non-string name, or a name repeated in any
-  letter case) has an unknown location;
-* a checkout of unknown location voids every prefix defined before it. A checkout of a known path voids each
-  earlier prefix that is its ancestor, its descendant or equal to it, comparing components without letter
-  case, and then defines its own path as a prefix. The prefixes in force are therefore pairwise unrelated, and
-  no later checkout has written into any of them;
-* a prefix holds the candidate when its step passes no input outside `CANDIDATE_INPUTS`, spelled exactly, and
-  its `ref` is absent or one of `CANDIDATE_REFS`, ignoring whitespace around the operands inside `${{ }}`;
-* a reference whose path lies under a prefix in force, or equals it, is governed by that prefix. Every other
-  reference resolves against the candidate root exactly as written.
+* a step that is not a mapping of distinct lower-case string keys without padding, or whose `uses` is not a
+  string, may be a checkout of any location: it voids every prefix defined before it;
+* a step whose `uses`, trimmed and without letter case, starts with `actions/checkout` is a checkout. Its
+  location is known when `with` is one mapping of distinct string names and `path` matches `_PLAIN_PATH`;
+  otherwise it voids every prefix. A known path voids each earlier prefix that is its ancestor, its descendant
+  or equal to it, without letter case, and then defines its own path as a prefix;
+* a prefix holds the candidate when its step has no key outside `STEP_KEYS` (so it always runs), names
+  `actions/checkout@` unpadded, passes no input outside `CANDIDATE_INPUTS` and has no `ref` or one of
+  `CANDIDATE_REFS`, ignoring whitespace around the operands inside `${{ }}`;
+* a reference at or under a prefix in force, compared without letter case, is governed by it. It is shown to
+  load the candidate only when the prefix holds the candidate, the spelling matches exactly and the calling
+  step has no key outside `STEP_KEYS`. Every other reference resolves against the candidate root as written.
 
-Assumed and not checked: `actions/checkout` writes the tracked files of the commit it names into its path, and
-no step of another kind changes them. On a pull request the candidate is the merge commit, while a head-SHA
-checkout supplies the action as the head defines it; the guard analyses the copy in the candidate.
-
-References inside a composite action reached through a prefix, and reusable-workflow (`jobs.<id>.uses`)
-references, resolve against the candidate root only.
+Assumed and not checked: `actions/checkout` writes exactly the tracked files of the commit it names into its
+path; no step of another kind (`run`, another action, a local composite action) changes them; and the workflow
+runs on an event where `github.sha` or the pull-request head is the commit analysed (`workflow_call` and
+`pull_request_target` are not). References inside composite actions and reusable-workflow references resolve
+against the candidate root only.
 """
 
 import re
@@ -32,17 +30,20 @@ from typing import NamedTuple
 from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 from yaml.resolver import BaseResolver
 
-CANDIDATE_INPUTS = frozenset(("path", "ref", "fetch-depth", "fetch-tags", "persist-credentials", "clean", "lfs"))
+STEP_KEYS = frozenset(("name", "id", "uses", "with"))
+CANDIDATE_INPUTS = frozenset(("path", "ref", "fetch-depth", "persist-credentials"))
 CANDIDATE_REFS = (
     "${{ github.sha }}",
     "${{ github.event.pull_request.head.sha }}",
     "${{ github.event.pull_request.head.sha || github.sha }}",
 )
 _EXPRESSION = re.compile(r"\$\{\{(.*)\}\}")
+_COMPONENT = r"\.?[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*"
+_PLAIN_PATH = re.compile(rf"{_COMPONENT}(?:/{_COMPONENT})*")
 
 
 class Checkout(NamedTuple):
-    """A checkout path in force and whether its checkout holds the candidate's tree."""
+    """A checkout path in force and whether a reference under it is shown to load the candidate's tree."""
 
     prefix: str
     holds_candidate: bool
@@ -67,28 +68,25 @@ def _values(node: Node | None, name: str) -> list[Node]:
     return [value for key, value in node.value if isinstance(key, ScalarNode) and key.value == name]
 
 
-def _inputs(step: Node) -> dict[str, Node] | None:
-    """A checkout step's inputs by name as written, or `None` when they cannot be read input by input."""
-    blocks = _values(step, "with")
-    if not blocks:
-        return {}
-    if len(blocks) != 1 or not isinstance(blocks[0], MappingNode):
+def _entries(node: Node | None) -> dict[str, Node] | None:
+    """A mapping's values by key as written, or `None` when it cannot be read key by key."""
+    if not isinstance(node, MappingNode):
         return None
-    names = [_text(key) for key, _ in blocks[0].value]
-    if None in names or len({name.casefold() for name in names}) != len(names):
+    names = [_text(key) for key, _ in node.value]
+    if None in names or len({name.strip().casefold() for name in names}) != len(names):
         return None
-    return {name: value for name, (_, value) in zip(names, blocks[0].value)}
+    return {name: value for name, (_, value) in zip(names, node.value)}
 
 
-def _checkout(step: Node) -> Checkout | None:
+def _checkout(step: dict[str, Node], named: bool) -> Checkout | None:
     """The prefix a checkout step defines, or `None` when its location is unknown."""
-    inputs = _inputs(step)
+    inputs = _entries(step["with"]) if "with" in step else {}
     path = None if inputs is None else _text(inputs.get("path"))
-    if path is None or "${{" in path or "\\" in path or any(part in ("", ".", "..") for part in path.split("/")):
+    if path is None or not _PLAIN_PATH.fullmatch(path):
         return None
     ref = inputs.get("ref")
-    named = ref is None or _operands(_text(ref)) in _CANDIDATE_OPERANDS
-    return Checkout(path, named and set(inputs) <= CANDIDATE_INPUTS)
+    candidate = ref is None or _operands(_text(ref)) in _CANDIDATE_OPERANDS
+    return Checkout(path, named and candidate and set(step) <= STEP_KEYS and set(inputs) <= CANDIDATE_INPUTS)
 
 
 def _related(first: str, second: str) -> bool:
@@ -103,19 +101,27 @@ def governing(document: Node) -> dict[int, Checkout | None]:
     jobs = [job for block in _values(document, "jobs") if isinstance(block, MappingNode) for _, job in block.value]
     for steps in (steps for job in jobs for steps in _values(job, "steps") if isinstance(steps, SequenceNode)):
         in_force: list[Checkout] = []
-        for step in steps.value:
-            nodes = _values(step, "uses")
+        for node in steps.value:
+            step = _entries(node)
+            if step is not None and any(name != name.strip().casefold() for name in step):
+                step = None
+            nodes = _values(node, "uses")
             reference = _text(nodes[0]) if len(nodes) == 1 else None
-            if reference is None:
-                continue
-            if reference.casefold().startswith("actions/checkout@"):
-                defined = _checkout(step)
-                unrelated = [held for held in in_force if defined and not _related(held.prefix, defined.prefix)]
-                in_force = unrelated + [defined] if defined else []
-            elif reference.startswith("./"):
-                over = next((held for held in in_force if f"{reference}/".startswith(f"./{held.prefix}/")), None)
+            if reference is not None and reference.startswith("./"):
+                under = f"{reference}/".casefold()
+                over = next((held for held in in_force if under.startswith(f"./{held.prefix}/".casefold())), None)
+                exact = over is not None and f"{reference}/".startswith(f"./{over.prefix}/")
+                if over is not None and not (exact and step is not None and set(step) <= STEP_KEYS):
+                    over = over._replace(holds_candidate=False)
                 known = found.setdefault(id(nodes[0]), over)
                 if known != over:
                     # One aliased node read under two different prefixes has no single meaning.
                     found[id(nodes[0])] = Checkout((known or over).prefix, False)
+            uses = None if step is None else _text(step.get("uses"))
+            if step is None or ("uses" in step and uses is None):
+                in_force = []
+            elif uses is not None and uses.strip().casefold().startswith("actions/checkout"):
+                defined = _checkout(step, uses.casefold().startswith("actions/checkout@"))
+                unrelated = [held for held in in_force if defined and not _related(held.prefix, defined.prefix)]
+                in_force = unrelated + [defined] if defined else []
     return found
