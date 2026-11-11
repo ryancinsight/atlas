@@ -66,6 +66,12 @@ class BuildSpec:
         }
 
 
+@dataclass(frozen=True)
+class _SiblingRecord:
+    record: dict[str, object]
+    artifact: dict[str, object]
+
+
 def _content(record: object) -> object:
     """A source or build record without the checkout path it was read from.
 
@@ -250,14 +256,14 @@ def _sibling_record(
     spec: BuildSpec,
     dependencies: dict[str, object],
     inputs_hold: Callable[[dict[str, object]], bool],
-) -> dict[str, object] | None:
+) -> _SiblingRecord | None:
     """A record of the same build and source under another command key.
 
     Its artifact names cover the dependency closure this run reads, so a run
-    that holds the dependencies shared hashes them by those names. Its
-    inputs must still read as it recorded them (`inputs_hold`).
+    that holds the dependencies shared hashes them by those names. The
+    dependency snapshot, recorded inputs, and current artifact bytes must
+    still equal the successful record.
     """
-    by_files = _identified_by_files(dependencies)
     build = spec.as_dict()
     build.pop("command_key")
     directory = record_path(spec).parent
@@ -270,7 +276,11 @@ def _sibling_record(
     )
     for candidate in candidates:
         scope = scopes.get(candidate.stem)
-        if scope is None or _record_family(scope) != family:
+        if (
+            scope is None
+            or scope["command_key"] == spec.command_key
+            or _record_family(scope) != family
+        ):
             continue
         try:
             record = read_record(candidate)
@@ -280,20 +290,20 @@ def _sibling_record(
             continue
         if _canonical_record_scope(candidate, record) != scope:
             continue
-        artifact = record.get("artifact")
-        if not isinstance(artifact, dict) or not isinstance(artifact.get("files"), dict):
-            continue
         other = record.get("build")
         if not isinstance(other, dict):
             continue
         other = dict(other)
         other.pop("command_key", None)
         if (
-            _build_content(other, by_files) == _build_content(build, by_files)
-            and (by_files or _content(record.get("source")) == _content(spec.source.as_dict()))
+            _build_content(other, False) == _build_content(build, False)
+            and _content(record.get("source")) == _content(spec.source.as_dict())
+            and record.get("dependencies") == dependencies
             and inputs_hold(record)
         ):
-            return record
+            artifact = _recorded_artifact(record, Path(spec.target_dir), ())
+            if artifact == record.get("artifact"):
+                return _SiblingRecord(record, artifact)
     return None
 
 
