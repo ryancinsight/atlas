@@ -96,7 +96,8 @@ def _stage(artifacts: Iterable[dict[str, object]], destination: Path) -> list[di
         source = artifact["path"]
         if not isinstance(source, Path) or not source.is_file() or source.is_symlink():
             raise BookTestError(f"Cargo emitted a missing or non-regular artifact: {source}")
-        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        with source.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
         prior = staged.get(source.name)
         if prior is not None:
             if prior[0] != digest:
