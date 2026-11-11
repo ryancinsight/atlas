@@ -6333,6 +6333,8 @@ class SelectionVariantTestCase(unittest.TestCase):
         self.export = self.base / "gate" / "nested" / "ws"
         self.export.parent.mkdir(parents=True)
         subprocess.run(["git", "clone", "-q", str(self.source), str(self.export)], check=True)
+        git(self.export, "config", "user.name", "Atlas test")
+        git(self.export, "config", "user.email", "atlas-test@example.invalid")
         self.target = self.base / "target"
 
     @staticmethod
