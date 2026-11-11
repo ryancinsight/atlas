@@ -1,5 +1,10 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-11-11: the workflow-lint guard ends with a traceback on a deeply nested lint input
+
+Risk: `scripts/atlas_workflow_lint.py` writes each lint input with `Path.mkdir(parents=True)` (`_write_project`) and removes its analysis directory through `tempfile.TemporaryDirectory`. That `mkdir` calls itself once per missing ancestor, so a candidate that tracks a local action about 1,000 directories deep ends the guard with `RecursionError` and exit status 1 instead of exit status 2 and a `workflow lint:` line. The job still fails, so nothing wrong is accepted; the failure is unreadable.
+Evidence: relayed from the third verdict on atlas#675 (comment 6805028337, findings G4 and F6), which reports that ending at c841c8fe53e8ee8e3785e85ab24542b81f090671 for an action held 1,000 directories deep, and on that pull request (not at `main`) a second ending on Python 3.11.16, where the recursive `shutil.rmtree` fails at depth 988 while the analysis directory is removed and leaves an `atlas-workflow-lint-*` directory behind. Not reproduced at `main` by the integrator. Re-open trigger: a member repository that tracks a workflow or action nested deeper than about 900 directories, or a second untyped ending of the guard. Fix: create and remove the analysis tree without recursion and end with a typed error.
+
 ## Finding 2026-11-10: build identity cannot read a manifest only cargo parses
 
 Risk: `atlas_build_inputs._cargo_fuzz_manifest` parses each manifest with Python's `tomllib` (TOML 1.0), so a manifest written in TOML 1.1, for example a multi-line inline table that cargo accepts, raises `BuildIdentityError` in every caller of `effective_compiler_environment`. A push of such a root manifest is refused by the cast gate's `clippy` step with exit 2, although `resolved-changes` (atlas#637) gates every member.
