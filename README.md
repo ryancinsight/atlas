@@ -1087,14 +1087,14 @@ starting overlapping workspace builds against the shared cache.
 
 The root configuration sets development and test `opt-level = 0` for every
 member, overriding the root profile level a member manifest declares, so each
-shared crate is compiled once. Crates whose unoptimized numeric kernels make a push gate miss its
-deadline are raised to `opt-level = 1` by name in that file
-([ADR 0071](docs/adr/0071-stack-build-profile-budget.md)). No wildcard raise is
-used, and no member-manifest raise: a named raise in a manifest still
+shared crate is compiled once. Crates whose unoptimized numeric kernels make a
+push gate miss its deadline are raised to `opt-level = 1` by name in that file
+([ADR 0071](docs/adr/0071-stack-build-profile-budget.md)). No wildcard raise
+is used, and no member-manifest raise: a named raise in a manifest still
 applies inside the stack and gives that member its own copy of each crate it
-raises. A member manifest's profile still governs builds
-rooted outside the stack, such as CI. Full optimization is confined to release
-and the instrumented coverage profile whose runtime contract requires it.
+raises. A member manifest's profile still governs builds rooted outside the
+stack, such as CI. Full optimization is confined to release and the
+instrumented coverage profile whose runtime contract requires it.
 
 ### Benchmark regression gate
 

@@ -32,65 +32,79 @@ only on a measurement that names the gate run it unblocks. `[profile.test]`
 inherits the named entries; a named entry keeps the wildcard's `debug = false`
 for a dependency and the root profile's line tables for a workspace member.
 
-The first set is the 23 kwavers crates and 30 first-party provider crates
-they compute through (apollo, eunomia, hermes, leto, mnemosyne, moirai).
+The first set is the 23 kwavers crates and ten first-party provider crates
+they compute through (apollo, eunomia, hermes, leto).
 
 ## Evidence
 
 The head of ryancinsight/kwavers#1024 on 2026-11-10, `cargo nextest run
 -p kwavers-analysis -p kwavers`, 1279 tests, on one host that other builds
-shared. Nextest's per-test times vary with that load: two gate runs of the
-unchanged configuration differ by a factor of 1.51 in the summed time of the
-152 tests both logs hold (313.0 s and 472.9 s). A sum therefore separates two
-sets only when the difference exceeds a same-configuration replicate.
+share. Per-test times vary with that load: two gate runs of the unchanged
+configuration differ by a factor of 1.51 in the summed time of the 152 tests
+both logs hold (313.0 s and 472.9 s). A group is therefore named only on a
+replicated comparison: baseline and candidate run interleaved twice on one
+fresh export, compared by the median per-test time ratio over the tests at
+1 s or more in the first baseline run. The band is the two
+same-configuration medians and their reciprocals; a group is measured when
+all four candidate-to-baseline medians lie below the band. Each rule was
+posted on the pull request before its runs.
 
-Single runs, as taken. "251 tests" are the PASS lines that survive in the
-truncated log of the gate run that expired (positions 94 to 344 of 1279),
-matched by name in the other runs.
+| Group | Baseline | Tests | Band | Four medians | Result |
+|---|---|---|---|---|---|
+| kwavers (23) | 30 providers | 61 | 0.907 to 1.103 | 0.648 to 0.759 | measured |
+| apollo, eunomia, hermes, leto (10) | kwavers | 124 | 0.916 to 1.091 | 0.293 to 0.457 | measured |
+| mnemosyne, moirai (20) | the 33 above | 51 | 0.850 to 1.176 | 0.800 to 1.070 | not shown |
 
-| Crates at opt-level 1 | 251 tests | All 1279 | Wall |
+- **kwavers crates.** Measured with all 30 providers raised, not with the
+  ten that are named. Carrying the result to the named set assumes the gain
+  does not depend on mnemosyne and moirai being raised; no run compares the
+  ten providers alone with the named 33.
+- **apollo, eunomia, hermes, leto.** 109 to 121 of the 124 tests are faster in
+  each pairing. All four runs started with no compiler process running; the
+  second candidate command recompiled 99 units before its tests.
+- **mnemosyne, moirai: not named.** One median lies below the band (0.800);
+  three lie inside it (0.887, 0.993, 1.070). The second candidate run did
+  not get a quiet host: it waited the full 600 s, started with four compiler
+  processes running, recompiled 176 units and waited on the build-directory
+  lock once and on the package-cache lock five times. That shows neither a
+  step nor its absence; under the rule the names stay out.
+
+Single runs earlier the same day, unreplicated, for scale. "251 tests" are
+the PASS lines that survive in the truncated log of the gate run that
+expired (positions 94 to 344 of 1279), matched by name in the other runs.
+
+| Crates at opt-level 1 | 251 tests | All 1279 | Nextest summary |
 |---|---|---|---|
 | None (stack config as it was) | 611 s | not reached | deadline, 600 s |
 | kwavers crates (23) | 395 s | 763 s | 346 s |
-| and apollo, eunomia, hermes, leto (10) | 218 s | 560 s | 221 s |
-| and mnemosyne, moirai (20): the adopted set | 188 s | 503 s | 179 s |
-| and athena, coeus (10): not adopted | 188 s | 516 s | 182 s |
+| and apollo, eunomia, hermes, leto: the named set | 218 s | 560 s | 221 s |
+| and mnemosyne, moirai: not named | 188 s | 503 s | 179 s |
+| and athena, coeus: not named, not replicated | 188 s | 516 s | 182 s |
 | Everything (kwavers manifest, outside the stack) | 99 s | 412 s | 75 s |
 
-What the runs establish, group by group:
+Stage commands of the named set in the second ablation, into the shared
+target: clippy `--all-targets` 124 s (5 units compiled, 81 checked); test
+build 169 s (83 units compiled); test command 279 s, of which the build phase
+reports 63 s for one recompiled unit and nextest 174 s; test command again 372
+s, of which the build phase reports 139 s for 99 recompiled units and nextest
+203 s. The gate then documents the packages and verifies artifact identity, 35
+s and 164 s on a kwavers-transducer push the same day. Run in sequence as
+measured, clippy, test build, nextest and those two stages sum to 666 s, above
+the 600 s deadline, so the first push after the configuration reaches a
+checkout is expected to expire. With the test binaries built, a test command
+and the two closing stages take 478 s (571 s with the second command), which
+leaves 122 s (29 s) for clippy. Gate fit is therefore not established: it
+depends on how many units a push rechecks and recompiles, and no gate run
+under this configuration exists. The real push of kwavers#1024 is its test.
 
-- **The adopted set against none.** On the 152 tests both unraised gate
-  runs hold, 134.7 s against 313.0 s for the faster of the two.
-- **apollo, eunomia, hermes, leto.** On those 152 tests, 302.0 s with the
-  kwavers crates alone and 152.4 s with these ten added.
-- **mnemosyne, moirai.** Of the 56 tests at 1 s or more before the step, 50
-  are faster after it, and 47 of those are also faster in the athena and
-  coeus run, an independent run of a superset. Median per-test ratios 0.855
-  and 0.844.
-- **athena, coeus: not adopted.** Median per-test ratio 1.014 against the
-  adopted set on those 56 tests.
-- **The kwavers crates.** The single runs do not isolate them, so an
-  ablation did: 30 providers (A) against the adopted 53 (B) on one fresh
-  export, runs interleaved A, B, A, B, rule fixed before the runs. On the 61
-  tests at 1 s or more in the first A run, the same-configuration medians are
-  1.038 (A/A) and 0.907 (B/B), a band of 0.907 to 1.103; the four B/A medians
-  are 0.759, 0.731, 0.658 and 0.648. 56 of the 61 are faster in B.
+Not measured: any member other than kwavers, including what compiling the ten
+providers at level 1 costs its builds, and the rebuild of the kwavers crates
+at level 1 on a push beyond the unit counts above.
 
-Stage times of the adopted set on a fresh export, one run: clippy
-`--all-targets` 110 s, test build 147 s, tests 179 s, 468 s to the end of the
-test stage with every kwavers crate rebuilt at the new level. The ablation
-repeated the B stages while another build held the processors at full load
-and the target lock: clippy 127 s, test build 195 s, test commands 295 s and
-316 s. The gate then documents the packages and verifies artifact identity,
-35 s and 164 s on a kwavers-transducer push the same day. No gate run under
-this configuration exists yet: that a first push fills the cache and a
-following push fits the deadline is an expectation, and the real push of
-kwavers#1024 is its test.
-
-Witnessed in configuration form with `cargo build --message-format=json` and
-`cargo test --no-run` for `kwavers-core`: `opt_level` 1 for every named crate
-in the graph, 0 for unnamed dependencies and for build scripts, and no
-warning for a name absent from the build graph.
+Witnessed with `cargo build --message-format=json` and `cargo test --no-run`
+for `kwavers-core`: `opt_level` 1 for every named crate in the graph, 0 for
+unnamed dependencies and build scripts, and no warning for a name absent from
+the graph.
 
 ## Rejected alternatives
 
