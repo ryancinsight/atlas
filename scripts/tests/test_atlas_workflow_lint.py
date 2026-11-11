@@ -340,6 +340,8 @@ class NativeActionlintTests(unittest.TestCase):
             "-I",
             str(SCRIPTS / "python_source_loader.py"),
             "--module",
+            f"workflow_checkout_prefix={SCRIPTS / 'workflow_checkout_prefix.py'}",
+            "--module",
             f"process_tree={SCRIPTS / 'process_tree.py'}",
             "--module",
             f"windows_process={SCRIPTS / 'windows_process.py'}",
