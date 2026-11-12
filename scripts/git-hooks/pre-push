@@ -1836,16 +1836,17 @@ cast_gate="$6"
 cast_sites="$7"
 manifest_relative="$8"
 progress="$9"
-origin="${10}"
+hook_epoch="${10}"
 shift 10
 cargo_command="${CARGO:-cargo}"
-# Stage times are seconds since the hook started, one clock across stages.
+# Stage times are seconds since the hook started, one clock across stages:
+# the wall clock less the hook start the caller passes as epoch seconds.
 record_stage() {
   printf "%s\n" "$1" >"$stage_file"
-  [ -z "$progress" ] || printf "%s started %s\n" "$1" "$((origin + SECONDS))" >>"$progress/stages.log"
+  [ -z "$progress" ] || printf "%s started %s\n" "$1" "$(($(date +%s) - hook_epoch))" >>"$progress/stages.log"
 }
 complete_stage() {
-  [ -z "$progress" ] || printf "%s completed %s\n" "$1" "$((origin + SECONDS))" >>"$progress/stages.log"
+  [ -z "$progress" ] || printf "%s completed %s\n" "$1" "$(($(date +%s) - hook_epoch))" >>"$progress/stages.log"
 }
 record_stage "$stage"
 case "$stage" in
@@ -1868,7 +1869,7 @@ complete_stage "$stage"
 record_stage verification
 ' atlas-pre-push-sequence "$stage" "$stage_file" "$manifest" \
         "$root" "$python_bin" "${cast_gate:-}" "${cast_sites:-}" "$manifest_relative" \
-        "${phase_progress:-}" "$SECONDS"
+        "${phase_progress:-}" "$(($(date +%s) - SECONDS))"
       "${selection[@]}"
     )
     verdict="$(classify_gate_step "$gate_log" "${identity_command[@]}")"

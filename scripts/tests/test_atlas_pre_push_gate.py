@@ -508,8 +508,18 @@ class GateFixture:
                 '  [ -e "$profile/.fingerprint/foo-$1/lib-foo" ] || printf "%s" "$1" > "$profile/.fingerprint/foo-$1/lib-foo"\n'
                 "}\n"
                 'case "$1" in\n'
-                "  clippy) unit 1111111111111111 ;;\n"
-                "  nextest) unit 2222222222222222 ;;\n"
+                "  clippy)\n"
+                "    unit 1111111111111111\n"
+                "    ;;\n"
+                "  nextest)\n"
+                "    unit 2222222222222222\n"
+                # The test run rewrites its unit in place, as Cargo does when a
+                # source change recompiles it, and dies with the deadline.
+                '    if [ -e "$FIXTURE_ROOT/kill-tests" ]; then\n'
+                '      date +%s%N > "$profile"/deps/libfoo-2222222222222222.rlib\n'
+                '      date +%s%N > "$profile"/.fingerprint/foo-2222222222222222/lib-foo\n'
+                "      exit 137\n"
+                "    fi ;;\n"
                 "  doc)\n"
                 '    if [ -e "$FIXTURE_ROOT/kill-doc" ]; then exit 137; fi\n'
                 "    unit 3333333333333333 ;;\n"
@@ -3341,6 +3351,44 @@ class LaneGateTestCase(unittest.TestCase):
             ["atlas-pre-push-clippy", "atlas-pre-push-rustdoc", "atlas-pre-push-tests"],
             err,
         )
+
+    def test_a_killed_tests_stage_rewriting_a_listed_unit_leaves_clippy_recorded(self) -> None:
+        """The tests stage rewrites in place a unit left by an earlier push, and dies.
+
+        A first push builds the test unit. On the second, clippy's discovery
+        sees the test unit's files although clippy did not write them, the
+        tests stage rewrites them in place and dies, and the third push must
+        still find clippy's record valid: a record lists the units its own
+        command wrote, not every file of the package.
+        """
+        stack, fixture, lane = self._lane(overlay=True, documentation_phase=None)
+        _install_real_identity(stack)
+        shutil.copy2(SCRIPT.parents[1] / "cast-baseline.json", stack / "scripts")
+        fixture.set_cargo_behavior("stage-artifacts")
+        target = stack / "target"
+        deps = target / "debug" / "deps"
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        # The first push's units are older than the next push's commands.
+        hour_ago = time.time() - 3600
+        for path in (target / "debug").rglob("*foo-*"):
+            if path.is_file():
+                os.utime(path, (hour_ago, hour_ago))
+        _write(fixture.root / "kill-tests", "")
+        fixture.calls.unlink()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 1, err)
+        clippy_unit = deps / "libfoo-1111111111111111.rlib"
+        built = clippy_unit.stat().st_mtime_ns
+        fixture.calls.unlink()
+        (fixture.root / "kill-tests").unlink()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        verbs = [
+            line.split()[0] for line in fixture.calls.read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertNotIn("clean", verbs, verbs)
+        self.assertEqual(clippy_unit.stat().st_mtime_ns, built, err)
 
     def test_a_new_member_gates_each_package_once_by_its_exact_name(self) -> None:
         """A root-manifest change gates every member under its exact name.

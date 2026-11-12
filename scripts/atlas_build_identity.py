@@ -690,6 +690,7 @@ def _run_build(
                     "a dependency is held shared but no record names its artifacts"
                 )
         progress.advance("command")
+        command_started_ns = time.time_ns()
         with heartbeat(directory, fresh, writer_identity):
             _run_checked(command, execution_root, environment)
         progress.advance("source-dependencies")
@@ -728,6 +729,15 @@ def _run_build(
                 execution_root,
                 workspace_owners(),
                 deadline_ns=census_deadline_ns,
+                # A cleaned package holds only what the command wrote, and a
+                # resumed one what its killed run wrote before this command.
+                since_ns=command_started_ns,
+                unfiltered=rebuilt | resumed,
+                carried={
+                    package: tuple(named[package]["files"])
+                    for package in packages
+                    if named[package] is not None
+                },
             )
         prepared = []
         for package in packages:

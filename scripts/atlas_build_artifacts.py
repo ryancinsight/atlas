@@ -107,8 +107,22 @@ def artifact_identities(
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
     owners: dict[str, frozenset[str]] | None = None, *, deadline_ns: int | None = None,
+    since_ns: int | None = None,
+    carried: dict[str, Iterable[str]] | None = None,
+    unfiltered: frozenset[str] = frozenset(),
 ) -> dict[str, dict[str, object]]:
-    """Prove stable artifact closures before returning their shared census."""
+    """Prove stable artifact closures before returning their shared census.
+
+    With `since_ns`, the clock reading taken before the command ran, a
+    package's record lists only the units that command wrote, found by the
+    files' modification times, plus the units of the target-relative names in
+    `carried[package]` that an earlier record listed and this run verified.
+    Cargo refreshes `invoked.timestamp` in each unit it builds and leaves a
+    fresh unit alone, so units a different stage or an earlier revision left in
+    the target are not this command's, and a later stage rewriting one in place
+    cannot invalidate this record. The owners in `unfiltered`, and a package
+    whose scope would be empty, list every unit.
+    """
 
     _canonical(root, strict=True)
     target_dir = _canonical(target_dir)
@@ -137,7 +151,17 @@ def artifact_identities(
             raise BuildIdentityError(f"cannot enumerate artifacts in {target_dir}: {error}") from error
         selected = {
             package: set().union(
-                *(by_owner.get(owner, set()) for owner in {package, *related})
+                *(
+                    by_owner.get(owner, set())
+                    if owner in unfiltered
+                    else scope_to_units(
+                        by_owner.get(owner, set()),
+                        target_dir,
+                        since_ns,
+                        (carried or {}).get(package, ()),
+                    )
+                    for owner in {package, *related}
+                )
             )
             for package, related in packages.items()
         }
@@ -177,6 +201,44 @@ def artifact_identities(
                 raise BuildIdentityError("artifact census did not converge before its deadline")
             return {package: _identity_from_digests(target_dir, values, digests) for package, values in selected.items()}
         previous = snapshot
+
+
+COMMAND_MTIME_MARGIN_NS = 1_000_000_000
+
+
+def _unit_names(path: Path, target_dir: Path) -> set[str]:
+    """The names a file's unit is known by: its fingerprint or build directory, or its output stem."""
+    parts = path.relative_to(target_dir).parts
+    if ".fingerprint" in parts:
+        return {parts[parts.index(".fingerprint") + 1]}
+    if len(parts) >= 3 and parts[-3] == "build":
+        return {parts[-2]}
+    name = path.name.split(".", 1)[0]
+    return {name, name[3:]} if name.startswith("lib") else {name}
+
+
+def scope_to_units(
+    paths: set[Path], target_dir: Path, since_ns: int | None, carried: Iterable[str]
+) -> set[Path]:
+    """The files of the units a command wrote, with the units an earlier record verified.
+
+    A unit counts as written when any of its files changed at or after
+    `since_ns`, less a clock margin; an unreadable file counts as changed.
+    """
+    if since_ns is None or not paths:
+        return paths
+    threshold = since_ns - COMMAND_MTIME_MARGIN_NS
+    carry = set(carried)
+    written: set[str] = set()
+    for path in paths:
+        try:
+            changed = path.stat().st_mtime_ns >= threshold
+        except OSError:
+            changed = True
+        if changed or path.relative_to(target_dir).as_posix() in carry:
+            written |= _unit_names(path, target_dir)
+    kept = {path for path in paths if _unit_names(path, target_dir) & written}
+    return kept or paths
 
 
 def _identity_from_digests(target_dir: Path, paths: set[Path], digests: dict[Path, str]) -> dict[str, object]:
