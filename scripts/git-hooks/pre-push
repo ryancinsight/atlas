@@ -1782,9 +1782,12 @@ fi
 # that stage succeeds. One command for the whole sequence recorded nothing
 # when the supervisor's deadline killed it in a later stage: the next run
 # found no record and cleaned what the killed run had built (ADR 0064).
-# A peer that replaces artifacts between two stages makes the next stage's
-# lookup mismatch under its own leases, so it cleans and rebuilds; no stage
-# accepts artifacts it did not verify itself.
+# A stage's record lists the units its package holds. When listed bytes
+# differ, say after a peer or a killed stage rewrote them, the next stage
+# removes those units and any unit no record lists, and rebuilds them; a
+# source or input change still cleans the package. A unit first created by a
+# peer between stages that no record lists is accepted on Cargo's own
+# fingerprint alone.
 #
 # A step over another tree -- normally this workspace's export -- sets
 # step_root, step_manifest, step_selection and step_key for its call, and

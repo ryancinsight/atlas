@@ -16,9 +16,13 @@ from typing import Sequence
 
 from atlas_build_artifacts import (
     ARTIFACT_CENSUS_SECONDS,
+    changed_packages,
     artifact_identities,
     artifact_identity,
     artifact_owners,
+    prune_plan,
+    prune_units,
+    recorded_artifact_identity,
     shared_artifact_identity,
     validate_artifact_paths,
 )
@@ -52,7 +56,12 @@ from atlas_build_records import (
     record_path,
 )
 from atlas_build_source import _canonical, overlay_stripped_configs, source_identity
-from atlas_build_stale_packages import PackageState, _path_packages, _stale_packages
+from atlas_build_stale_packages import (
+    PackageState,
+    _artifact_only_packages,
+    _path_packages,
+    _stale_packages,
+)
 from atlas_build_stamps import (
     BuildDirectory,
     _git_names,
@@ -561,6 +570,8 @@ def _run_build(
         # cleaned ones, but not cleaned again. A stale Git stamp still cleans.
         resumed: frozenset[str] = frozenset()
         targets: frozenset[str] = frozenset()
+        owned: dict[str, frozenset[str]] = {}
+        prune_paths: list[Path] = []
         marked: frozenset[str] = frozenset()
         custom_clean = False
         if any(stale.values()):
@@ -591,9 +602,55 @@ def _run_build(
                         named[package] = states[package].current
                     else:
                         own &= states[package].stale_git
+                    owned[package] = own
                     resumed |= own & marked
                     targets |= own - marked
                 rebuilt = targets
+        # A package whose record fails only in the bytes of some listed
+        # artifacts, or for which a sibling stands in, loses the units no
+        # record vouches for in place of a clean: Cargo rebuilds a unit whose
+        # files are gone, and dirties its dependents.
+        hit: dict[str, frozenset[str]] = {}
+        pairs: list[tuple[dict[str, str], dict[str, str]]] = []
+        if clean_command is None and not artifact_paths:
+            for package, state in states.items():
+                if state.matched or state.existing is None or state.stale_git:
+                    continue
+                dependencies, spec = inputs[package]
+                args = (state.existing, state.current, spec, dependencies, manifest, execution_root)
+                if siblings[package] is None:
+                    hit[package] = _artifact_only_packages(*args, state.inputs, workspace_owners())
+                else:
+                    changed = state.current is None or changed_packages(
+                        state.existing["artifact"]["files"], state.current["files"], manifest,
+                        execution_root, tuple(sorted({*_path_packages(dependencies), spec.package})),
+                        workspace_owners(),
+                    )
+                    hit[package] = asked[package] if changed is True else frozenset(changed or ()) & asked[package]
+                    pairs.append((siblings[package].artifact["files"],) * 2)
+                # A listed file now missing leaves no current identity, yet
+                # the files still present keep vouching for their units.
+                files = state.existing["artifact"]["files"]
+                try:
+                    now = (state.current or recorded_artifact_identity(
+                        target_dir, [name for name in files if (target_dir / name).is_file()]
+                    ))["files"]
+                except BuildIdentityError:
+                    now = {}
+                pairs.append((files, now))
+        pruned = frozenset(
+            owner
+            for owner in targets
+            if hit and all(owner in hit.get(package, ()) for package, own in owned.items() if owner in own)
+        )
+        standing = frozenset().union(*(hit[p] for p in hit if siblings[p] is not None), frozenset())
+        candidates = pruned | (standing - targets - resumed)
+        if candidates:
+            doomed = prune_plan(target_dir, profile, target, workspace_owners(), candidates, pairs)
+            pruned |= frozenset(owner for owner, paths in doomed.items() if paths)
+            prune_paths = sum(doomed.values(), [])
+            targets -= pruned
+            rebuilt = targets | pruned
         package_decisions = {}
         for package, state in states.items():
             if state.existing is None:
@@ -621,7 +678,8 @@ def _run_build(
             }
         requested = frozenset().union(*asked.values())
         clean_plan = {
-            "clean": sorted(rebuilt),
+            "clean": sorted(rebuilt - pruned),
+            "prune": sorted(pruned),
             "packages": package_decisions,
             "phase": phases[0],
             "profile": profile,
@@ -645,6 +703,9 @@ def _run_build(
         # (about 2.5 min each on the stack target) and a stale metis record
         # stalled every push that shared its dependencies for over an hour. A
         # `cargo clean` naming no package would clean everything.
+        if pruned:
+            mark(directory, pruned, CLEANING, writer_identity)
+            prune_units(prune_paths)
         if targets:
             mark(directory, targets, CLEANING, writer_identity)
             _run_checked(
@@ -690,7 +751,6 @@ def _run_build(
                     "a dependency is held shared but no record names its artifacts"
                 )
         progress.advance("command")
-        command_started_ns = time.time_ns()
         with heartbeat(directory, fresh, writer_identity):
             _run_checked(command, execution_root, environment)
         progress.advance("source-dependencies")
@@ -729,14 +789,10 @@ def _run_build(
                 execution_root,
                 workspace_owners(),
                 deadline_ns=census_deadline_ns,
-                # A cleaned package holds only what the command wrote, and a
-                # resumed one what its killed run wrote before this command.
-                since_ns=command_started_ns,
-                unfiltered=rebuilt | resumed,
-                carried={
-                    package: tuple(named[package]["files"])
-                    for package in packages
-                    if named[package] is not None
+                listed={
+                    package: tuple(state.current["files"])
+                    for package, state in states.items()
+                    if state.matched
                 },
             )
         prepared = []

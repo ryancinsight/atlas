@@ -140,6 +140,46 @@ def _stale_packages(
     return tuple(sorted(stale))
 
 
+def _artifact_only_packages(
+    existing: dict[str, object] | None,
+    current: dict[str, object] | None,
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    manifest: Path,
+    execution_root: Path,
+    inputs: dict[str, object],
+    owners: dict[str, frozenset[str]] | None = None,
+) -> frozenset[str]:
+    """The owners of changed artifact bytes whose source, inputs and dimensions all hold.
+
+    Their sound units can stay where `_stale_packages` would clean them whole.
+    """
+    if existing is None or current is None:
+        return frozenset()
+    scope = {*_path_packages(dependencies), spec.package}
+    changed = changed_packages(
+        existing["artifact"]["files"],
+        current["files"],
+        manifest,
+        execution_root,
+        tuple(sorted(scope)),
+        owners,
+    )
+    if changed is None:
+        return frozenset()
+    others = _stale_packages(
+        {**existing, "artifact": {**existing["artifact"], "files": dict(current["files"])}},
+        current,
+        spec,
+        dependencies,
+        manifest,
+        execution_root,
+        inputs,
+        owners,
+    )
+    return frozenset(changed) - frozenset(others)
+
+
 # The record fields that carry source content: a path package's own files
 # (`package_identities`) and a Git or registry checkout's digest. Neither
 # renames a variant.

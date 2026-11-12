@@ -1956,10 +1956,25 @@ class BuildIdentityTestCase(unittest.TestCase):
     ) -> list[str]:
         """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo.
 
-        With `clean`, the run also has a custom clean command, which runs.
+        A package whose record fails only in some artifact bytes has its
+        mismatched and unlisted units removed instead; those are recorded by
+        package too. With `clean`, the run also has a custom clean command,
+        which runs.
         """
         packages: list[str] = []
         run_checked = identity._run_checked
+        prune_units = identity.prune_units
+
+        def pruning(doomed):
+            packages.extend(
+                sorted(
+                    {
+                        re.sub(r"-[0-9a-f]+$", "", path.name.split(".")[0].removeprefix("lib"))
+                        for path in doomed
+                    }
+                )
+            )
+            prune_units(doomed)
 
         def recording(command, cwd, environment):
             if (names := cleaned_names(command)) is not None:
@@ -1971,7 +1986,10 @@ class BuildIdentityTestCase(unittest.TestCase):
                 return
             run_checked(command, cwd, environment)
 
-        with patch.object(identity, "_run_checked", side_effect=recording):
+        with (
+            patch.object(identity, "_run_checked", side_effect=recording),
+            patch.object(identity, "prune_units", side_effect=pruning),
+        ):
             self.dependency_build(
                 source_token,
                 discover=True,
@@ -4980,6 +4998,9 @@ LEASE_PROBE = (
     "    lease.__exit__(None, None, None)\n"
     "    answers[f'{name}:{mode}'] = 'granted'\n"
     "Path(sys.argv[2]).write_text(json.dumps(answers, sort_keys=True), encoding='utf-8')\n"
+    "import os\n"
+    "if os.environ.get('REPLACEMENT'):\n"
+    "    Path(os.environ['REPLACEMENT']).write_text('renamed', encoding='utf-8')\n"
 )
 
 
@@ -5151,10 +5172,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
             self.clean,
             "import os\n"
             "from pathlib import Path\n"
-            "Path(os.environ['ARTIFACT']).write_text('rebuilt', encoding='utf-8')\n"
-            "if os.environ.get('RETIRE'):\n"
-            "    Path(os.environ['RETIRE']).unlink()\n"
-            "    Path(os.environ['REPLACEMENT']).write_text('renamed', encoding='utf-8')\n",
+            "Path(os.environ['ARTIFACT']).write_text('rebuilt', encoding='utf-8')\n",
         )
         init_repo(self.root, "fn main() {}\n")
 
@@ -5333,10 +5351,9 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         self.build("clippy", declared=False)
         self.artifacts["dep2"].write_text("changed", encoding="utf-8")
         replacement = self.artifacts["dep2"].with_name("libdep2-fedcba.rlib")
-        with patch.dict(
-            os.environ,
-            {"RETIRE": str(self.artifacts["dep2"]), "REPLACEMENT": str(replacement)},
-        ):
+        # The changed unit is removed, and the build command rebuilds it
+        # under another hash.
+        with patch.dict(os.environ, {"REPLACEMENT": str(replacement)}):
             self.build("clippy", declared=False)
         self.assertEqual(
             sorted(self.recorded()),
@@ -5463,6 +5480,158 @@ class RepeatedExportPushTestCase(unittest.TestCase):
         git(self.source, "add", ".cargo/config.toml")
         git(self.source, "commit", "-qm", "commit cargo config")
         self.assertEqual(self.push(4, stable_path=False), [["d", "p"], [], [], []])
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class StageSequenceTestCase(unittest.TestCase):
+    """The pre-push stages (clippy, tests, rustdoc) as three keyed runs on one target.
+
+    `kapp` depends on `kcore`, whose build script and library each stage
+    compiles in its own units, and on a Git crate `kgit`. The sources are
+    given old mtimes, as a fresh export gives them, so Cargo calls whatever
+    it finds on disk fresh.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-stage-sequence-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.source = self.base / "ws"
+        kgit = self.base / "kgit"
+        (kgit / "src").mkdir(parents=True)
+        (kgit / "Cargo.toml").write_text(
+            '[package]\nname = "kgit"\nversion = "0.1.0"\nedition = "2021"\n', encoding="utf-8"
+        )
+        (kgit / "src" / "lib.rs").write_text("pub fn g() -> u32 { 5 }\n", encoding="utf-8")
+        init_git(kgit)
+        git(kgit, "add", ".")
+        git(kgit, "commit", "-q", "-m", "kgit")
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["kcore", "kapp"]\nresolver = "2"\n',
+            "kcore/Cargo.toml": '[package]\nname = "kcore"\nversion = "0.1.0"\nedition = "2021"\n',
+            "kcore/build.rs": "fn main() {}\n",
+            "kapp/Cargo.toml": '[package]\nname = "kapp"\nversion = "0.1.0"\nedition = "2021"\n\n'
+            f'[dependencies]\nkcore = {{ path = "../kcore" }}\nkgit = {{ git = "{kgit.as_uri()}" }}\n',
+            "kapp/src/lib.rs": "pub fn v() -> u32 { kcore::value() + kgit::g() }\n#[cfg(test)]\nmod t {\n"
+            '    #[test]\n    fn probe() {\n        std::fs::write(std::env::var("PROBE_OUT").unwrap(), '
+            "super::v().to_string()).unwrap();\n    }\n}\n",
+            "kapp/tests/it.rs": "#[test]\nfn it() { assert!(kapp::v() > 0); }\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        self.set_value(1)
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        self.environment["PROBE_OUT"] = str(self.base / "probe.txt")
+        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+        subprocess.run(
+            ["cargo", "generate-lockfile"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        init_git(self.source)
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+        self.cleans: list[list[str]] = []
+
+    def set_value(self, value: int) -> None:
+        library = self.source / "kcore" / "src" / "lib.rs"
+        library.parent.mkdir(exist_ok=True)
+        library.write_text(f"pub fn value() -> u32 {{ {value} }}\n", encoding="utf-8")
+        old = time.time() - 86400
+        for path in self.source.rglob("*.rs"):
+            os.utime(path, (old, old))
+
+    def stage(self, name: str, kill: bool = False) -> None:
+        manifest = str(self.source / "Cargo.toml")
+        arguments = ["--locked", "--offline", "--manifest-path", manifest]
+        command = {
+            "clippy": ["cargo", "clippy", "--all-targets", *arguments],
+            "tests": ["cargo", "test", *arguments],
+            "rustdoc": ["cargo", "doc", "--no-deps", *arguments],
+        }[name]
+        if kill:
+            # The tests compile and the deadline kills the stage before it ends.
+            command = [
+                sys.executable, "-c",
+                "import subprocess, sys; subprocess.run(sys.argv[1:]); sys.exit(137)",
+                "cargo", "test", "--no-run", *arguments,
+            ]
+        run_checked = identity._run_checked
+
+        def recording(argv, cwd, environment):
+            if (names := cleaned_names(argv)) is not None:
+                self.cleans.append(names)
+            run_checked(argv, cwd, environment)
+
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_run_checked", side_effect=recording),
+        ):
+            try:
+                identity.run_build(
+                    self.source,
+                    self.source / "Cargo.toml",
+                    ("kcore", "kapp"),
+                    self.base / "target",
+                    command,
+                    command_cwd=self.source,
+                    command_key=f"atlas-pre-push-{name}",
+                    selection=("kcore", "kapp"),
+                )
+            except identity.IdentityError:
+                self.assertTrue(kill)
+
+    def push(self) -> None:
+        for name in ("clippy", "tests", "rustdoc"):
+            self.stage(name)
+
+    def probe(self) -> str:
+        return (self.base / "probe.txt").read_text(encoding="utf-8")
+
+    def test_a_tests_stage_killed_on_a_new_revision_leaves_clippy_recorded(self) -> None:
+        self.push()
+        self.set_value(2)
+        self.stage("clippy")
+        self.stage("tests", kill=True)
+        self.cleans.clear()
+        self.push()
+        self.assertEqual(self.cleans, [])
+        self.assertEqual(self.probe(), "7")
+
+    def test_a_unit_a_peer_rebuilt_from_other_source_is_removed_and_rebuilt(self) -> None:
+        self.push()
+        self.set_value(2)
+        self.stage("clippy")
+        self.stage("tests", kill=True)
+        self.push()
+        # A peer tree at the first revision builds the same units in place.
+        self.set_value(1)
+        subprocess.run(
+            ["cargo", "test", "--no-run", "--locked", "--offline", "--manifest-path",
+             str(self.source / "Cargo.toml")],
+            env=self.environment, check=True, capture_output=True, timeout=300,
+            cwd=self.source,
+        )
+        self.set_value(2)
+        self.cleans.clear()
+        self.push()
+        self.assertEqual(self.probe(), "7", "the peer's test units are rebuilt, not trusted")
+        self.assertEqual(self.cleans, [])
+
+    def test_clippy_recovering_through_a_sibling_keeps_its_units_after_a_tests_kill(self) -> None:
+        self.set_value(2)
+        self.push()
+        self.set_value(3)
+        self.stage("rustdoc")
+        self.stage("clippy")
+        self.stage("tests", kill=True)
+        self.cleans.clear()
+        self.stage("clippy")
+        self.assertEqual(self.cleans, [])
+        self.stage("tests")
+        self.assertEqual(self.probe(), "8")
 
 
 @pytest.mark.slow
@@ -6344,8 +6513,10 @@ class MultiPackageRunTestCase(unittest.TestCase):
             path.write_bytes(b"a stand-in for " + path.name.encode())
         second = self.push(self.base / "gate2")
         self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
-        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
-        self.assertEqual(cleans, [["c"]])
+        # No `cargo clean`: `c`'s mismatched units are removed and rebuilt.
+        self.assertEqual([argv for argv in self.invocations() if argv[1] == "clean"], [])
+        for path in deps.glob("libc-*"):
+            self.assertNotIn(b"a stand-in for", path.read_bytes(), path.name)
 
     def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
         first = self.push(self.base / "gate1", packages=("a", "b"))
