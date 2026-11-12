@@ -1775,17 +1775,25 @@ else
   echo "pre-push: source identity checker not reachable from this clone; CI enforces it" >&2
 fi
 
-# The source-identity checker executes each phase's complete sequence as one
-# command, so its package leases stay held through that phase's Cargo commands
-# and final source/dependency checks. Releasing them between commands allowed a
-# peer to replace the shared artifacts after Clippy or tests had accepted them.
+# The source-identity checker executes each stage of the sequence -- warning-
+# denied Clippy, Nextest, Rustdoc -- as one command over every gated package,
+# so a stage holds its package leases through its own Cargo command and final
+# source/dependency checks, and a stage's artifacts are recorded the moment
+# that stage succeeds. One command for the whole sequence recorded nothing
+# when the supervisor's deadline killed it in a later stage: the next run
+# found no record and cleaned what the killed run had built (ADR 0064).
+# A peer that replaces artifacts between two stages makes the next stage's
+# lookup mismatch under its own leases, so it cleans and rebuilds; no stage
+# accepts artifacts it did not verify itself.
 #
 # A step over another tree -- normally this workspace's export -- sets
 # step_root, step_manifest, step_selection and step_key for its call, and
 # step_ours=return makes a failure of its own a status of 3 for the caller to
 # handle instead of a refusal; the defaults are this workspace's values.
-# With the cast gate in play the clippy stage runs through it, which records
-# this selection's cast sites beside the build.
+# Each stage runs under the step's command key suffixed with the stage name,
+# so a stage's record is its own and a valid sibling stage's record stands in
+# for it. With the cast gate in play the clippy stage runs through it, which
+# records this selection's cast sites beside the build.
 run_identity_sequence() {
   local run_clippy="$1" run_tests="$2" run_rustdoc="$3" stage_file="$4"
   local root="${step_root:-$gate_export}"
@@ -1800,97 +1808,100 @@ run_identity_sequence() {
     selection_arguments+=(--selection "$package_name")
     selection+=(-p "$package_name")
   done
-  local identity_command
-  identity_command=(
-    "$python_bin" "$identity_checker" run
-    --root "$root"
-    "${package_arguments[@]}"
-    "${selection_arguments[@]}"
-    --target-dir "$identity_target_dir"
-    --profile debug
-    --target "$identity_target"
-    --manifest "$manifest"
-    --command-cwd "$command_cwd"
-    --command-key "${step_key:-atlas-pre-push}"
-    --
-    bash -c '
-stage_file="$1"
-manifest="$2"
-run_clippy="$3"
-run_tests="$4"
-run_rustdoc="$5"
-command_root="$6"
-cast_python="$7"
-cast_gate="$8"
-cast_sites="$9"
-manifest_relative="${10}"
-progress="${11}"
-shift 11
+  local stages=() stage
+  [ "$run_clippy" -ne 1 ] || stages+=(clippy)
+  [ "$run_tests" -ne 1 ] || stages+=(tests)
+  [ "$run_rustdoc" -ne 1 ] || stages+=(rustdoc)
+  local identity_command verdict step_name
+  for stage in "${stages[@]}"; do
+    identity_command=(
+      "$python_bin" "$identity_checker" run
+      --root "$root"
+      "${package_arguments[@]}"
+      "${selection_arguments[@]}"
+      --target-dir "$identity_target_dir"
+      --profile debug
+      --target "$identity_target"
+      --manifest "$manifest"
+      --command-cwd "$command_cwd"
+      --command-key "${step_key:-atlas-pre-push}-$stage"
+      --
+      bash -c '
+stage="$1"
+stage_file="$2"
+manifest="$3"
+command_root="$4"
+cast_python="$5"
+cast_gate="$6"
+cast_sites="$7"
+manifest_relative="$8"
+progress="$9"
+origin="${10}"
+shift 10
 cargo_command="${CARGO:-cargo}"
+# Stage times are seconds since the hook started, one clock across stages.
 record_stage() {
   printf "%s\n" "$1" >"$stage_file"
-  [ -z "$progress" ] || printf "%s started %s\n" "$1" "$SECONDS" >>"$progress/stages.log"
+  [ -z "$progress" ] || printf "%s started %s\n" "$1" "$((origin + SECONDS))" >>"$progress/stages.log"
 }
 complete_stage() {
-  [ -z "$progress" ] || printf "%s completed %s\n" "$1" "$SECONDS" >>"$progress/stages.log"
+  [ -z "$progress" ] || printf "%s completed %s\n" "$1" "$((origin + SECONDS))" >>"$progress/stages.log"
 }
-if [ "$run_clippy" = 1 ]; then
-  record_stage clippy
-  if [ -n "$cast_gate" ]; then
-    "$cast_python" "$cast_gate" clippy --export "$command_root" --manifest "$manifest_relative" --sites "$cast_sites" "$@" || exit $?
-  else
-    "$cargo_command" clippy --manifest-path "$manifest" --all-targets --locked "$@" || exit $?
-  fi
-  complete_stage clippy
-fi
-if [ "$run_tests" = 1 ]; then
-  record_stage tests
-  "$cargo_command" nextest run --manifest-path "$manifest" --locked --no-tests=pass "$@" || exit $?
-  complete_stage tests
-fi
-if [ "$run_rustdoc" = 1 ]; then
-  record_stage rustdoc
-  env -u CARGO_ENCODED_RUSTDOCFLAGS RUSTDOCFLAGS="-D warnings" \
-    "$cargo_command" doc --no-deps --manifest-path "$manifest" --locked "$@" || exit $?
-  complete_stage rustdoc
-fi
+record_stage "$stage"
+case "$stage" in
+  clippy)
+    if [ -n "$cast_gate" ]; then
+      "$cast_python" "$cast_gate" clippy --export "$command_root" --manifest "$manifest_relative" --sites "$cast_sites" "$@" || exit $?
+    else
+      "$cargo_command" clippy --manifest-path "$manifest" --all-targets --locked "$@" || exit $?
+    fi
+    ;;
+  tests)
+    "$cargo_command" nextest run --manifest-path "$manifest" --locked --no-tests=pass "$@" || exit $?
+    ;;
+  rustdoc)
+    env -u CARGO_ENCODED_RUSTDOCFLAGS RUSTDOCFLAGS="-D warnings" \
+      "$cargo_command" doc --no-deps --manifest-path "$manifest" --locked "$@" || exit $?
+    ;;
+esac
+complete_stage "$stage"
 record_stage verification
-' atlas-pre-push-sequence "$stage_file" "$manifest" "$run_clippy" "$run_tests" "$run_rustdoc" \
-    "$root" "$python_bin" "${cast_gate:-}" "${cast_sites:-}" "$manifest_relative" "${phase_progress:-}"
-    "${selection[@]}"
-  )
-  local verdict step_name
-  verdict="$(classify_gate_step "$gate_log" "${identity_command[@]}")"
-  step_name="$(cat "$stage_file" 2>/dev/null || true)"
-  [ -n "$step_name" ] || step_name="source identity sequence"
-  case "$verdict" in
-    ok)
-      [ -z "${phase_progress:-}" ] \
-        || printf "verification completed %s\n" "$SECONDS" >>"$phase_progress/stages.log"
-      ;;
-    identity)
-      cat >&2 <<MESSAGE
+' atlas-pre-push-sequence "$stage" "$stage_file" "$manifest" \
+        "$root" "$python_bin" "${cast_gate:-}" "${cast_sites:-}" "$manifest_relative" \
+        "${phase_progress:-}" "$SECONDS"
+      "${selection[@]}"
+    )
+    verdict="$(classify_gate_step "$gate_log" "${identity_command[@]}")"
+    step_name="$(cat "$stage_file" 2>/dev/null || true)"
+    [ -n "$step_name" ] || step_name="source identity sequence"
+    case "$verdict" in
+      ok) ;;
+      identity)
+        cat >&2 <<MESSAGE
 
 pre-push: source identity blocked $step_name for$gate_packages; no artifact was accepted.
 MESSAGE
-      grep -m 1 'atlas-build-identity:' "$gate_log" >&2 || true
-      exit 1
-      ;;
-    ours)
-      [ "${step_ours:-}" = return ] && return 3
-      cat >&2 <<MESSAGE
+        grep -m 1 'atlas-build-identity:' "$gate_log" >&2 || true
+        exit 1
+        ;;
+      ours)
+        [ "${step_ours:-}" = return ] && return 3
+        cat >&2 <<MESSAGE
 
 pre-push: $step_name fails for$gate_packages, so the source-identity build did not complete.
 MESSAGE
-      grep -m 1 '^error' "$gate_log" >&2 || true
-      exit 1
-      ;;
-    environment)
-      report_broken_graph "source identity $step_name" "$gate_log"
-      echo "pre-push: source identity did not verify the pushed revision" >&2
-      exit 1
-      ;;
-  esac
+        grep -m 1 '^error' "$gate_log" >&2 || true
+        exit 1
+        ;;
+      environment)
+        report_broken_graph "source identity $step_name" "$gate_log"
+        echo "pre-push: source identity did not verify the pushed revision" >&2
+        exit 1
+        ;;
+    esac
+  done
+  [ "${#stages[@]}" -eq 0 ] || [ -z "${phase_progress:-}" ] \
+    || printf "verification completed %s\n" "$SECONDS" >>"$phase_progress/stages.log"
 }
 
 # Cast sites for the count against the base, which runs first: base and tip
