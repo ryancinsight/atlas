@@ -1,0 +1,8 @@
+<a id="atlas-board-lint-milestone"></a>
+## ATLAS-BOARD-LINT-MILESTONE — Board lint does not count items missing a milestone [patch] — todo
+- Outcome: once a repository has `backlog/milestones.md`, `board_schema_counts` counts its open items without a `milestone:` field, as one class under the conformance ratchet, and counts nothing for a repository with no ladder.
+- Evidence (origin/main 12708acf3ae4892d4443627f0d6d5016ddeb29d7): `git grep -i milestone -- scripts/atlas-board-lint.py scripts/atlas_board_items.py` is empty. `board_schema_counts` (`scripts/atlas-board-lint.py` lines 596-604) returns four classes (statuses, anchors, priorities, checklist files) and no milestone class. `PRIORITY_LINE` (line 534) accepts its field on its own line or in a `;`-separated field line; the milestone field needs the same two forms plus `**Milestone:**`, which hermes#282 used. Member ladders are rolled out by [ATLAS-V1-MILESTONE-LADDERS-001](../backlog.md#atlas-v1-milestone-ladders-001); mnemosyne and leto already hold `backlog/milestones.md`.
+- Oracle: tests in `scripts/tests/test_atlas_board_lint.py`: with a ladder, an item with `milestone: M-x`, one with `**Milestone:** M-x` and one with neither count 0, 0, 1; without a ladder the class is 0 for all three.
+- basis: 12708acf3ae4892d4443627f0d6d5016ddeb29d7; priority: verification; needs: none
+- scope: `scripts/atlas-board-lint.py`, `scripts/tests/test_atlas_board_lint.py`, the conformance baseline rows for the new class
+- Next step: add `MILESTONE_LINE` beside `PRIORITY_LINE`, the class to `board_schema_counts`, and member baseline rows from one measured scan.
