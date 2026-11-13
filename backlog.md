@@ -3,7 +3,6 @@
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — todo
-<a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — todo
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
@@ -12,7 +11,6 @@
 <a id="atlas-book-figure-closure-2026-08-21"></a>- [ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21](backlog/atlas-book-figure-closure-2026-08-21.md) — Restore generated validation figures [patch] — todo
 <a id="atlas-bounded-runner"></a>- [ATLAS-BOUNDED-RUNNER](backlog/atlas-bounded-runner.md) — Launch every agent process through one bounded runner [patch] — todo
 <a id="atlas-branch-inventory-001"></a>- [ATLAS-BRANCH-INVENTORY-001](backlog/atlas-branch-inventory-001.md) — Burn down stack branch inventories [git-hygiene] [patch] — todo
-<a id="atlas-cfdrs-athena-migration-001"></a>- [ATLAS-CFDRS-ATHENA-MIGRATION-001](backlog/atlas-cfdrs-athena-migration-001.md) — Stage B: CFDrs to Athena [major] [arch] — todo
 <a id="atlas-cfdrs-chain-ladder-001"></a>- [ATLAS-CFDRS-CHAIN-LADDER-001](backlog/atlas-cfdrs-chain-ladder-001.md) — Consolidate the two tiered ladders [patch] — blocked
 <a id="atlas-cfdrs-lane-diverged-208"></a>- [ATLAS-CFDRS-LANE-DIVERGED-208](backlog/atlas-cfdrs-lane-diverged-208.md) — CFDrs lane holds 99 unpushed commits and is 18 behind its own remote [patch] — todo
 <a id="atlas-cfdrs-python-gil-2026-08-21"></a>- [ATLAS-CFDRS-PYTHON-GIL-2026-08-21](backlog/atlas-cfdrs-python-gil-2026-08-21.md) — Complete PyO3 solver GIL boundaries [minor] — todo
@@ -20,7 +18,6 @@
 <a id="atlas-check-figures-ci-verify-defer"></a>- [ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER](backlog/atlas-check-figures-ci-verify-defer.md) — End-to-end CI verification of `prebook check-figures` [minor] — todo
 <a id="atlas-ci-runner-saturation-2026-08-25"></a>- [ATLAS-CI-RUNNER-SATURATION-2026-08-25](backlog/atlas-ci-runner-saturation-2026-08-25.md) — Hosted-runner queue depth delays every merge gate [patch] — blocked
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — todo
-<a id="atlas-coeus-nlls-004"></a>- [ATLAS-COEUS-NLLS-004](backlog/atlas-coeus-nlls-004.md) — original specification — todo
 <a id="atlas-coeus-cpu-consumer-migration"></a>- [ATLAS-COEUS-CPU-CONSUMER-MIGRATION](backlog/atlas-coeus-cpu-consumer-migration.md) — Migrate out-of-repo coeus-leto consumers to coeus-cpu [major] — todo
 <a id="atlas-coeus-cpu-overlay"></a>- [ATLAS-COEUS-CPU-OVERLAY](backlog/atlas-coeus-cpu-overlay.md) — Commit the stack overlay's coeus-cpu row [patch] — blocked
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — todo
@@ -87,8 +84,6 @@
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — todo
 <a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
-<a id="atlas-secret-scan-allowlist-source"></a>- [ATLAS-SECRET-SCAN-ALLOWLIST-SOURCE](backlog/atlas-secret-scan-allowlist-source.md) — Read the secret allowlist from a trusted revision [patch] — todo
-<a id="atlas-shared-tree-stale-basis-2026-09-17"></a>- [ATLAS-SHARED-TREE-STALE-BASIS-2026-09-17](backlog/atlas-shared-tree-stale-basis-2026-09-17.md) — Reconcile the checkout and finish its stale-index guard [patch] — todo
 <a id="sibling-named-crates"></a>- [ATLAS-SIBLING-NAMED-CRATES-2026-09-04](backlog/sibling-named-crates.md) — Nine crates are named after a sibling member, not a concern [arch] [major] — todo
 <a id="slop-burndown"></a>- [ATLAS-SLOP-BURNDOWN-2026-09-06](backlog/slop-burndown.md) — Measured debt burn-down against the conformance ratchet [patch] — todo
 <a id="atlas-stack-leto-churn-017"></a>- [ATLAS-STACK-LETO-CHURN-017](backlog/atlas-stack-leto-churn-017.md) — Upstream working-tree churn blocks consumer verification — todo
