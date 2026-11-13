@@ -17,12 +17,12 @@ Fix direction: remove the stand-in, or make it sound under a revised ADR 0064; t
 Re-open trigger: the harness lands and measures the sibling cells, or a record copied through the stand-in is shown to vouch for changed bytes in a push.
 
 <a id="kwavers-deadline-margin"></a>
-## Finding 2026-11-13: a two-package kwavers push clears the pre-push deadline by 3 s
+## Finding 2026-11-13: a two-package kwavers push misses the pre-push deadline
 
-Risk: a gated push of two kwavers packages finished 3 s inside the 600 s hook deadline on a quiet host, so ordinary run-to-run spread fails it.
-Evidence: ryancinsight/kwavers#1065 passed the installed pre-push gate on 2026-11-13. Stage timings: clippy 0-93 s, tests 93-399 s, rustdoc 399-435 s, verification 435-597 s; the verification stage alone took 162 s. Same-plan identity reruns differed by 58.4 s.
-Fix direction: attribute the 162 s verification stage per step and profile the slowest, so that push fits with a margin derived from run-to-run spread.
-Re-open trigger: a deadline kill of a gated kwavers push on a quiet host, or the per-step attribution is recorded.
+Risk: gated pushes of `kwavers-simulation` and `kwavers-solver` end at or past the 600 s hook deadline on a quiet host. One push passed with about 3 s to spare; the next, which adds two tests, was killed in rustdoc.
+Evidence: ryancinsight/kwavers#1065, 2026-11-13. The push of its first head passed; its identity records were written 598.96 s after the hook started. The push of the next head was killed at 600 s, after clippy 62 s and tests 360 s (nextest: 1243 tests in 237.849 s), with rustdoc unfinished. The hook's stage lines use two clocks: `started` and `completed` come from the identity command's inner shell, whose `$SECONDS` starts at 0, and `verification completed` comes from the outer hook. So the first push's "verification 435-597 s" is not a stage. About 139 s of hook work precedes the inner clock's 0 (derived from file times of the killed push), and the hook records no per-step times. 47 tests of the two packages run exclusively (`threads-required = "num-test-threads"` in kwavers `.config/nextest.toml`), for CPU oversubscription by internally parallel solvers, not for a shared device.
+Fix direction: record per-step wall-clock times in the hook, and keep the progress directory of a measured push (`ATLAS_GATE_PROGRESS_PARENT`). Then shorten the steps before the identity command and the exclusive test set, without raising the deadline.
+Re-open trigger: a deadline kill of a gated push on a quiet host, or a push whose per-step times are recorded.
 
 <a id="stage-records-rerun-cost"></a>
 ## Finding 2026-11-13: a rerun after a deadline kill cleans packages the killed run did not write
