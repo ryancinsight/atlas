@@ -2,17 +2,15 @@
 """Peer-write and kill matrix for the pre-push stage sequence, on real Cargo.
 
 Each cell builds a fixture (kcore with a build script and a large generated
-module, kapp with a probe test, Git crate kgit) in its own temporary directory
-and drives `atlas-build-identity.py run` of the tree under test with the
-hook's stage commands. A cell reports whether the final complete sequence is
-sound (the probe, every kcore `gen.rs` and the rustdoc pages of `value` and
-`GEN` equal the current revision's) and how many units it rebuilt: the
-`.fingerprint` and `build` directories whose files changed in name, mtime or
-size across it. A cleaner that rebuilds everything is sound everywhere and
-proves nothing. An unexpected exit makes the cell ERR; a kill lands only
-while the intended stage runs. Pass `--root` a short directory on Windows.
+module, kapp with a probe test, Git crate kgit) in its own directory and drives
+the tree's `atlas-build-identity.py run` with the hook's stage commands. A cell
+is sound when the final complete sequence leaves the probe, every kcore
+`gen.rs` and the `value` and `GEN` rustdoc pages at the current revision. It
+reports the units rebuilt: `.fingerprint` and `build` directories whose files
+changed across that sequence. An unexpected exit, a peer failure, or output
+after a kill makes the cell ERR; a kill lands only while its stage runs.
 
-    atlas_stage_matrix.py --tree <checkout> --shape single --setup repush
+    atlas_stage_matrix.py --tree <checkout> --root <short dir> --setup repush
     atlas_stage_matrix.py --compare parent.json head.json
 """
 
@@ -34,13 +32,14 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 STAGES = ("clippy", "tests", "rustdoc")
-SHAPES = ("single", "stage", "samekey")
+SHAPES = ("single", "samekey")
 SETUPS = ("repush", "first", "sibling")
 KINDS = ("none", "nextest", "clippy", "doc", "buildrs", "data")
-# P: a peer before clippy, between clippy and tests, between tests and
-# rustdoc. KT and KR: the tests (rustdoc) stage tree-killed that many seconds
-# after its first compile (documentation) line; the heartbeat period is 5 s.
+# P: a peer before clippy, between clippy and tests, between tests and rustdoc.
+# KT/KR: the tests/rustdoc stage killed that many seconds after its first
+# compile/documentation line (heartbeat 5 s); `--compare` skips the 7 s ones.
 POSITIONS = ("P0", "P1", "P2", "KT2", "KT7", "KR2", "KR7")
+TIMING = ("KT7", "KR7")
 REVISIONS = {1: (1, 10), 2: (2, 20)}
 EXPECTED = {"probe": "27", "gen": "pub const GEN: u32 = 20;"}
 STAGE_SCRIPT = """\
@@ -54,14 +53,19 @@ for stage in "$@"; do
     rustdoc) env -u CARGO_ENCODED_RUSTDOCFLAGS RUSTDOCFLAGS="-D warnings" \\
       cargo doc --no-deps --manifest-path "$manifest" --locked "${selection[@]}" || exit $? ;;
   esac
+  echo "::done $stage" >&2
   [ "$PEER_AFTER" != "$stage" ] || python "$PEER_SCRIPT" || exit 99
 done
 """
 PEER_SCRIPT = """\
 import os, subprocess, sys
+from pathlib import Path
 kind, peer = os.environ["PEER_KIND"], os.environ["PEER_DIR"]
 if kind == "none":
     sys.exit(0)
+for path in Path(peer).rglob("*"):  # newer than every unit the running build wrote since the sources were laid down
+    if path.is_file() and ".git" not in path.parts:
+        os.utime(path)
 env = {**os.environ, "CARGO_TARGET_DIR": os.environ["PEER_TARGET"]}
 tail = ["--manifest-path", peer + "/Cargo.toml", "--locked", "-p", "kcore", "-p", "kapp"]
 if kind == "doc":
@@ -70,7 +74,10 @@ command = {
     "clippy": ["cargo", "clippy", "--all-targets", *tail],
     "doc": ["cargo", "doc", "--no-deps", *tail],
 }.get(kind, ["cargo", "nextest", "run", "--no-tests=pass", "--no-run", *tail])
-sys.exit(subprocess.run(command, env=env, cwd=peer, capture_output=True).returncode)
+code = subprocess.run(command, env=env, cwd=peer, capture_output=True).returncode
+if code:
+    Path(os.environ["PEER_RC"]).write_text(str(code))
+sys.exit(code)
 """
 
 
@@ -90,16 +97,21 @@ def _commit(cwd, message: str) -> None:
     _git(cwd, "commit", "-q", "-m", message)
 
 
-def _tree_kill(process: subprocess.Popen) -> None:
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True)
-    else:
-        os.killpg(process.pid, signal.SIGKILL)
+def _contain(process: subprocess.Popen):
+    """A function killing the process and all its descendants; a Job Object follows MSYS re-parenting, taskkill /T does not."""
+    if os.name != "nt":
+        return lambda: os.killpg(process.pid, signal.SIGKILL)
+    import ctypes
+    from ctypes import wintypes
 
-
-def _remove(path: Path) -> None:
-    """Delete a tree, clearing the read-only bit Git sets on its objects; a failure is raised."""
-    shutil.rmtree(path, onerror=lambda function, name, _error: (os.chmod(name, stat.S_IWRITE), function(name)))
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateJobObjectW.restype = wintypes.HANDLE
+    k32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+    k32.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+    job = k32.CreateJobObjectW(None, None)
+    if not k32.AssignProcessToJobObject(job, wintypes.HANDLE(int(process._handle))):
+        raise OSError(ctypes.get_last_error(), "cannot place the identity process in a Job Object")
+    return lambda: k32.TerminateJobObject(job, 1)
 
 
 def _expect(code: int, what: str) -> None:
@@ -110,13 +122,13 @@ def _expect(code: int, what: str) -> None:
 class Cell:
     def __init__(self, tree: Path, shape: str, setup: str, kind: str, position: str, functions: int, root: Path | None):
         self.scripts, self.shape, self.setup, self.kind, self.position = tree / "scripts", shape, setup, kind, position
-        self.functions = functions
+        self.functions, self.killed, self.triggered = functions, False, False
         self.base = Path(tempfile.mkdtemp(prefix="sm-", dir=root))  # unresolved: a subst drive stays short
         self.source, self.peer, self.target = self.base / "ws", self.base / "peer", self.base / "target"
         self.environment = {k: v for k, v in os.environ.items() if k != "CARGO_TARGET_DIR"}
-        self.environment.update(PROBE_OUT=str(self.base / "probe.txt"), CARGO_HOME=str(self.base / "c"))
-        self.stage = self.landed = None
-        self.killed = self.triggered = False
+        self.environment.update(PROBE_OUT=str(self.base / "probe.txt"), CARGO_HOME=str(self.base / "c"),
+                                PEER_RC=str(self.base / "peer.rc"))
+        self.stage = self.landed = self.kill = self.killed_at = None
 
     def write_revision(self, root: Path, revision: int, aged: bool, scale: int = 1, data: int | None = None) -> None:
         value, number = REVISIONS[revision]
@@ -124,10 +136,8 @@ class Cell:
         (core / "src").mkdir(parents=True, exist_ok=True)
         big = "".join(f"/// Generated {n}.\npub fn big{n}() -> u32 {{ {n} }}\n" for n in range(self.functions))
         (core / "src" / "big.rs").write_text(big)
-        (core / "src" / "lib.rs").write_text(
-            'include!(concat!(env!("OUT_DIR"), "/gen.rs"));\npub mod big;\n'
-            f"/// The value is {value}.\npub fn value() -> u32 {{ {value} }}\n"
-        )
+        (core / "src" / "lib.rs").write_text('include!(concat!(env!("OUT_DIR"), "/gen.rs"));\npub mod big;\n'
+                                             f"/// The value is {value}.\npub fn value() -> u32 {{ {value} }}\n")
         (core / "data.txt").write_text(f"{number if data is None else data}\n")
         (core / "build.rs").write_text(
             'fn main() {\n    println!("cargo:rerun-if-changed=data.txt");\n    println!("cargo:rerun-if-changed=build.rs");\n'
@@ -137,9 +147,8 @@ class Cell:
         )
         if aged:
             old = time.time() - 86400
-            for path in root.rglob("*"):
-                if path.is_file() and ".git" not in path.parts:
-                    os.utime(path, (old, old))
+            for path in (p for p in root.rglob("*") if p.is_file() and ".git" not in p.parts):
+                os.utime(path, (old, old))
 
     def build_fixture(self) -> None:
         kgit = self.base / "kgit"
@@ -175,26 +184,23 @@ class Cell:
 
     def run_peer(self) -> None:
         self.prepare_peer()
-        environment = {**self.environment, "PEER_KIND": self.kind, "PEER_DIR": str(self.peer),
-                       "PEER_TARGET": self.target.resolve().as_posix()}
-        code = subprocess.run([sys.executable, str(self.base / "peer.py")], env=environment, capture_output=True,
-                              timeout=900).returncode
-        if code:
-            raise RuntimeError(f"the {self.kind} peer exited {code}")
+        subprocess.run([sys.executable, str(self.base / "peer.py")], env=self.peer_environment(), capture_output=True, timeout=900)
+
+    def peer_environment(self, after: str | None = None) -> dict:
+        return {**self.environment, "PEER_KIND": self.kind, "PEER_DIR": str(self.peer), "PEER_AFTER": after or "",
+                "PEER_SCRIPT": str(self.base / "peer.py"), "PEER_TARGET": self.target.resolve().as_posix()}
 
     def land(self, process: subprocess.Popen, wanted: str) -> None:
-        self.landed = self.stage if process.poll() is None else "exited"
+        self.landed = (self.stage or "after") if process.poll() is None else "exited"
         if self.landed == wanted:
-            self.killed = True
-            _tree_kill(process)
+            self.killed, self.killed_at = True, time.monotonic()
+            self.kill()
 
     def identity(self, stages, key: str, peer_after: str | None = None, kill: tuple[str, float] | None = None) -> int:
         manifest = (self.source / "Cargo.toml").as_posix()
-        environment = dict(self.environment)
         if peer_after:
             self.prepare_peer()
-            environment.update(PEER_AFTER=peer_after, PEER_KIND=self.kind, PEER_DIR=str(self.peer),
-                               PEER_SCRIPT=str(self.base / "peer.py"), PEER_TARGET=self.target.resolve().as_posix())
+        environment = self.peer_environment(peer_after)
         command = [sys.executable, str(self.scripts / "atlas-build-identity.py"), "run", "--root", str(self.source),
                    "--package", "kcore", "--package", "kapp", "--selection", "kcore", "--selection", "kapp",
                    "--target-dir", str(self.target), "--profile", "debug", "--target", "host", "--manifest", manifest,
@@ -202,27 +208,29 @@ class Cell:
                    manifest, *stages]
         process = subprocess.Popen(command, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, start_new_session=os.name != "nt")
+        self.kill, self.killed_at = _contain(process), None
         trigger = {"tests": "Compiling ", "rustdoc": "Documenting "}
         for line in process.stdout:
-            if line.startswith("::stage "):
-                self.stage = line.split()[1]
+            if line.startswith("::stage ") or line.startswith("::done "):
+                self.stage = line.split()[1] if line.startswith("::s") else None
             if kill and not self.triggered and self.stage == kill[0] and line.lstrip().startswith(trigger[self.stage]):
                 self.triggered = True
                 threading.Timer(kill[1], self.land, [process, kill[0]]).start()
+        if self.killed_at and time.monotonic() - self.killed_at > 3:
+            raise RuntimeError(f"output continued {time.monotonic() - self.killed_at:.0f} s after the kill")
         return process.wait()
 
     def sequence(self, position: str | None = None, kill: tuple[str, float] | None = None) -> int:
-        point = {"P0": None, "P1": "clippy", "P2": "tests"}.get(position)
+        point = {"P1": "clippy", "P2": "tests"}.get(position)
         if self.shape == "single":
             if position == "P0":
                 self.run_peer()
             return self.identity(STAGES, "atlas-pre-push", peer_after=point, kill=kill)
         status = 0
         for stage in STAGES:
-            if position == {"clippy": "P0", "tests": "P1", "rustdoc": "P2"}[stage]:
+            if position == f"P{STAGES.index(stage)}":
                 self.run_peer()
-            key = "atlas-pre-push" if self.shape == "samekey" else f"atlas-pre-push-{stage}"
-            code = self.identity((stage,), key, kill=kill if kill and kill[0] == stage else None)
+            code = self.identity((stage,), "atlas-pre-push", kill=kill if kill and kill[0] == stage else None)
             status = status or code
             if kill and kill[0] == stage and self.killed:
                 return code
@@ -235,13 +243,13 @@ class Cell:
     def verdict(self, final: int) -> dict:
         probe = (self.base / "probe.txt").read_text().strip() if (self.base / "probe.txt").exists() else None
         gens = sorted({p.read_text().strip() for p in (self.target / "debug" / "build").glob("kcore-*/out/gen.rs")})
-        page = lambda name: re.sub(r"<[^>]+>", "", (self.target / "doc" / "kcore" / name).read_text(encoding="utf-8"))  # noqa: E731
-        try:
-            documented = "The value is 2" in page("fn.value.html") and re.search(r"GEN: u32 = 20(?![0-9])", page("constant.GEN.html"))
-        except OSError:
-            documented = False
-        why = (f"rc{final}" if final else probe if probe != EXPECTED["probe"] else "gen" if gens != [EXPECTED["gen"]]
-               else None if documented else "page")
+        def page(name: str) -> str:
+            path = self.target / "doc" / "kcore" / name
+            return re.sub(r"<[^>]+>", "", path.read_text(encoding="utf-8")) if path.exists() else ""
+
+        documented = "The value is 2" in page("fn.value.html") and re.search(r"GEN: u32 = 20(?![0-9])", page("constant.GEN.html"))
+        wrong = [n for n, ok in (("probe", probe == EXPECTED["probe"]), ("gen", gens == [EXPECTED["gen"]]), ("page", documented)) if not ok]
+        why = f"rc{final}" if final else "+".join(wrong) or None
         return {"probe": probe, "gens": gens, "why": why, "safe": why is None}
 
     def execute(self) -> dict:
@@ -252,7 +260,6 @@ class Cell:
                 _expect(self.sequence(), "the warm sequence")
             self.write_revision(self.source, 2, True)
             if self.setup == "sibling":
-                # Another command key over the same build: its record can stand in for the stage's own.
                 _expect(self.identity(("clippy",), "atlas-pre-push-sibling"), "the sibling clippy run")
             if self.position.startswith("K"):
                 stage = "tests" if self.position.startswith("KT") else "rustdoc"
@@ -264,14 +271,18 @@ class Cell:
                 _expect(self.sequence(), "the first R2 sequence")
             before = self.units()
             final = self.sequence(None if self.position.startswith("K") else self.position)
-            _expect(99 if final == 99 else 0, "the peer inside the sequence")
+            if (self.base / "peer.rc").exists():
+                raise RuntimeError(f"the {self.kind} peer exited {(self.base / 'peer.rc').read_text()}")
             after = self.units()
             changed = {"/".join(k.split("/")[1:3]) for k in before.keys() | after.keys() if before.get(k) != after.get(k)}
             outcome.update(self.verdict(final), final=final, rebuilt=len(changed), killed=self.killed, landed=self.landed)
         except Exception as error:  # a broken cell is reported, never dropped
             outcome.update(error=str(error)[-300:], safe=False)
         finally:
-            _remove(self.base)
+            try:
+                shutil.rmtree(self.base, onerror=lambda function, name, _e: (os.chmod(name, stat.S_IWRITE), function(name)))
+            except OSError as error:
+                outcome.update(error=f"cleanup: {error}", safe=False)
         return outcome
 
 
@@ -299,7 +310,7 @@ def compare(parent: list[dict], head: list[dict]) -> list[str]:
     key = lambda r: (r["shape"], r["setup"], r["kind"], r["position"])  # noqa: E731
     new = {key(r): r for r in head}
     problems = []
-    for old in parent:
+    for old in (o for o in parent if o["position"] not in TIMING):
         name = "/".join(key(old))
         r = new.get(key(old))
         if r is None:
