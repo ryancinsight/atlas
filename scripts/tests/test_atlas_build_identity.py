@@ -6387,8 +6387,8 @@ class MultiPackageRunTestCase(unittest.TestCase):
             push()
         return removed
 
-    def test_a_peer_rerunning_a_build_script_is_not_trusted(self) -> None:
-        """A peer at the first revision rewrites `out/gen.rs`; every listed file keeps its bytes."""
+    def _peer_workspace(self) -> tuple[Path, Path, list[str], list[str]]:
+        """A peer's clone, the gate export, and the cargo flags and command over `a`."""
         peer = self.base / "peer" / "ws"
         peer.parent.mkdir()
         subprocess.run(["git", "clone", "-q", str(self.source), str(peer)], check=True)
@@ -6396,6 +6396,18 @@ class MultiPackageRunTestCase(unittest.TestCase):
         export = self.base / "gate1" / "nested" / "ws"
         flags = ["--locked", "--offline", "-p", "a"]
         command = ["cargo", "test", "-q", "--manifest-path", str(export / "Cargo.toml"), *flags]
+        return peer, export, flags, command
+
+    def _peer_test(self, peer: Path, flags: list[str], target: str) -> None:
+        subprocess.run(
+            ["cargo", "test", "-q", "--manifest-path", str(peer / "Cargo.toml"), *flags],
+            env={**self.environment, "CARGO_TARGET_DIR": target},
+            check=True, timeout=300, cwd=peer,
+        )
+
+    def test_a_peer_rerunning_a_build_script_is_not_trusted(self) -> None:
+        """A peer at the first revision rewrites `out/gen.rs`; every listed file keeps its bytes."""
+        peer, export, flags, command = self._peer_workspace()
 
         def probe() -> str:
             return (self.base / "probe.txt").read_text(encoding="utf-8")
@@ -6411,16 +6423,36 @@ class MultiPackageRunTestCase(unittest.TestCase):
         self.assertEqual(probe(), "3")
         for edit in ("", "// only a changes\n"):
             (peer / "b" / "data.txt").write_text("1" + chr(10), encoding="utf-8")
-            subprocess.run(
-                ["cargo", "test", "-q", "--manifest-path", str(peer / "Cargo.toml"), *flags],
-                env={**self.environment, "CARGO_TARGET_DIR": str(self.base / "target")},
-                check=True, timeout=300, cwd=peer,
-            )
+            self._peer_test(peer, flags, str(self.base / "target"))
             self.assertEqual((probe(), generated()), ("2", {"pub const GEN: u32 = 1;"}), "the peer built the first revision")
             with (export / "a" / "src" / "lib.rs").open("a", encoding="utf-8") as stream:
                 stream.write(edit)
             self.push(self.base / "gate1", command=command, packages=("a", "b"))
             self.assertEqual((probe(), generated()), ("3", {"pub const GEN: u32 = 2;"}), repr(edit))
+
+    def test_a_peer_recompiling_the_build_script_is_not_trusted(self) -> None:
+        """A peer's other `build.rs` replaces the compile unit's executable in place.
+
+        The unit's `.d` and fingerprint files keep their bytes; only the
+        executable differs, so the build unit must list it.
+        """
+        peer, export, flags, command = self._peer_workspace()
+        probe = self.base / "probe.txt"
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        (export / "b" / "data.txt").write_text("2\n", encoding="utf-8")
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        build = peer / "b" / "build.rs"
+        build.write_text(build.read_text(encoding="utf-8").replace("= {};", "= {}00;"), encoding="utf-8")
+        self._peer_test(peer, flags, (self.base / "target").as_posix())
+        self.assertEqual(probe.read_text(encoding="utf-8"), "101", "the peer built its own script")
+        with (export / "a" / "src" / "lib.rs").open("a", encoding="utf-8") as stream:
+            stream.write("// only a changes\n")
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        outs = (self.base / "target" / "debug" / "build").glob("b-*/out/gen.rs")
+        self.assertEqual(
+            (probe.read_text(encoding="utf-8"), {path.read_text(encoding="utf-8") for path in outs}),
+            ("3", {"pub const GEN: u32 = 2;"}),
+        )
 
     def test_a_matched_record_lists_again_only_the_files_it_listed(self) -> None:
         first = self.push(self.base / "gate1")

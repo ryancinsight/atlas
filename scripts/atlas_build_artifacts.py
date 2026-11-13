@@ -112,10 +112,8 @@ def artifact_identities(
 ) -> dict[str, dict[str, object]]:
     """Prove stable artifact closures before returning their shared census.
 
-    A package in `listed`, a run whose record matched, lists again only the
-    units that record listed: its verified files, and whatever its command
-    added to those units. A unit another stage or a peer left in the target
-    was not verified by this run, so its bytes are not vouched for here.
+    A package in `listed` (its record matched) lists again only the units
+    that record listed, so a unit another stage or a peer left is not vouched for.
     """
 
     _canonical(root, strict=True)
@@ -298,9 +296,8 @@ def prune_plan(
         for path in found.get(owner, set()):
             parts = path.relative_to(target_dir).parts
             if _unit_hash(parts) in removed:
-                marker = next((m for m in (".fingerprint", "build") if m in parts[:-1]), None)
-                cut = parts.index(marker) + 2 if marker else len(parts)
-                doomed[owner].add(target_dir.joinpath(*parts[:cut]))
+                unit = _unit_directory(parts)
+                doomed[owner].add(target_dir.joinpath(*parts[: parts.index(unit) + 1]) if unit else path)
     return {owner: sorted(values) for owner, values in doomed.items()}
 
 
@@ -556,14 +553,15 @@ def _discover_artifacts_by_owner(
         if not deps.is_dir():
             continue
         for path in deps.iterdir():
-            if path.suffix not in ARTIFACT_SUFFIXES:
+            if path.suffix and path.suffix not in ARTIFACT_SUFFIXES:
                 continue
             owner = _artifact_owner(path.name, owners_by_stem)
             if owner in requested and path.is_file():
                 selected.setdefault(owner, set()).add(path.resolve())
-    # A build script's dep-info, the paths it asked Cargo to watch (`output`),
-    # which `atlas_build_dep_info` reads, and everything it generated in
-    # `out/`: a peer's rerun rewrites those while the fingerprint stays equal.
+    # Every file of a build unit: the compile unit's executable and dep-info,
+    # the run unit's `output` (read by `atlas_build_dep_info`), `out/`,
+    # `root-output`, `stderr` and timestamp. A peer's recompile or rerun
+    # rewrites those while the fingerprint files stay equal.
     build_dirs = [target_dir / profile / "build"]
     if target != "host":
         build_dirs.append(target_dir / target / profile / "build")
@@ -574,14 +572,7 @@ def _discover_artifacts_by_owner(
             owner = _artifact_owner(directory.name, owners_by_stem)
             if owner in requested and directory.is_dir():
                 selected.setdefault(owner, set()).update(
-                    path.resolve()
-                    for path in directory.rglob("*")
-                    if path.is_file()
-                    and (
-                        path.parent == directory
-                        and (path.name == "output" or path.suffix == ".d")
-                        or path.relative_to(directory).parts[0] == "out"
-                    )
+                    path.resolve() for path in directory.rglob("*") if path.is_file()
                 )
 
     fingerprint_dirs = [
