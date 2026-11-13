@@ -11,10 +11,23 @@ from typing import Callable, Sequence
 
 from atlas_build_artifacts import UNVERIFIED, recorded_artifact_identity
 from atlas_build_lease import BuildIdentityError
-from atlas_build_lock import retry_sharing_violation
+from atlas_build_lock import SHARING_RETRY_ATTEMPTS, retry_sharing_violation
 from atlas_build_source import SourceIdentity, _sha256_bytes
 
 VERSION = 7
+INDEX_SCHEMA = 1
+_INDEX_SCOPE_FIELDS = (
+    "package",
+    "profile",
+    "target",
+    "features",
+    "toolchain",
+    "target_dir",
+    "command_key",
+    "selection",
+    "environment_digest",
+    "cargo_config_digest",
+)
 
 
 @dataclass(frozen=True)
@@ -51,6 +64,12 @@ class BuildSpec:
             "cargo_config_digest": self.cargo_config_digest,
             "dependency_digest": self.dependency_digest,
         }
+
+
+@dataclass(frozen=True)
+class _SiblingRecord:
+    record: dict[str, object]
+    artifact: dict[str, object]
 
 
 def _content(record: object) -> object:
@@ -102,21 +121,37 @@ def _record_matches(
     inputs: dict[str, object],
 ) -> bool:
     """`inputs` is `current_inputs` of the record's own `inputs`."""
+    return not _record_mismatch_reasons(existing, spec, dependencies, artifact, inputs)
+
+
+def _record_mismatch_reasons(
+    existing: dict[str, object],
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    artifact: dict[str, object],
+    inputs: dict[str, object],
+) -> tuple[str, ...]:
+    """Name each record component that differs from the current build input."""
     by_files = _identified_by_files(dependencies)
-    return (
-        (by_files or _content(existing.get("source")) == _content(spec.source.as_dict()))
-        and _build_content(existing.get("build"), by_files)
-        == _build_content(spec.as_dict(), by_files)
-        and existing.get("dependencies") == dependencies
-        and existing.get("artifact") == artifact
-        and existing.get("inputs") == inputs
+    comparisons = (
+        (
+            "source",
+            by_files or _content(existing.get("source")) == _content(spec.source.as_dict()),
+        ),
+        (
+            "build",
+            _build_content(existing.get("build"), by_files)
+            == _build_content(spec.as_dict(), by_files),
+        ),
+        ("dependencies", existing.get("dependencies") == dependencies),
+        ("artifact", existing.get("artifact") == artifact),
+        ("inputs", existing.get("inputs") == inputs),
     )
+    return tuple(name for name, matches in comparisons if not matches)
 
 
 def _spec_key(spec: BuildSpec) -> str:
-    scope = spec.as_dict()
-    scope.pop("source")
-    scope.pop("dependency_digest")
+    scope = {key: spec.as_dict()[key] for key in _INDEX_SCOPE_FIELDS}
     encoded = json.dumps(scope, sort_keys=True, separators=(",", ":")).encode()
     return _sha256_bytes(encoded)
 
@@ -125,32 +160,135 @@ def record_path(spec: BuildSpec) -> Path:
     return Path(spec.target_dir) / ".atlas" / "source-identity" / f"{_spec_key(spec)}.json"
 
 
-def _sibling_record(
-    spec: BuildSpec,
-    dependencies: dict[str, object],
-    inputs_hold: Callable[[dict[str, object]], bool],
-) -> dict[str, object] | None:
-    """A record of the same build and source under another command key.
+def _record_index_path(directory: Path) -> Path:
+    return directory / "index" / "records.json"
 
-    Its artifact names cover the dependency closure this run reads, so a run
-    that holds the dependencies shared hashes them by those names. Its
-    inputs must still read as it recorded them (`inputs_hold`).
-    """
-    by_files = _identified_by_files(dependencies)
-    build = spec.as_dict()
-    build.pop("command_key")
-    directory = record_path(spec).parent
-    if not directory.is_dir():
+
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate key {key!r}")
+        value[key] = item
+    return value
+
+
+def _scope_key(scope: dict[str, object]) -> str:
+    encoded = json.dumps(scope, sort_keys=True, separators=(",", ":")).encode()
+    return _sha256_bytes(encoded)
+
+
+def _validated_index_scope(key: object, value: object, path: Path) -> dict[str, object]:
+    if (
+        type(key) is not str
+        or len(key) != 64
+        or any(character not in "0123456789abcdef" for character in key)
+        or type(value) is not dict
+        or set(value) != set(_INDEX_SCOPE_FIELDS)
+        or any(type(value[field]) is not str for field in _INDEX_SCOPE_FIELDS)
+        or _scope_key(value) != key
+    ):
+        raise BuildIdentityError(f"malformed source identity record index: {path}")
+    return value
+
+
+def _read_record_index(path: Path) -> dict[str, dict[str, object]]:
+    if not path.exists():
+        return {}
+    try:
+        value = json.loads(read_record_text(path), object_pairs_hook=_unique_object)
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        raise BuildIdentityError(
+            f"malformed source identity record index {path}: {error}"
+        ) from error
+    if type(value) is not dict or set(value) != {"schema", "records"}:
+        raise BuildIdentityError(f"malformed source identity record index: {path}")
+    if type(value["schema"]) is not int or value["schema"] != INDEX_SCHEMA:
+        raise BuildIdentityError(f"unsupported source identity record index: {path}")
+    records = value["records"]
+    if type(records) is not dict:
+        raise BuildIdentityError(f"malformed source identity record index: {path}")
+    return {
+        key: _validated_index_scope(key, scope, path)
+        for key, scope in records.items()
+    }
+
+
+def _canonical_record_scope(path: Path, record: dict[str, object]) -> dict[str, object] | None:
+    build = record.get("build")
+    if type(build) is not dict:
         return None
-    for candidate in directory.glob("*.json"):
+    scope = {key: build.get(key) for key in _INDEX_SCOPE_FIELDS}
+    if any(type(value) is not str for value in scope.values()) or _scope_key(scope) != path.stem:
+        return None
+    return scope
+
+
+def _record_family(scope: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in scope.items() if key != "command_key"}
+
+
+def _indexed_record_scopes(
+    directory: Path, candidates: Sequence[Path]
+) -> dict[str, dict[str, object]]:
+    index_path = _record_index_path(directory)
+    prior = _read_record_index(index_path)
+    present = {candidate.stem for candidate in candidates}
+    scopes = {key: scope for key, scope in prior.items() if key in present}
+    for candidate in candidates:
+        if candidate.stem in scopes:
+            continue
         try:
             record = read_record(candidate)
         except BuildIdentityError:
             continue
         if record is None:
             continue
-        artifact = record.get("artifact")
-        if not isinstance(artifact, dict) or not isinstance(artifact.get("files"), dict):
+        scope = _canonical_record_scope(candidate, record)
+        if scope is not None:
+            scopes[candidate.stem] = scope
+    if not index_path.exists() or scopes != prior:
+        _write_atomic(index_path, {"schema": INDEX_SCHEMA, "records": scopes})
+    return scopes
+
+
+def _sibling_record(
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    inputs_hold: Callable[[dict[str, object]], bool],
+) -> _SiblingRecord | None:
+    """A record of the same build and source under another command key.
+
+    Its artifact names cover the dependency closure this run reads, so a run
+    that holds the dependencies shared hashes them by those names. The
+    dependency snapshot, recorded inputs, and current artifact bytes must
+    still equal the successful record.
+    """
+    build = spec.as_dict()
+    build.pop("command_key")
+    directory = record_path(spec).parent
+    if not directory.is_dir():
+        return None
+    candidates = list(directory.glob("*.json"))
+    scopes = _indexed_record_scopes(directory, candidates)
+    family = _record_family(
+        {key: value for key, value in spec.as_dict().items() if key in _INDEX_SCOPE_FIELDS}
+    )
+    for candidate in candidates:
+        scope = scopes.get(candidate.stem)
+        if (
+            scope is None
+            or scope["command_key"] == spec.command_key
+            or _record_family(scope) != family
+        ):
+            continue
+        try:
+            record = read_record(candidate)
+        except BuildIdentityError:
+            continue
+        if record is None:
+            continue
+        if _canonical_record_scope(candidate, record) != scope:
             continue
         other = record.get("build")
         if not isinstance(other, dict):
@@ -158,11 +296,14 @@ def _sibling_record(
         other = dict(other)
         other.pop("command_key", None)
         if (
-            _build_content(other, by_files) == _build_content(build, by_files)
-            and (by_files or _content(record.get("source")) == _content(spec.source.as_dict()))
+            _build_content(other, False) == _build_content(build, False)
+            and _content(record.get("source")) == _content(spec.source.as_dict())
+            and record.get("dependencies") == dependencies
             and inputs_hold(record)
         ):
-            return record
+            artifact = _recorded_artifact(record, Path(spec.target_dir), ())
+            if artifact == record.get("artifact"):
+                return _SiblingRecord(record, artifact)
     return None
 
 
@@ -270,13 +411,20 @@ def read_record(path: Path) -> dict[str, object] | None:
     return value
 
 
-def _write_atomic(path: Path, value: dict[str, object]) -> None:
+def _write_atomic(
+    path: Path,
+    value: dict[str, object],
+    *,
+    replace_attempts: int = SHARING_RETRY_ATTEMPTS,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     payload = json.dumps(value, sort_keys=True, indent=2) + "\n"
     try:
         temporary.write_text(payload, encoding="utf-8", newline="\n")
-        retry_sharing_violation(lambda: os.replace(temporary, path), path)
+        retry_sharing_violation(
+            lambda: os.replace(temporary, path), path, attempts=replace_attempts
+        )
     except (OSError, BuildIdentityError) as error:
         try:
             temporary.unlink(missing_ok=True)

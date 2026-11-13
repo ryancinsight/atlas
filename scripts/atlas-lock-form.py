@@ -24,7 +24,7 @@ This script keeps what acts on the stack as a whole:
                 deploy the owned hooks into the members
     install-hooks
                 per-clone bootstrap: point member `core.hooksPath` at
-                scripts/git-hooks so every member runs the owned pre-commit
+                shared source-bound shims so every member runs the pre-commit
                 and pre-push hooks, whatever branch its tree has checked out
 
 The rule is deliberately narrow: it flags only a package that is *present in
@@ -38,8 +38,10 @@ misreport both.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -50,6 +52,7 @@ from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lockfile  # noqa: E402
+import pre_push_gate  # noqa: E402
 from atlas_git_process import (  # noqa: E402
     GitProcessError,
     GitProcessResult,
@@ -329,6 +332,8 @@ def git_result(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
+    env: dict[str, str] | None = None,
+    timeout: int = GIT_DEADLINE_SECONDS,
 ) -> GitProcessResult:
     """Run bounded git in `repo` with the inherited repository selection removed.
 
@@ -342,16 +347,16 @@ def git_result(
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    env = clean_process_env()
+    env = clean_process_env(env)
     if index is not None:
         env["GIT_INDEX_FILE"] = str(index)
     try:
         return execute_git(
             repo,
-            tuple(args),
+            ("--no-replace-objects", *args),
             stdin=stdin,
             env=env,
-            timeout=GIT_DEADLINE_SECONDS,
+            timeout=timeout,
         )
     except GitProcessError as error:
         raise RuntimeError(str(error)) from error
@@ -362,6 +367,8 @@ def git_bytes(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
+    env: dict[str, str] | None = None,
+    timeout: int = GIT_DEADLINE_SECONDS,
 ) -> bytes:
     """Run bounded git in `repo`; raise with git's message on failure.
 
@@ -369,7 +376,7 @@ def git_bytes(
     member's fetched default without reading or touching its working tree or
     its real index -- which may belong to a peer mid-edit.
     """
-    result = git_result(repo, *args, stdin=stdin, index=index)
+    result = git_result(repo, *args, stdin=stdin, index=index, env=env, timeout=timeout)
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")
@@ -381,9 +388,11 @@ def git_in(
     *args: str,
     stdin: bytes | None = None,
     index: Path | None = None,
+    env: dict[str, str] | None = None,
+    timeout: int = GIT_DEADLINE_SECONDS,
 ) -> str:
     """Run bounded git and decode its output as replacement-tolerant UTF-8."""
-    return git_bytes(repo, *args, stdin=stdin, index=index).decode(
+    return git_bytes(repo, *args, stdin=stdin, index=index, env=env, timeout=timeout).decode(
         "utf-8", errors="replace"
     ).strip()
 
@@ -446,20 +455,13 @@ def retired_member_paths(requested: list[str] | None) -> list[str] | None:
     return paths
 
 
-def hook_commit(
+def hook_tree(
     repo: Path,
     base: str,
     hooks: list[tuple[str, bytes]],
-    message: str,
     retired: tuple[str, ...] = (),
-) -> str | None:
-    """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
-
-    `hooks` are (file name, bytes) pairs, so line endings are exactly the
-    owned copy's whatever any checkout's `core.autocrlf` says, and the mode is
-    executable so the hook runs on a Unix clone. Each `retired` path is
-    removed from the commit's tree when `base` carries it.
-    """
+) -> str:
+    """Build the owned hook tree without changing the checkout or its index."""
     with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as scratch:
         index = Path(scratch) / "index"
         git_in(repo, "read-tree", base, index=index)
@@ -471,10 +473,96 @@ def hook_commit(
             )
         for path in retired:
             git_in(repo, "update-index", "--force-remove", "--", path, index=index)
-        tree = git_in(repo, "write-tree", index=index)
+        return git_in(repo, "write-tree", index=index)
+
+
+def hook_commit(
+    repo: Path,
+    base: str,
+    hooks: list[tuple[str, bytes]],
+    message: str,
+    retired: tuple[str, ...] = (),
+) -> str | None:
+    """Append exact executable hook blobs and retirements, or return None.
+
+    A private index preserves checkout bytes, staging and line endings.
+    """
+    tree = hook_tree(repo, base, hooks, retired)
     if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
         return None
     return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
+
+
+def hook_publication_base(
+    repo: Path,
+    default: str,
+    hooks: list[tuple[str, bytes]],
+    retired: tuple[str, ...],
+) -> str:
+    """Select the fetched default or a safe prior publication head.
+
+    Re-publishing a corrected source must advance the fixed publication branch
+    instead of replacing its generated commit. The branch is safe to extend
+    only when its entire side of the divergence from the current default
+    changes files this publication owns.
+    """
+    publication = f"refs/remotes/origin/{PUBLISH_BRANCH}"
+    try:
+        head = git_in(repo, "rev-parse", "--verify", f"{publication}^{{commit}}")
+    except RuntimeError:
+        return default
+    try:
+        git_in(repo, "merge-base", "--is-ancestor", head, default)
+    except RuntimeError:
+        pass
+    else:
+        return default
+    owned = {f"{MEMBER_HOOK_COPY}/{name}" for name, _ in hooks}
+    owned.update(retired)
+    changed = set(
+        filter(
+            None,
+            git_in(
+                repo,
+                "diff",
+                "--no-renames",
+                "--name-only",
+                f"{default}...{head}",
+                "--",
+            ).splitlines(),
+        )
+    )
+    unexpected = sorted(changed - owned)
+    if unexpected:
+        raise RuntimeError(
+            f"{publication} carries non-publication paths: {', '.join(unexpected)}"
+        )
+    return head
+
+
+def hook_landing_tree(
+    repo: Path,
+    default: str,
+    candidate: str,
+    hooks: list[tuple[str, bytes]],
+    retired: tuple[str, ...],
+) -> str:
+    """Require Git's merge to preserve the default outside owned hook paths.
+
+    A behind publication head is safe only when its real landing tree equals
+    the independently materialized default with exact owned blobs and modes.
+    Conflicts and clean merges that combine hook content both refuse.
+    """
+    expected = hook_tree(repo, default, hooks, retired)
+    result = git_result(repo, "merge-tree", "--write-tree", default, candidate)
+    if result.returncode != 0:
+        detail = (result.stderr + result.stdout).decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"publication merge failed: {detail}")
+    landed = result.stdout.decode("ascii").strip()
+    if landed != expected:
+        changed = git_in(repo, "diff", "--no-renames", "--name-only", expected, landed)
+        raise RuntimeError(f"publication merge differs from owned hook tree: {changed}")
+    return landed
 
 
 def push_hook_branch(
@@ -547,7 +635,11 @@ def push_hook_branch(
         hook_path.write_bytes(pre_push_hook)
         hook_path.chmod(0o755)
         command_config = ["-c", f"core.hooksPath={temporary}"]
+        environment = clean_process_env()
         if prepared_tools is not None:
+            runtime = write_pre_push_runtime(ROOT, prepared_tools, Path(temporary) / "runtime")
+            environment["ATLAS_PRE_PUSH_RUNTIME"] = runtime.as_posix()
+            environment["ATLAS_PRE_PUSH_PYTHON"] = Path(sys.executable).resolve().as_posix()
             command_config.extend(("-c", f"atlas.preparedTools={prepared_tools}"))
         git_in(
             repo,
@@ -557,6 +649,8 @@ def push_hook_branch(
             f"--force-with-lease={ref}:{expected}",
             "origin",
             f"{commit}:{ref}",
+            env=environment,
+            timeout=pre_push_gate.DEADLINE_SECONDS,
         )
 
 
@@ -570,33 +664,10 @@ def pull_request_for(
     draft: bool = False,
 ) -> tuple[str, bool]:
     """Return the branch's open pull request, creating it when absent."""
-    pull_request = hosting_in(
-        repo,
-        "pr",
-        "list",
-        "--head",
-        branch,
-        "--base",
-        base,
-        "--state",
-        "open",
-        "--json",
-        "url,isDraft",
-        "--jq",
-        ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
-    )
-    if pull_request:
-        try:
-            url, draft_text = pull_request.rsplit("\t", 1)
-        except ValueError as error:
-            raise RuntimeError(
-                f"unexpected pull request state for {branch}: {pull_request!r}"
-            ) from error
-        if not url or draft_text not in {"true", "false"}:
-            raise RuntimeError(
-                f"unexpected pull request state for {branch}: {pull_request!r}"
-            )
-        if draft and draft_text == "false":
+    existing = open_pull_request(repo, branch, base)
+    if existing is not None:
+        url, is_draft = existing
+        if draft and not is_draft:
             raise RuntimeError(
                 f"existing pull request {url} is ready; refusing --draft"
             )
@@ -618,20 +689,195 @@ def pull_request_for(
     return hosting_in(repo, *create), True
 
 
+def open_pull_request(
+    repo: Path, branch: str, base: str
+) -> tuple[str, bool] | None:
+    """Return the branch's open pull request and draft state, when present."""
+    pull_request = hosting_in(
+        repo,
+        "pr",
+        "list",
+        "--head",
+        branch,
+        "--base",
+        base,
+        "--state",
+        "open",
+        "--json",
+        "url,isDraft",
+        "--jq",
+        ".[0] | select(. != null) | [.url, .isDraft] | @tsv",
+    )
+    if not pull_request:
+        return None
+    try:
+        url, draft_text = pull_request.rsplit("\t", 1)
+    except ValueError as error:
+        raise RuntimeError(
+            f"unexpected pull request state for {branch}: {pull_request!r}"
+        ) from error
+    if not url or draft_text not in {"true", "false"}:
+        raise RuntimeError(
+            f"unexpected pull request state for {branch}: {pull_request!r}"
+        )
+    return url, draft_text == "true"
+
+
 def valid_board_item(item: str | None) -> bool:
     """Whether `item` is absent or follows the shared board-ID grammar."""
     return item is None or BOARD_ITEM_HEADING.fullmatch(f"## {item}") is not None
 
 
-def enqueue_pull_request(repo: Path, url: str) -> None:
-    """Enable merge-on-green for a pull request, surfacing refusal as failure."""
-    hosting_in(repo, "pr", "merge", url, "--merge", "--auto")
+class HostedMerge(NamedTuple):
+    """The coherent hosted merge identity for an open pull request."""
+
+    live_base: str
+    live_head: str
+    merge_base: str
+    merge_head: str
+    tree: str
 
 
-def hook_publish_message(source: str, retired: list[str], item: str | None) -> str:
+def hosted_merge(repo: Path, url: str) -> HostedMerge:
+    """Read one hosted merge and require its ref to match its declared identity."""
+    try:
+        state = json.loads(hosting_in(
+            repo, "api", "graphql", "-f",
+            "query=query($url:URI!){resource(url:$url){... on PullRequest{"
+            "number headRefOid baseRef{target{oid}} potentialMergeCommit{oid}}}}",
+            "-f", f"url={url}", "--jq",
+            ".data.resource | {number,headRefOid,potentialMergeCommit,"
+            "baseTargetOid:.baseRef.target.oid}",
+        ))
+    except (json.JSONDecodeError, TypeError) as error:
+        raise RuntimeError(f"cannot read publication merge identity for {url}") from error
+    if not isinstance(state, dict):
+        raise RuntimeError(f"cannot read publication merge identity for {url}")
+    number = state.get("number")
+    base = state.get("baseTargetOid")
+    head = state.get("headRefOid")
+    merge = state.get("potentialMergeCommit")
+    if (
+        type(number) is not int or number <= 0
+        or not isinstance(base, str)
+        or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", base) is None
+        or not isinstance(head, str)
+        or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", head) is None
+        or not isinstance(merge, dict) or not isinstance(merge.get("oid"), str)
+        or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", merge["oid"]) is None
+    ):
+        raise RuntimeError(f"publication has no hosted merge identity: {url}")
+    git_in(repo, "fetch", "-q", "origin", f"refs/pull/{number}/merge")
+    observed = git_in(repo, "rev-parse", "FETCH_HEAD")
+    parents = git_in(repo, "show", "-s", "--format=%P", observed).split()
+    if observed != merge["oid"] or len(parents) != 2:
+        raise RuntimeError(f"publication merge tree changed before readiness: {url}")
+    return HostedMerge(
+        base,
+        head,
+        parents[0],
+        parents[1],
+        git_in(repo, "rev-parse", f"{observed}^{{tree}}"),
+    )
+
+
+def require_hosted_merge(
+    repo: Path, url: str, default: str, candidate: str, landing_tree: str
+) -> None:
+    """Require the hosted merge to bind the exact verified landing identity."""
+    hosted = hosted_merge(repo, url)
+    if hosted != HostedMerge(
+        default, candidate, default, candidate, landing_tree
+    ):
+        raise RuntimeError(f"publication head, base, or tree changed: {url}")
+
+
+def refresh_hook_publication(
+    repo: Path,
+    url: str,
+    default: str,
+    candidate: str,
+    landing_tree: str,
+    hooks: list[tuple[str, bytes]],
+    retired: tuple[str, ...],
+    message: str,
+) -> str | None:
+    """Append one same-tree commit when a coherent hosted merge has a stale base."""
+    hosted = hosted_merge(repo, url)
+    if hosted.live_head != candidate:
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", hosted.live_head, candidate)
+        except RuntimeError as error:
+            raise RuntimeError(f"publication head changed: {url}") from error
+        raise RuntimeError(f"publication head update is still pending: {url}")
+    if hosted.live_base != default:
+        raise RuntimeError(f"publication base changed: {url}")
+    if hosted.merge_head != candidate:
+        try:
+            git_in(repo, "merge-base", "--is-ancestor", hosted.merge_head, candidate)
+        except RuntimeError as error:
+            raise RuntimeError(f"publication merge head changed: {url}") from error
+        raise RuntimeError(f"publication merge update is still pending: {url}")
+    if hosted.merge_base == default:
+        if hosted.tree != landing_tree:
+            raise RuntimeError(f"publication merge tree changed: {url}")
+        return None
+    try:
+        git_in(repo, "merge-base", "--is-ancestor", hosted.merge_base, default)
+    except RuntimeError as error:
+        raise RuntimeError(f"publication base is not an ancestor of default: {url}") from error
+    stale_tree = hook_landing_tree(repo, hosted.merge_base, candidate, hooks, retired)
+    if hosted.tree != stale_tree:
+        raise RuntimeError(f"stale publication merge tree changed: {url}")
+    tree = git_in(repo, "rev-parse", f"{candidate}^{{tree}}")
+    parents = git_in(repo, "show", "-s", "--format=%P", candidate).split()
+    if len(parents) == 1 and git_in(repo, "rev-parse", f"{parents[0]}^{{tree}}") == tree:
+        prior_base = git_in(
+            repo,
+            "show",
+            "-s",
+            "--format=%(trailers:key=Publication-Base,valueonly)",
+            candidate,
+        )
+        if prior_base != hosted.merge_base:
+            raise RuntimeError(f"publication merge update is still pending: {url}")
+    refresh_message = git_in(
+        repo, "interpret-trailers", "--trailer", f"Publication-Base: {default}",
+        stdin=message.encode("utf-8"),
+    ) + "\n"
+    return git_in(
+        repo, "commit-tree", tree, "-p", candidate, stdin=refresh_message.encode("utf-8")
+    )
+
+
+def enqueue_pull_request(
+    repo: Path, url: str, default: str, candidate: str, landing_tree: str
+) -> None:
+    """Bind merge readiness to the verified head, base and hosted merge tree."""
+    require_hosted_merge(repo, url, default, candidate, landing_tree)
+    hosting_in(
+        repo, "pr", "merge", url, "--merge", "--auto",
+        "--match-head-commit", candidate,
+    )
+
+
+AGENT_ID = re.compile(
+    r"[A-Za-z][A-Za-z0-9_-]*:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+    r"[0-9a-f]{4}-[0-9a-f]{12}(?:/[1-9][0-9]*)?"
+)
+
+
+def hook_publish_message(
+    source: str,
+    retired: list[str],
+    item: str | None,
+    agent: str | None = None,
+) -> str:
     """Build the commit and pull-request message for one hook publication."""
     if not valid_board_item(item):
         raise ValueError(f"invalid board item ID: {item!r}")
+    if agent is not None and AGENT_ID.fullmatch(agent) is None:
+        raise ValueError(f"invalid agent ID: {agent!r}")
     subject = "ci: Sync the stack-owned git hooks"
     message = (
         f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
@@ -646,6 +892,9 @@ def hook_publish_message(source: str, retired: list[str], item: str | None) -> s
         )
     if item is not None:
         message += f"\nItem: {item}\n"
+    if agent is not None:
+        message += f"Integrator: {agent}\n"
+        message += f"Agent: {agent}\n"
     return message
 
 
@@ -668,6 +917,10 @@ def cmd_publish_hooks(args) -> int:
     item = getattr(args, "item", None)
     if not valid_board_item(item):
         print("invalid item: expected a board item ID", file=sys.stderr)
+        return 2
+    agent = getattr(args, "agent", None)
+    if agent is not None and AGENT_ID.fullmatch(agent) is None:
+        print("invalid agent: expected <harness>:<UUID>", file=sys.stderr)
         return 2
     members = member_scope(args.members)
     if members is None:
@@ -716,7 +969,7 @@ def cmd_publish_hooks(args) -> int:
         return 2
     source = git_in(ROOT, "rev-parse", "--short", source_commit)
     subject = "ci: Sync the stack-owned git hooks"
-    message = hook_publish_message(source, retired, item)
+    message = hook_publish_message(source, retired, item, agent)
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -725,15 +978,59 @@ def cmd_publish_hooks(args) -> int:
         try:
             git_in(repo, "fetch", "-q", "origin")
             default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+            default_commit = git_in(repo, "rev-parse", default)
+            base = hook_publication_base(
+                repo, default_commit, hooks, tuple(retired)
+            )
             commit = hook_commit(
                 repo,
-                git_in(repo, "rev-parse", default),
+                base,
                 hooks,
                 message,
                 retired=tuple(retired),
             )
+            landing_tree = hook_landing_tree(
+                repo, default_commit, commit or base, hooks, tuple(retired)
+            )
             if commit is None:
-                print(f"current: {member}")
+                if not args.push or base == default_commit:
+                    print(f"current: {member}")
+                    continue
+                branch = PUBLISH_BRANCH
+                base_name = default.removeprefix("origin/")
+                existing = open_pull_request(repo, branch, base_name)
+                if existing is None:
+                    print(f"current: {member}")
+                    continue
+                url, is_draft = existing
+                draft = bool(getattr(args, "draft", False))
+                if draft and not is_draft:
+                    raise RuntimeError(
+                        f"existing pull request {url} is ready; refusing --draft"
+                    )
+                commit = refresh_hook_publication(
+                    repo,
+                    url,
+                    default_commit,
+                    base,
+                    landing_tree,
+                    hooks,
+                    tuple(retired),
+                    message,
+                )
+                if commit is None:
+                    print(f"current: {member}")
+                    continue
+                landing_tree = hook_landing_tree(
+                    repo, default_commit, commit, hooks, tuple(retired)
+                )
+                push_hook_branch(repo, commit, branch, pre_push_hook, source_commit)
+                require_hosted_merge(repo, url, default_commit, commit, landing_tree)
+                if draft:
+                    print(f"reused: {member} {url} draft")
+                else:
+                    enqueue_pull_request(repo, url, default_commit, commit, landing_tree)
+                    print(f"reused: {member} {url} enqueued")
                 continue
             if not args.push:
                 print(f"would publish: {member} onto {default}")
@@ -753,7 +1050,7 @@ def cmd_publish_hooks(args) -> int:
             if draft:
                 print(f"{action}: {member} {url} draft")
             else:
-                enqueue_pull_request(repo, url)
+                enqueue_pull_request(repo, url, default_commit, commit, landing_tree)
                 print(f"{action}: {member} {url} enqueued")
         except RuntimeError as error:
             failures += 1
@@ -799,6 +1096,31 @@ GIT_HOOK_NAMES = frozenset({
 # the hook's environment (`git -C <atlas>` would not), and drop the
 # variables that would still redirect them to another object store; the
 # hook itself runs with the environment git gave it.
+PRE_PUSH_SHIM_BOOTSTRAP = """if [ "${{1:-}}" != "--atlas-shim-bounded" ]; then
+  export ATLAS_SHIM_CALLER_OPTIONS="$__atlas_shim_options"
+  __atlas_shim_runtime={runtime}
+  __atlas_shim_python=""
+  if [ -f "$__atlas_shim_runtime/python" ]; then
+    IFS= read -r __atlas_shim_python < "$__atlas_shim_runtime/python" || true
+  fi
+  __atlas_shim_supervisor="$__atlas_shim_runtime/pre_push_gate.py"
+  if [ -z "$__atlas_shim_python" ] || [ ! -f "$__atlas_shim_supervisor" ]; then
+    echo "atlas hooks: the installed process-tree bootstrap is unavailable; rerun scripts/atlas-lock-form.py install-hooks" >&2
+    exit 1
+  fi
+  __atlas_shim_phase=push
+  [ "${{1:-}}" = documentation ] && __atlas_shim_phase=documentation
+  exec "$__atlas_shim_python" -I "$__atlas_shim_supervisor" \
+    shim "$__atlas_shim_phase" "${{BASH_SOURCE[0]}}" "$@"
+fi
+shift
+__atlas_shim_options="${{ATLAS_SHIM_CALLER_OPTIONS:-$__atlas_shim_options}}"
+export ATLAS_GATE_BOUNDED=1
+unset ATLAS_SHIM_CALLER_OPTIONS
+unset __atlas_shim_runtime __atlas_shim_python __atlas_shim_supervisor __atlas_shim_phase
+"""
+
+
 HOOK_SHIM = """#!/usr/bin/env bash
 # Written by `scripts/atlas-lock-form.py install-hooks`; rerun it instead of
 # editing. Runs the owned `{name}` hook as committed at the Atlas
@@ -812,8 +1134,19 @@ HOOK_SHIM = """#!/usr/bin/env bash
 # the hook altered. A caller's xtrace is off inside the shim, so the shim's
 # own commands never reach the hook's stderr, and back on for the exec.
 {{ __atlas_shim_options=":$SHELLOPTS:"; set +x; }} 2>/dev/null
+{bootstrap}
 set -euo pipefail
 __atlas_shim_git={git_dir}
+__atlas_shim_runtime={runtime}
+__atlas_shim_python=""
+if [ -f "$__atlas_shim_runtime/python" ]; then
+  IFS= read -r __atlas_shim_python < "$__atlas_shim_runtime/python" || true
+fi
+__atlas_shim_supervisor="$__atlas_shim_runtime/pre_push_gate.py"
+if [ -z "$__atlas_shim_python" ] || [ ! -f "$__atlas_shim_supervisor" ]; then
+  echo "atlas hooks: the installed process-tree bootstrap is unavailable; rerun scripts/atlas-lock-form.py install-hooks" >&2
+  exit 1
+fi
 __atlas_shim_lookup() {{
   env -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES \\
     -u GIT_REPLACE_REF_BASE git --no-replace-objects --git-dir="$__atlas_shim_git" "$@"
@@ -825,25 +1158,17 @@ if ! __atlas_shim_commit="$(__atlas_shim_lookup show-ref --verify --hash '{ref}'
   echo "atlas hooks: {ref} in $__atlas_shim_git has no scripts/git-hooks/{name}; fetch the Atlas repository, then run scripts/atlas-lock-form.py install-hooks there" >&2
   exit 1
 fi
+{source_guard}
 __atlas_shim_cache="$__atlas_shim_git/atlas-hooks/blobs/$__atlas_shim_blob"
-if [ ! -f "$__atlas_shim_cache" ] || [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_cache")" != "$__atlas_shim_blob" ]; then
-  mkdir -p "${{__atlas_shim_cache%/*}}"
-  __atlas_shim_partial="$(mktemp "$__atlas_shim_cache.XXXXXX")"
-  # `cat-file` does not check an object against its id, so the copy is
-  # hashed before it can run: an altered blob object refuses instead of
-  # running. `--no-filters` on every hash: `core.autocrlf` would otherwise
-  # give a CRLF copy the id of its LF blob.
-  if ! {{ __atlas_shim_lookup cat-file blob "$__atlas_shim_blob" >| "$__atlas_shim_partial" &&
-         [ "$(__atlas_shim_lookup hash-object --no-filters -- "$__atlas_shim_partial")" = "$__atlas_shim_blob" ] &&
-         chmod +x "$__atlas_shim_partial" && mv -f "$__atlas_shim_partial" "$__atlas_shim_cache"; }}; then
-    rm -f "$__atlas_shim_partial"
-    exit 1
-  fi
+if ! __atlas_shim_cache="$("$__atlas_shim_python" -I "$__atlas_shim_supervisor" cache \
+    "$__atlas_shim_git" "$__atlas_shim_blob" "$__atlas_shim_cache")"; then
+  exit 1
 fi
 set +euo pipefail
 set -- "$__atlas_shim_cache" "$@"
 unset -f __atlas_shim_lookup
-unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache __atlas_shim_partial
+unset __atlas_shim_git __atlas_shim_commit __atlas_shim_blob __atlas_shim_cache
+unset __atlas_shim_runtime __atlas_shim_python __atlas_shim_supervisor
 case $__atlas_shim_options in *:errexit:*) set -e ;; esac
 case $__atlas_shim_options in *:nounset:*) set -u ;; esac
 case $__atlas_shim_options in *:pipefail:*) set -o pipefail ;; esac
@@ -859,9 +1184,6 @@ exec "$@"
 # denial (WinError 5) until every reader closes it. One hook start reads it in
 # milliseconds; overlapping runs can keep it open past the bound, and the
 # install then fails rather than leave a member half-installed.
-SHIM_REPLACE_ATTEMPTS = 50
-SHIM_REPLACE_BACKOFF_SECONDS = 0.1
-
 SHIM_REPLACE_ATTEMPTS = 50
 SHIM_REPLACE_BACKOFF_SECONDS = 0.1
 
@@ -913,7 +1235,46 @@ def common_git_dir(repo: Path) -> Path:
     return Path(git_in(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))
 
 
-def write_hook_shims(atlas: Path) -> Path:
+def write_pre_push_runtime(atlas: Path, commit: str, destination: Path) -> Path:
+    """Materialize one committed process-owner family without changing live shims."""
+    # A source-keyed directory makes the runner family one immutable unit. An
+    # interrupted install cannot leave a live shim importing a mixture of old
+    # and new process-owner modules.
+    runtime = destination / commit
+    runtime_existed = runtime.is_dir()
+    runtime.mkdir(parents=True, exist_ok=True)
+    try:
+        for name in (
+            "pre_push_gate.py",
+            "atlas_build_lock.py",
+            "process_tree.py",
+            "windows_process.py",
+            "darwin_process.py",
+        ):
+            _replace_shim(
+                runtime / name,
+                git_bytes(
+                    atlas,
+                    "--no-replace-objects",
+                    "cat-file",
+                    "blob",
+                    f"{commit}:scripts/{name}",
+                ),
+            )
+        _replace_shim(
+            runtime / "python", Path(sys.executable).resolve().as_posix().encode()
+        )
+    except (OSError, RuntimeError):
+        if not runtime_existed:
+            if runtime.exists():
+                shutil.rmtree(runtime)
+            if next(runtime.parent.iterdir(), None) is None:
+                runtime.parent.rmdir()
+        raise
+    return runtime
+
+
+def write_hook_shims(atlas: Path, source_commit: str | None = None) -> Path:
     """The shim directory for `atlas`'s owned hooks, written in its git directory.
 
     The common git directory, so a linked Atlas tree and the main one share
@@ -921,12 +1282,20 @@ def write_hook_shims(atlas: Path) -> Path:
     touches it. Each shim's bytes are written exactly (LF), whatever
     `core.autocrlf` says.
     """
-    commit = hook_source_commit(atlas)
-    if commit is None:
-        raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    if source_commit is None:
+        commit = hook_source_commit(atlas)
+        if commit is None:
+            raise RuntimeError(f"{atlas} has no {HOOK_SOURCE_REF}; fetch it first")
+    else:
+        if re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", source_commit) is None:
+            raise RuntimeError("bootstrap source must be a full immutable commit ID")
+        commit = git_in(atlas, "rev-parse", "--verify", "--end-of-options", f"{source_commit}^{{commit}}")
+        if commit != source_commit:
+            raise RuntimeError("bootstrap source must name that exact commit")
     git_dir = common_git_dir(atlas)
     shims = git_dir / "atlas-hooks"
     shims.mkdir(parents=True, exist_ok=True)
+    runtime = write_pre_push_runtime(atlas, commit, shims / "pre-push-runtime")
     # Read as the shim reads it: replace refs ignored.
     listing = git_in(
         atlas, "--no-replace-objects", "ls-tree", "--name-only", f"{commit}:scripts/git-hooks"
@@ -942,10 +1311,28 @@ def write_hook_shims(atlas: Path) -> Path:
                 f"{HOOK_SOURCE_REF} has no scripts/git-hooks/{stale}"
             )
     for name in sorted(names):
+        bootstrap = ""
+        if name == "pre-push":
+            bootstrap = PRE_PUSH_SHIM_BOOTSTRAP.format(
+                runtime=_shell_word(runtime.as_posix())
+            )
         _replace_shim(
             shims / name,
             HOOK_SHIM.format(
-                name=name, ref=HOOK_SOURCE_REF, git_dir=_shell_word(git_dir.as_posix())
+                name=name,
+                ref=HOOK_SOURCE_REF,
+                git_dir=_shell_word(git_dir.as_posix()),
+                runtime=_shell_word(runtime.as_posix()),
+                bootstrap=bootstrap,
+                source_guard=(
+                    f'if ! __atlas_shim_lookup merge-base --is-ancestor {commit} '
+                    '"$__atlas_shim_commit"; then\n'
+                    '  echo "atlas hooks: fetched source predates the installed '
+                    'process-owner floor; fetch a compatible Atlas source" >&2\n'
+                    '  exit 1\nfi\n'
+                    'export ATLAS_HOOK_SOURCE_COMMIT="$__atlas_shim_commit"'
+                    if name == "pre-push" else ""
+                ),
             ).encode(),
         )
     return shims
@@ -972,12 +1359,12 @@ def _same_directory(first: str | Path, second: str | Path) -> bool:
         return False
 
 
-def cmd_install_hooks(_args) -> int:
+def cmd_install_hooks(args) -> int:
     """Point every member's `core.hooksPath` at the owned-hook shims.
 
-    Local git config, so it is a per-clone bootstrap rather than committed
-    state -- the same shape as the meta-repo's own
-    `git config core.hooksPath .githooks`.
+    Local git config points the members and Atlas itself at the shared
+    source-bound shims. This per-clone bootstrap does not change committed
+    hook copies or select a checked-out branch as the source.
 
     Two earlier values are retargeted, because each ran a working-tree copy.
     `.githooks` is the copy `sync-hooks` deploys for standalone clones, and a
@@ -998,7 +1385,8 @@ def cmd_install_hooks(_args) -> int:
     retarget the umbrella's hooks.
     """
     try:
-        hooks = write_hook_shims(ROOT).as_posix()
+        source_commit = getattr(args, "source_ref", None)
+        hooks = write_hook_shims(ROOT, source_commit).as_posix()
     except (RuntimeError, OSError) as err:
         print(f"install-hooks: shims not all written, members left unchanged: {err}")
         return 1
@@ -1120,6 +1508,11 @@ def main() -> int:
         help="append an Item trailer to each generated member commit",
     )
     publish.add_argument(
+        "--agent",
+        metavar="ID",
+        help="append an Agent trailer to each generated member commit",
+    )
+    publish.add_argument(
         "--draft",
         action="store_true",
         help="create draft pull requests without enabling merge-on-green",
@@ -1127,7 +1520,12 @@ def main() -> int:
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("restore").set_defaults(func=cmd_restore)
-    sub.add_parser("install-hooks").set_defaults(func=cmd_install_hooks)
+    install = sub.add_parser("install-hooks")
+    install.add_argument(
+        "--source-ref", metavar="COMMIT",
+        help="full immutable commit supplying the staged runtime; shims still load fetched default hooks",
+    )
+    install.set_defaults(func=cmd_install_hooks)
     args = parser.parse_args()
     return args.func(args)
 

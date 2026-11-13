@@ -1,7 +1,6 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Exact release cohorts [minor] — blocked
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
-<a id="atlas-alloc-count-per-thread"></a>- [ATLAS-ALLOC-COUNT-PER-THREAD](backlog/atlas-alloc-count-per-thread.md) — Count test allocations on the measuring thread only [patch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — todo
 <a id="atlas-apollo-realsh-005"></a>- [ATLAS-APOLLO-REALSH-005](backlog/atlas-apollo-realsh-005.md) — original specification — todo
@@ -25,7 +24,6 @@
 <a id="atlas-coeus-cpu-consumer-migration"></a>- [ATLAS-COEUS-CPU-CONSUMER-MIGRATION](backlog/atlas-coeus-cpu-consumer-migration.md) — Migrate out-of-repo coeus-leto consumers to coeus-cpu [major] — todo
 <a id="atlas-coeus-cpu-overlay"></a>- [ATLAS-COEUS-CPU-OVERLAY](backlog/atlas-coeus-cpu-overlay.md) — Commit the stack overlay's coeus-cpu row [patch] — blocked
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — todo
-<a id="atlas-cross-member-sweep-108"></a>- [ATLAS-CROSS-MEMBER-SWEEP-108](backlog/atlas-cross-member-sweep-108.md) — cross-member staleness and dirt sweep [patch] (2026-08-23) — todo
 <a id="atlas-default-branch-reds-2026-09-02"></a>- [ATLAS-DEFAULT-BRANCH-REDS-2026-09-02](backlog/atlas-default-branch-reds-2026-09-02.md) — Member default-branch workflows red with no collector [patch] — todo
 <a id="atlas-dmri-correct-009"></a>- [ATLAS-DMRI-CORRECT-009](backlog/atlas-dmri-correct-009.md) — Motion, eddy-current, and susceptibility correction [minor] — todo
 <a id="atlas-dmri-denoise-008"></a>- [ATLAS-DMRI-DENOISE-008](backlog/atlas-dmri-denoise-008.md) — MP-PCA denoising and Gibbs unringing [minor] — todo
@@ -36,7 +34,6 @@
 <a id="atlas-hermes-consumer-entry-2026-08-25"></a>- [ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25](backlog/atlas-hermes-consumer-entry-2026-08-25.md) — Restore Hermes as the stack's lane-kernel owner [arch] — todo
 <a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo
 <a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Stack-owned git hooks [patch] — todo
-<a id="atlas-hook-gate-convergence-20261010"></a>- [ATLAS-HOOK-GATE-CONVERGENCE-20261010](backlog/atlas-hook-gate-convergence-20261010.md) — Converge the hook-gate rollout, then sweep gitlinks [arch] — todo
 <a id="atlas-hook-stack-root-ssot"></a>- [ATLAS-HOOK-STACK-ROOT-SSOT](backlog/atlas-hook-stack-root-ssot.md) — One stack-root resolver for both root hooks [patch] — todo
 <a id="atlas-horae-consumer-audit-2026-08-19"></a>- [ATLAS-HORAE-CONSUMER-AUDIT-2026-08-19](backlog/atlas-horae-consumer-audit-2026-08-19.md) — boundary finding [patch] — blocked
 <a id="atlas-hygiene-baseline-001"></a>- [ATLAS-HYGIENE-BASELINE-001](backlog/atlas-hygiene-baseline-001.md) — Eleven-class conformance baseline and namespace hygiene [patch] — todo
@@ -105,11 +102,11 @@
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — The contract is already satisfied; the guard is preventive [patch] — todo
 <a id="atlas-target-001"></a>- [ATLAS-TARGET-001](backlog/atlas-target-001.md) — One build cache, one debug budget [patch] — todo
 <a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
-<a id="atlas-third-party-check-always-red"></a>- [ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09](backlog/atlas-third-party-check-always-red.md) — A check that fails on every pull request [patch] — blocked
 <a id="atlas-trusted-publisher-bootstrap-001"></a>- [ATLAS-TRUSTED-PUBLISHER-BOOTSTRAP-001](backlog/atlas-trusted-publisher-bootstrap-001.md) — Register trusted publishing for the token-first-published crates [patch] — todo
 <a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
+<a id="atlas-v1-milestone-ladders-001"></a>- [ATLAS-V1-MILESTONE-LADDERS-001](backlog/atlas-v1-milestone-ladders-001.md) — Roll the 1.0 milestone ladder out to every member [arch] — todo
 <a id="atlas-version-coherence-sweep-2026-09-30"></a>- [ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30](backlog/atlas-version-coherence-sweep-2026-09-30.md) — Follow the current provider cohort into every consumer [correctness] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
@@ -123,3 +120,5 @@
 <a id="atlas-zip9-cohort-sweep"></a>- [ATLAS-ZIP9-COHORT-SWEEP](backlog/atlas-zip9-cohort-sweep.md) — Clear the zip < 9 advisories by moving kwavers onto the current cohort [patch] — todo
 <a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
+<a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Kill the surviving writer-scan mutants [patch] — todo
+<a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo

@@ -26,8 +26,6 @@ repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:70:16 
 repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:74:16  # apollo
 repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:142:28  # apollo
 repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:150:24  # apollo
-repos/coeus/crates/coeus-autograd/src/gradcheck.rs:254:19  # coeus
-repos/coeus/crates/coeus-autograd/src/gradcheck.rs:277:22  # coeus
 repos/coeus/crates/coeus-python/src/ops/shape.rs:224:17  # coeus
 repos/consus/crates/consus-hdf5/src/file/writer/builder.rs:47:22  # consus
 repos/consus/crates/consus-hdf5/src/heap/global.rs:268:13  # consus
@@ -79,7 +77,6 @@ repos/kwavers/crates/kwavers-medium/src/absorption/relaxation_fit.rs:943:28  # k
 repos/kwavers/crates/kwavers-mesh/src/tetrahedral/mesh.rs:27:20  # kwavers
 repos/kwavers/crates/kwavers-physics/src/acoustics/bubble_dynamics/bubble_field/core/model.rs:55:25  # kwavers
 repos/kwavers/crates/kwavers-physics/src/acoustics/bubble_dynamics/bubble_field/core/model.rs:56:30  # kwavers
-repos/kwavers/crates/kwavers-physics/src/acoustics/imaging/modalities/ultrasound/frequency_domain_fwi.rs:422:25  # kwavers
 repos/kwavers/crates/kwavers-physics/src/analytical/inverse.rs:388:18  # kwavers
 repos/kwavers/crates/kwavers-physics/src/analytical/inverse.rs:430:16  # kwavers
 repos/kwavers/crates/kwavers-physics/src/analytical/photoacoustics.rs:324:40  # kwavers
@@ -106,7 +103,7 @@ repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/jit_compiler/mod.rs:84:1
 repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/jit_compiler/mod.rs:106:14  # kwavers
 repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/multi_gpu_manager/types.rs:148:26  # kwavers
 repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/multi_gpu_manager/types.rs:150:23  # kwavers
-repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/quantization/engine/ops.rs:58:24  # kwavers
+repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/quantization/engine/ops.rs:57:24  # kwavers
 repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/quantization/mod.rs:14:27  # kwavers
 repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/wave_equation_2d/geometry/shape/mod.rs:37:16  # kwavers
 repos/kwavers/crates/kwavers-solver/src/inverse/pinn/ml/wave_equation_2d/geometry/shape/mod.rs:101:56  # kwavers

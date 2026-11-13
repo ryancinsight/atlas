@@ -6,14 +6,58 @@ from typing import Sequence
 
 from atlas_build_artifacts import validate_artifact_paths
 from atlas_build_dep_info import current_inputs, package_layout
-from atlas_build_inputs import _dependency_data, build_spec
+from atlas_build_inputs import (
+    _dependency_data,
+    build_spec,
+    compiler_environment,
+    effective_compiler_command,
+    effective_compiler_environment,
+)
 from atlas_build_lease import BuildIdentityError as IdentityError
 from atlas_build_lease import LeaseProbe, package_target_lease_scopes
 from atlas_build_records import _record_matches, _recorded_artifact, read_record, record_path
-from atlas_build_source import _canonical
+from atlas_build_source import _canonical, overlay_stripped_configs
 
 
 def check_record(
+    root: Path,
+    package: str,
+    target_dir: Path,
+    profile: str = "debug",
+    target: str = "host",
+    features: str = "",
+    artifact_paths: Sequence[Path] = (),
+    manifest: Path | None = None,
+    command: Sequence[str] = (),
+    command_cwd: Path | None = None,
+    command_key: str | None = None,
+    ignore_paths: Sequence[Path] = (),
+    selection: Sequence[str] = (),
+) -> tuple[int, dict[str, object]]:
+    execution_root = _canonical(command_cwd or root, strict=True)
+    environment = effective_compiler_environment(manifest, execution_root, command)
+    command = effective_compiler_command(command, environment)
+    environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
+    with compiler_environment(environment):
+        with overlay_stripped_configs(execution_root):
+            return _check_record(
+                root,
+                package,
+                target_dir,
+                profile,
+                target,
+                features,
+                artifact_paths,
+                manifest,
+                command,
+                command_cwd,
+                command_key,
+                ignore_paths,
+                selection,
+            )
+
+
+def _check_record(
     root: Path,
     package: str,
     target_dir: Path,

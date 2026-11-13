@@ -71,8 +71,11 @@
 | [0061](0061-closure-surfaces-of-balance-members.md) | Hyperion and Asclepius are closure domains | Accepted |
 | [0062](0062-iterative-solver-and-preconditioner-ownership.md) | Iterative solvers and preconditioners are Athena policy over Leto kernels | Accepted |
 | [0063](0063-raster-codec-ownership.md) | Shared raster codec ownership | Accepted |
-| [0064](0064-shared-build-source-identity.md) | Shared build source and artifact identity | Accepted |
+| [0064](0064-shared-build-source-identity.md) | Shared build source, artifact, sibling, and gate identity | Accepted |
 | [0065](0065-nurbs-derivative-scaling.md) | Overflow-safe rational derivative products | Accepted |
 | [0066](0066-lane-tool-sole-worktree-path.md) | The lane tool is the only way to create a worktree | Accepted |
 | [0067](0067-process-tree-runner-ownership.md) | Atlas owns bounded process-tree execution | Accepted |
-| [0068](0068-publish-on-version-change.md) | Crates publish when their manifest version changes | Accepted |
+| [0068](0068-publish-on-version-change.md) | Authorized version changes publish automatically | Accepted |
+| [0069](0069-locked-source-semver.md) | Treat locked-resolution API coverage as unsupported | Accepted |
+| [0070](0070-native-cargo-package-facts.md) | Cargo owns stack package facts | Accepted |
+| [0071](0071-stack-build-profile-budget.md) | The stack config owns build profiles; optimization raises are named there | Accepted |

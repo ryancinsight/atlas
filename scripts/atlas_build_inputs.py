@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
+import subprocess
+import threading
+import tomllib
 from typing import Sequence
 
 from atlas_build_lease import BuildIdentityError
@@ -20,6 +25,11 @@ from atlas_build_source import (
     source_identity,
     toolchain_identity,
 )
+
+
+_ENVIRONMENT_LOCK = threading.RLock()
+_ENCODED_SEPARATOR = "\x1f"
+_FUZZ_CFG = ("--cfg", "fuzzing")
 
 
 def _config_arguments(command: Sequence[str]) -> tuple[str, ...]:
@@ -71,6 +81,224 @@ def _inline_environment(command: Sequence[str]) -> dict[str, str]:
     return values
 
 
+def _reject_fuzz_env_options(command: Sequence[str]) -> None:
+    """Reject `env` option forms whose child environment is not normalized."""
+    arguments = [str(argument) for argument in command]
+    if arguments[:1] != ["env"]:
+        return
+    for argument in arguments[1:]:
+        if "=" in argument and not argument.startswith("-"):
+            continue
+        if argument.startswith("-"):
+            raise BuildIdentityError(
+                "cannot normalize env options while adding cfg(fuzzing): " + argument
+            )
+        break
+
+
+def _cargo_fuzz_manifest(manifest: Path) -> bool:
+    """Whether the exact manifest declares Cargo's fuzz-package metadata."""
+    try:
+        document = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise BuildIdentityError(f"cannot read fuzz metadata from {manifest}: {error}") from error
+    package = document.get("package")
+    if package is None:
+        return False
+    if not isinstance(package, dict):
+        raise BuildIdentityError(f"malformed [package] table in {manifest}")
+    metadata = package.get("metadata")
+    if metadata is None:
+        return False
+    if not isinstance(metadata, dict):
+        raise BuildIdentityError(f"malformed [package.metadata] table in {manifest}")
+    value = metadata.get("cargo-fuzz", False)
+    if not isinstance(value, bool):
+        raise BuildIdentityError(
+            f"package.metadata.cargo-fuzz must be a boolean in {manifest}"
+        )
+    return value
+
+
+def _has_fuzz_cfg(tokens: Sequence[str]) -> bool:
+    return any(
+        token == "--cfg=fuzzing"
+        or (
+            token == _FUZZ_CFG[0]
+            and index + 1 < len(tokens)
+            and tokens[index + 1] == _FUZZ_CFG[1]
+        )
+        for index, token in enumerate(tokens)
+    )
+
+
+def _rustflag_tokens(value: object, source: str) -> list[str]:
+    if isinstance(value, str):
+        return value.split()
+    if isinstance(value, list) and all(isinstance(token, str) for token in value):
+        return list(value)
+    raise BuildIdentityError(f"{source} must be a string or a list of strings")
+
+
+def _configured_rustflags(
+    execution_root: Path,
+    command: Sequence[str],
+    environment: Mapping[str, str],
+) -> list[str]:
+    """Resolve non-target Cargo rustflags without replacing configured tokens."""
+    targeted = sorted(
+        key
+        for key in environment
+        if (key.startswith("CARGO_TARGET_") or key.startswith("CARGO_HOST_"))
+        and key.endswith("_RUSTFLAGS")
+    )
+    if targeted:
+        raise BuildIdentityError(
+            "cannot resolve target-qualified rustflags while adding cfg(fuzzing): "
+            + ", ".join(targeted)
+        )
+    cargo = environment.get("CARGO", "cargo")
+    query_environment = dict(environment)
+    query_environment["RUSTC_BOOTSTRAP"] = "1"
+    query_prefix = [cargo]
+    for argument in _config_arguments(command):
+        query_prefix.extend(("--config", argument))
+
+    def query(arguments: Sequence[str]) -> str:
+        try:
+            result = subprocess.run(
+                [*query_prefix, *arguments],
+                cwd=execution_root,
+                env=query_environment,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=60,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise BuildIdentityError(f"cannot resolve Cargo rustflags: {error}") from error
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise BuildIdentityError(f"cannot resolve Cargo rustflags: {detail}")
+        return result.stdout
+
+    output = query(("-Z", "unstable-options", "config", "get", "--format=json"))
+    try:
+        document = json.loads(output)
+    except json.JSONDecodeError as error:
+        raise BuildIdentityError(f"Cargo config returned malformed JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise BuildIdentityError("Cargo config did not return a table")
+    for table_name in ("target", "host"):
+        table = document.get(table_name, {})
+        if not isinstance(table, dict):
+            raise BuildIdentityError(f"Cargo config {table_name} must be a table")
+        qualified = [
+            name
+            for name, value in table.items()
+            if isinstance(value, dict) and "rustflags" in value
+        ]
+        if qualified:
+            raise BuildIdentityError(
+                f"cannot resolve {table_name}-qualified rustflags while adding cfg(fuzzing): "
+                + ", ".join(sorted(qualified))
+            )
+    build = document.get("build", {})
+    if not isinstance(build, dict):
+        raise BuildIdentityError("Cargo config build must be a table")
+    value = build.get("rustflags")
+    if value is None and "CARGO_BUILD_RUSTFLAGS" not in environment:
+        return []
+    resolved = query(
+        (
+            "-Z",
+            "unstable-options",
+            "config",
+            "get",
+            "build.rustflags",
+            "--format=json-value",
+        )
+    )
+    try:
+        value = json.loads(resolved)
+    except json.JSONDecodeError as error:
+        raise BuildIdentityError(f"Cargo rustflags returned malformed JSON: {error}") from error
+    return _rustflag_tokens(value, "Cargo build.rustflags")
+
+
+def effective_compiler_command(
+    command: Sequence[str], environment: Mapping[str, str]
+) -> tuple[str, ...]:
+    """Carry normalized inline compiler assignments into actual execution."""
+    normalized = [str(argument) for argument in command]
+    if not normalized or normalized[0] != "env":
+        return tuple(normalized)
+    for index in range(1, len(normalized)):
+        assignment = normalized[index]
+        if "=" not in assignment or assignment.startswith("-"):
+            break
+        name, _, _value = assignment.partition("=")
+        if name in {
+            "CARGO_BUILD_RUSTFLAGS",
+            "CARGO_ENCODED_RUSTFLAGS",
+            "RUSTFLAGS",
+        } and name in environment:
+            normalized[index] = f"{name}={environment[name]}"
+    return tuple(normalized)
+
+
+def effective_compiler_environment(
+    manifest: Path | None,
+    execution_root: Path,
+    command: Sequence[str] = (),
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Return the compiler environment shared by discovery and execution.
+
+    A cargo-fuzz manifest requires `cfg(fuzzing)`. The effective flag is
+    installed before any Cargo metadata or compiler-identity probe, and is
+    appended at Cargo's highest-precedence representation so existing
+    encoded, environment, or Cargo-config flags remain effective.
+    """
+    effective = dict(os.environ if environment is None else environment)
+    effective.update(_inline_environment(command))
+    if manifest is None or not _cargo_fuzz_manifest(_canonical(manifest, strict=True)):
+        return effective
+    _reject_fuzz_env_options(command)
+    encoded = effective.get("CARGO_ENCODED_RUSTFLAGS")
+    if encoded is not None:
+        tokens = encoded.split(_ENCODED_SEPARATOR) if encoded else []
+        if not _has_fuzz_cfg(tokens):
+            effective["CARGO_ENCODED_RUSTFLAGS"] = _ENCODED_SEPARATOR.join([*tokens, *_FUZZ_CFG])
+        return effective
+    rustflags = effective.get("RUSTFLAGS")
+    if rustflags is not None:
+        if not _has_fuzz_cfg(rustflags.split()):
+            effective["RUSTFLAGS"] = f"{rustflags} {' '.join(_FUZZ_CFG)}".strip()
+        return effective
+    tokens = _configured_rustflags(execution_root, command, effective)
+    if not _has_fuzz_cfg(tokens):
+        tokens.extend(_FUZZ_CFG)
+    effective["CARGO_ENCODED_RUSTFLAGS"] = _ENCODED_SEPARATOR.join(tokens)
+    return effective
+
+
+@contextmanager
+def compiler_environment(environment: Mapping[str, str]) -> Iterator[None]:
+    """Install one effective environment for inherited Cargo subprocesses."""
+    with _ENVIRONMENT_LOCK:
+        previous = dict(os.environ)
+        os.environ.clear()
+        os.environ.update(environment)
+        try:
+            yield
+        finally:
+            os.environ.clear()
+            os.environ.update(previous)
+
+
 def build_spec(
     root: Path,
     package: str,
@@ -113,7 +341,12 @@ def build_spec(
         profile=profile,
         target=target,
         features=features,
-        toolchain=toolchain_identity(resolved_execution_root),
+        toolchain=toolchain_identity(
+            resolved_execution_root,
+            merged_environment,
+            _config_arguments(normalized_command),
+            normalized_command,
+        ),
         target_dir=canonical_target.as_posix(),
         command_key=normalized_key,
         selection=",".join(selected),

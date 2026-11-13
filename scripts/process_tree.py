@@ -49,7 +49,9 @@ neither may substitute a module the supervisor imports.
 
 from __future__ import annotations
 
+import contextlib
 import errno
+import enum
 import importlib.util
 import math
 import os
@@ -111,6 +113,15 @@ WAIT_SLICE_SECONDS = 0.1
 # latency, and an exiting group is noticed within it.
 GROUP_POLL_SECONDS = WAIT_SLICE_SECONDS / 10
 OUTPUT_READ_BYTES = 64 * 1024
+
+
+class OutputMode(enum.Enum):
+    """Select whether command output is captured or inherited by the child."""
+
+    CAPTURE = enum.auto()
+    INHERIT = enum.auto()
+
+
 # The supervisor leads the command's process group and bounds it on its own: a
 # watcher thread retires the whole group, itself included, when the pipe the
 # caller holds reaches end of file (the caller exited or was killed) and another
@@ -216,8 +227,8 @@ class ProcessTreeTimeout(subprocess.TimeoutExpired):
         self,
         command: Sequence[str],
         timeout: float,
-        stdout: bytes,
-        stderr: bytes,
+        stdout: bytes | None,
+        stderr: bytes | None,
         cleanup_error: str | None,
     ) -> None:
         super().__init__(command, timeout, output=stdout, stderr=stderr)
@@ -667,15 +678,20 @@ def run(
     env: Mapping[str, str] | None = None,
     input: bytes | None = None,
     timeout: float,
+    output_mode: OutputMode = OutputMode.CAPTURE,
     stdout_limit: int | None = None,
     stderr_limit: int | None = None,
-) -> subprocess.CompletedProcess[bytes]:
+) -> subprocess.CompletedProcess[bytes | None]:
     """Run ``command`` and retire its owned process tree within finite bounds."""
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("process timeout must be finite and greater than zero")
+    if not isinstance(output_mode, OutputMode):
+        raise TypeError("output mode must be an OutputMode")
     for name, limit in (("stdout", stdout_limit), ("stderr", stderr_limit)):
         if limit is not None and (type(limit) is not int or limit < 0):
             raise ValueError(f"{name} limit must be a nonnegative integer")
+        if limit is not None and output_mode is OutputMode.INHERIT:
+            raise ValueError(f"{name} limit requires captured output")
     arguments = list(command)
     deadline = time.monotonic() + timeout
     job_handle: int | None = None
@@ -696,9 +712,13 @@ def run(
     output_limit_hit = False
     caught_error: BaseException | None = None
     cleanup_state = _CleanupState()
-    with tempfile.TemporaryFile(mode="w+b") as stdout, tempfile.TemporaryFile(
-        mode="w+b"
-    ) as stderr:
+    with contextlib.ExitStack() as output_files:
+        if output_mode is OutputMode.CAPTURE:
+            stdout = output_files.enter_context(tempfile.TemporaryFile(mode="w+b"))
+            stderr = output_files.enter_context(tempfile.TemporaryFile(mode="w+b"))
+        else:
+            stdout = None
+            stderr = None
         has_input = "1" if input is not None else "0"
         if sys.platform == "win32":
             launch_command = arguments
@@ -849,10 +869,14 @@ def run(
             output_limit_hit = any(collector is not None and collector.limit_reached
                                    for collector in (stdout_collector, stderr_collector))
 
-        captured_stdout = (_read_output(stdout) if stdout_collector is None
-                           else stdout_collector.output())
-        captured_stderr = (_read_output(stderr) if stderr_collector is None
-                           else stderr_collector.output())
+        if stdout_collector is not None:
+            captured_stdout = stdout_collector.output()
+        else:
+            captured_stdout = _read_output(stdout) if stdout is not None else None
+        if stderr_collector is not None:
+            captured_stderr = stderr_collector.output()
+        else:
+            captured_stderr = _read_output(stderr) if stderr is not None else None
         if output_limit_hit:
             stream = "stdout" if (stdout_collector is not None
                                     and stdout_collector.limit_reached) else "stderr"

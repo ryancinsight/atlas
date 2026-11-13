@@ -45,10 +45,18 @@ class TFConversionTests(unittest.TestCase):
         for row in d['artifacts']:row['sha256']=hashlib.sha256((root/row['path']).read_bytes()).hexdigest()
         write(p,d)
 
-    def mutate(self,name,change,pattern='TF conversion'):
-        with self.copied() as root:
-            p=root/PREFIX/name;d=read_json(p);change(d);write(p,d);self.reindex(root)
+    def assert_mutation_rejected(self,root,name,change,pattern='TF conversion'):
+        p=root/PREFIX/name;index=root/PREFIX/'index.json'
+        paths=(p,) if p==index else (p,index)
+        originals=[(path,path.read_bytes()) for path in paths]
+        try:
+            d=read_json(p);change(d);write(p,d);self.reindex(root)
             with self.assertRaisesRegex(ParityError,pattern):load(root)
+        finally:
+            for path,content in originals:path.write_bytes(content)
+
+    def mutate(self,name,change,pattern='TF conversion'):
+        with self.copied() as root:self.assert_mutation_rejected(root,name,change,pattern)
 
     def test_counts_stages_and_committed_input_roles_are_preserved(self):
         result=report(self.bundle);d=result['tensorflow_conversion_designs']
@@ -136,8 +144,9 @@ class TFConversionTests(unittest.TestCase):
             ('plan.json',lambda d:d.update(state='execution_ready',actual_implementation_owner='coeus')),
             ('plan.json',lambda d:d['effort']['first_primal_cpu_implementation'].update(depends_on=[],low=0,high=0)),
             ('captured/remaining-gaps.json',lambda d:d.update(records=[],whole_api_complete=True))]
-        for name,fn in mutations:
-            with self.subTest(name=name,fn=fn):self.mutate(name,fn)
+        with self.copied() as root:
+            for name,fn in mutations:
+                with self.subTest(name=name,fn=fn):self.assert_mutation_rejected(root,name,fn)
 
     def numeric_edit(self,root,key,left,expected):
         p=root/PREFIX/'cases.json';d=read_json(p);row=by(d['records'],key)

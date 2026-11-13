@@ -61,6 +61,16 @@ on:
         required: false
         default: ""
         type: string
+      cargo-build-timeout-seconds:
+        description: Bounded package build time; callers may retain a lower established bound
+        required: false
+        default: 720
+        type: number
+      mdbook-test-timeout-seconds:
+        description: Bounded mdBook sample-test time
+        required: false
+        default: 480
+        type: number
       mdbook-linkcheck2-version:
         description: >-
           Exact `mdbook-linkcheck2` version to install. Set this when the
@@ -112,6 +122,28 @@ jobs:
       - name: Check out the book source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      - name: Validate called Atlas workflow revision
+        if: inputs.mdbook-test && inputs.cargo-package != ''
+        shell: bash
+        env:
+          CALLED_WORKFLOW_SHA: ${{ fromJSON(toJSON(job)).workflow_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${CALLED_WORKFLOW_SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "called Atlas workflow revision must be a full commit SHA" >&2
+            exit 1
+          fi
+
+      - name: Check out exact Atlas book tooling
+        if: inputs.mdbook-test && inputs.cargo-package != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          # actionlint 1.7.12 predates the job.workflow_* identity fields.
+          ref: ${{ fromJSON(toJSON(job)).workflow_sha }}
+          path: .atlas-book-tools
           persist-credentials: false
 
       - name: Configure Pages
@@ -194,73 +226,30 @@ jobs:
           timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
             sudo apt-get install --yes libfontconfig1-dev
 
-      - name: Build package for book code sample testing
+      - name: Build package and test book code samples
         if: inputs.mdbook-test && inputs.cargo-package != ''
         shell: bash
         run: |
           set -euo pipefail
-          timeout --foreground --kill-after=30s "$BOOK_BUILD_TIMEOUT" \
-            cargo build --locked -p "${{ inputs.cargo-package }}"
-          # Package and library target names usually differ only by hyphens,
-          # but a package may expose an explicit [lib] name.
-          pkg="${{ inputs.cargo-package }}"
-          crate="${{ inputs.cargo-crate }}"
-          if [[ -z "$crate" ]]; then
-            crate="${pkg//-/_}"
+          args=(
+            --manifest "${{ inputs.manifest }}"
+            --package "${{ inputs.cargo-package }}"
+            --book "${{ inputs.book-path }}"
+            --build-timeout-seconds "${{ inputs.cargo-build-timeout-seconds }}"
+            --test-timeout-seconds "${{ inputs.mdbook-test-timeout-seconds }}"
+          )
+          if [[ -n "${{ inputs.cargo-crate }}" ]]; then
+            args+=(--crate "${{ inputs.cargo-crate }}")
           fi
-          target_dir="$(timeout --foreground --kill-after=30s 2m \
-            cargo metadata --locked --no-deps --format-version 1 | \
-            python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")"
-          deps_dir="$target_dir/debug/deps"
-          if compgen -G "$deps_dir/lib${crate}-*.rlib" > /dev/null; then
-            # mdbook 0.5.4 does not forward RUSTDOCFLAGS: it spawns rustdoc with
-            # a fixed argument list, so `--extern` cannot be injected. Point
-            # `mdbook test --library-path` at a fresh directory containing the
-            # Cargo artifacts with their metadata hashes intact; rustdoc uses
-            # those hashes to select the dependency version recorded by the
-            # package rlib. Fenced blocks must declare the crate with
-            # `extern crate <name>;`.
-            #
-            # Dependencies are staged alongside the package itself: a chapter
-            # that demonstrates a real workflow routinely names a second crate
-            # (`extern crate bytemuck;` beside `extern crate eunomia;`), and
-            # staging only the package leaves that block failing E0463 with no
-            # way for the chapter to fix it.
-            stage_dir="$target_dir/mdbook-test-libs"
-            rm -rf "$stage_dir"
-            mkdir -p "$stage_dir"
-            # Proc-macro crates build as dynamic libraries rather than rlibs, so
-            # both extensions are staged: a derive macro reached through a
-            # dependency (bytemuck_derive via bytemuck) fails E0463 otherwise.
-            # Do not strip the metadata hash or select by directory order: a
-            # locked graph may contain multiple versions of one crate, and a
-            # hashless first match can produce E0460 for the package itself.
-            staged=0
-            for candidate in "$deps_dir"/lib*.rlib "$deps_dir"/lib*.so; do
-              [[ -e "$candidate" ]] || continue
-              base="$(basename "$candidate")"
-              cp -f "$candidate" "$stage_dir/$base"
-              staged=$((staged + 1))
-            done
-            if (( staged == 0 )); then
-              echo "cargo build produced no linkable artifacts in $deps_dir" >&2
-              exit 1
-            fi
-            echo "MDBOOK_TEST_LIB_DIR=${stage_dir}" >> "$GITHUB_ENV"
-          fi
+          python3 .atlas-book-tools/scripts/atlas-book-test.py "${args[@]}"
 
       - name: Test book code samples
-        if: inputs.mdbook-test
+        if: inputs.mdbook-test && inputs.cargo-package == ''
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "${MDBOOK_TEST_LIB_DIR:-}" ]]; then
-            timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
-              mdbook test "${{ inputs.book-path }}" --library-path "$MDBOOK_TEST_LIB_DIR"
-          else
-            timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
-              mdbook test "${{ inputs.book-path }}"
-          fi
+          timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+            mdbook test "${{ inputs.book-path }}"
 
       - name: Build book
         shell: bash

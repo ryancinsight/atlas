@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import os
+import re
 import subprocess
 import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date, datetime, time
+from enum import Enum
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -147,8 +153,16 @@ def repository_top(root: Path) -> Path:
         directory = parent
 
 
+class _SubmoduleScope(Enum):
+    """The submodule changes a repository status snapshot observes."""
+
+    IGNORE = "all"
+    SUPERPROJECT = "dirty"
+
+
 def _repository_status(
     top: Path,
+    submodules: _SubmoduleScope = _SubmoduleScope.IGNORE,
 ) -> tuple[str, bool, tuple[tuple[bytes, list[bytes]], ...]]:
     """Return HEAD, tracked dirt, and untracked inputs from one Git snapshot.
 
@@ -160,7 +174,9 @@ def _repository_status(
     `ls-files --others` and `ls-files --others --ignored` walked it twice
     in two processes. Each group is the list those commands print, sorted
     as Git sorts it (byte order), so the source digest is unchanged.
-    Submodules are not entered: only `?` and `!` entries are read.
+    Source identity ignores submodules as before. Package identity observes
+    superproject gitlink entries, while still ignoring dirt inside their work
+    trees; an existing HEAD gitlink always requests the exact raw diff.
 
     `status` validates settings `ls-files` never reads: the `status.*`
     keys it knows, `color.status` and its slots, and `column.ui` and
@@ -178,7 +194,7 @@ def _repository_status(
         "-z",
         "--untracked-files=all",
         "--ignored=traditional",
-        "--ignore-submodules=all",
+        f"--ignore-submodules={submodules.value}",
         "--no-renames",
     )
     revision: bytes | None = None
@@ -264,10 +280,97 @@ def source_identity(
     )
 
 
-def toolchain_identity(root: Path) -> str:
+def _command_selects_toolchain(command: Sequence[str]) -> str | None:
+    arguments = [str(argument) for argument in command]
+    if arguments[:1] == ["env"]:
+        while len(arguments) > 1 and "=" in arguments[1] and not arguments[1].startswith("-"):
+            arguments.pop(1)
+        arguments.pop(0)
+    for index, argument in enumerate(arguments):
+        if Path(argument).name.lower() in {"cargo", "cargo.exe"}:
+            following = arguments[index + 1 : index + 2]
+            if following and following[0].startswith("+"):
+                return following[0]
+            break
+    return None
+
+
+def _configured_rustc(
+    root: Path,
+    config_arguments: Sequence[str],
+    environment: Mapping[str, str],
+) -> str | None:
+    cargo = environment.get("CARGO", "cargo")
+    query = [cargo]
+    for argument in config_arguments:
+        query.extend(("--config", str(argument)))
+    query.extend(("-Z", "unstable-options", "config", "get", "--format=json"))
+    query_environment = dict(environment)
+    query_environment["RUSTC_BOOTSTRAP"] = "1"
     try:
         result = subprocess.run(
-            [os.environ.get("RUSTC", "rustc"), "--version", "--verbose"],
+            query,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+            cwd=root,
+            env=query_environment,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise BuildIdentityError(f"cannot resolve Cargo compiler configuration: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise BuildIdentityError(f"cannot resolve Cargo compiler configuration: {detail}")
+    try:
+        document = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise BuildIdentityError(f"Cargo config returned malformed JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise BuildIdentityError("Cargo config did not return a table")
+    build = document.get("build", {})
+    if not isinstance(build, dict):
+        raise BuildIdentityError("Cargo config build must be a table")
+    compiler = build.get("rustc")
+    if compiler is not None and not isinstance(compiler, str):
+        raise BuildIdentityError("Cargo build.rustc must be a string")
+    return compiler
+
+
+def toolchain_identity(
+    root: Path,
+    environment: Mapping[str, str] | None = None,
+    config_arguments: Sequence[str] = (),
+    command: Sequence[str] = (),
+) -> str:
+    source = os.environ if environment is None else environment
+    compiler = source.get("RUSTC")
+    if compiler is None:
+        configured = _configured_rustc(root, config_arguments, source)
+        environment_compiler = source.get("CARGO_BUILD_RUSTC")
+        if (
+            configured is not None
+            and environment_compiler is not None
+            and configured != environment_compiler
+        ):
+            raise BuildIdentityError(
+                "cannot resolve conflicting Cargo build.rustc and "
+                "CARGO_BUILD_RUSTC compiler selections"
+            )
+        compiler = environment_compiler or configured
+    selected_toolchain = _command_selects_toolchain(command)
+    if selected_toolchain is not None:
+        raise BuildIdentityError(
+            f"cannot resolve compiler selected by Cargo argument {selected_toolchain}; "
+            "configured compiler names may be rustup proxies"
+        )
+    compiler = compiler or "rustc"
+    try:
+        result = subprocess.run(
+            [compiler, "--version", "--verbose"],
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -276,6 +379,7 @@ def toolchain_identity(root: Path) -> str:
             text=True,
             encoding="utf-8",
             errors="replace",
+            env=dict(source),
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise BuildIdentityError(f"cannot run rustc: {error}") from error
@@ -415,6 +519,7 @@ def _feed_config_text(
     base: Path,
     seen: set[Path],
     source: str,
+    forbidden_profile: str | None,
 ) -> None:
     """Hash `content` into `digest`, then recurse into its `include` value.
 
@@ -458,13 +563,22 @@ def _feed_config_text(
             "TOML 1.1 string escapes \\e and \\xHH are not TOML 1.0) so its `include` "
             "directive, if any, can be followed"
         ) from error
+    profiles = data.get("profile", {})
+    if forbidden_profile is not None:
+        if not isinstance(profiles, dict):
+            raise BuildIdentityError(f"Cargo profile table is malformed in {source}")
+        if forbidden_profile in profiles:
+            raise BuildIdentityError(f"reserved Cargo profile {forbidden_profile} is defined in {source}")
     for entry in _include_paths(data.get("include")):
         included = (base / entry).resolve()
         if included.is_file():
-            _feed_config_file(digest, b"include", included, seen)
+            _feed_config_file(digest, b"include", included, seen, forbidden_profile)
 
 
-def _feed_config_file(digest: "hashlib._Hash", marker: bytes, path: Path, seen: set[Path]) -> None:
+def _feed_config_file(
+    digest: "hashlib._Hash", marker: bytes, path: Path, seen: set[Path],
+    forbidden_profile: str | None,
+) -> None:
     """Hash `path` into `digest`, then recurse into its `include` directive.
 
     An edit confined to an included file changes the build without changing
@@ -482,13 +596,14 @@ def _feed_config_file(digest: "hashlib._Hash", marker: bytes, path: Path, seen: 
         content = path.read_bytes()
     except OSError as error:
         raise BuildIdentityError(f"cannot read cargo config {path}: {error}") from error
-    _feed_config_text(digest, marker, content, path.parent, seen, str(path))
+    _feed_config_text(digest, marker, content, path.parent, seen, str(path), forbidden_profile)
 
 
 def cargo_config_digest(
     execution_root: Path,
     config_arguments: Sequence[str] = (),
-    environment: Mapping[str, str] | None = None,
+    environment: Mapping[str, str] | None = None, *,
+    forbidden_profile: str | None = None,
 ) -> str:
     """A digest of every Cargo configuration source that shapes this build.
 
@@ -544,7 +659,7 @@ def cargo_config_digest(
             path = directory / name
             if path.is_file():
                 marker = b"dir:" + str(depth).encode("ascii") + b":" + name.encode("ascii")
-                _feed_config_file(digest, marker, path, seen)
+                _feed_config_file(digest, marker, path, seen, forbidden_profile)
         parent = directory.parent
         if parent == directory:
             break
@@ -554,14 +669,14 @@ def cargo_config_digest(
     for name in ("config.toml", "config"):
         path = home / name
         if path.is_file():
-            _feed_config_file(digest, b"home:" + name.encode("ascii"), path, seen)
+            _feed_config_file(digest, b"home:" + name.encode("ascii"), path, seen, forbidden_profile)
     for argument in config_arguments:
         text = str(argument)
         candidate = Path(text)
         if not candidate.is_absolute():
             candidate = origin / candidate
         if candidate.is_file():
-            _feed_config_file(digest, b"arg-file", candidate, seen)
+            _feed_config_file(digest, b"arg-file", candidate, seen, forbidden_profile)
         else:
             # An inline `--config` value is TOML text with no file of its
             # own (`--config 'include=["x.toml"]'`, or a dotted key such as
@@ -575,5 +690,198 @@ def cargo_config_digest(
                 origin,
                 seen,
                 f"inline --config argument {text!r}",
+                forbidden_profile,
             )
     return digest.hexdigest()
+
+
+def _config_text(data: dict[str, object]) -> str:
+    """Serialize a cargo config TOML after selective overlay filtering."""
+
+    def config_key(name: str) -> str:
+        return json.dumps(name, ensure_ascii=False)
+
+    def config_value(item: object) -> str:
+        if isinstance(item, bool):
+            return 'true' if item else 'false'
+        if isinstance(item, (datetime, date, time)):
+            return item.isoformat()
+        if isinstance(item, (int, float)):
+            return repr(item)
+        if isinstance(item, str):
+            return json.dumps(item, ensure_ascii=False)
+        if isinstance(item, list):
+            return '[' + ', '.join(config_value(entry) for entry in item) + ']'
+        if isinstance(item, dict):
+            return (
+                '{' + ', '.join(f'{config_key(k)} = {config_value(v)}' for k, v in item.items()) + '}'
+            )
+        raise TypeError(f'unsupported TOML value type: {type(item).__name__}')
+
+    def write_table(prefix: list[str], body: dict[str, object], lines: list[str]) -> None:
+        scalars = {k: v for k, v in body.items() if not isinstance(v, dict)}
+        if prefix and (scalars or not body):
+            lines.append('[' + '.'.join(config_key(part) for part in prefix) + ']')
+        lines.extend(f'{config_key(k)} = {config_value(v)}' for k, v in scalars.items())
+        for name, child in body.items():
+            if isinstance(child, dict):
+                write_table([*prefix, name], child, lines)
+
+    lines: list[str] = []
+    write_table([], data, lines)
+    return '\n'.join(lines) + '\n'
+
+
+def cargo_config_without_patches(config: Path) -> str:
+    """Render one Cargo config without its development source overrides.
+
+    The returned config retains build and profile settings. Includes are
+    refused because moving their relative paths would change which files Cargo
+    reads; callers must supply a self-contained config.
+    """
+    try:
+        raw = config.read_bytes()
+        text = raw[3:] if raw.startswith(b'\xef\xbb\xbf') else raw
+        data = tomllib.loads(text.decode('utf-8'))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise BuildIdentityError(f"cannot read Cargo configuration {config}: {error}") from error
+    if 'include' in data:
+        raise BuildIdentityError(f"Cargo configuration {config} has relative includes")
+    data.pop('patch', None)
+    return _config_text(data)
+
+
+def _without_missing_patch_entries(
+    config: Path, data: dict[str, object]
+) -> tuple[dict[str, object], bool]:
+    """Remove only path-only entries targeting empty exported gitlinks."""
+    patch = data.get('patch')
+    if not isinstance(patch, dict):
+        return data, False
+    config_dir = config.parent.parent
+    gitmodules = config_dir / '.gitmodules'
+    try:
+        registered = {
+            match.group(1).strip().replace('\\', '/')
+            for line in gitmodules.read_text(encoding='utf-8').splitlines()
+            if (match := re.match(r'^\s*path\s*=\s*(.+?)\s*$', line))
+        }
+    except (OSError, UnicodeError):
+        return data, False
+    if not registered:
+        return data, False
+    result = copy.deepcopy(data)
+    result_patch = result.get('patch')
+    if not isinstance(result_patch, dict):
+        return data, False
+    changed = False
+    for source_name, source in list(result_patch.items()):
+        if not isinstance(source, dict):
+            continue
+        source_changed = False
+        for package, entry in list(source.items()):
+            if not isinstance(entry, dict) or set(entry) != {'path'}:
+                continue
+            raw = entry.get('path')
+            if not isinstance(raw, str):
+                continue
+            target = config_dir / raw
+            if any(
+                _is_empty_registered_ancestor(config_dir, target, path)
+                for path in registered
+            ):
+                del source[package]
+                source_changed = True
+        if source_changed:
+            changed = True
+        if source_changed and not source:
+            del result_patch[source_name]
+    if changed and not result_patch:
+        result.pop('patch', None)
+    return result, changed
+
+
+def _is_empty_registered_ancestor(config_dir: Path, target: Path, relative: str) -> bool:
+    """Whether ``target`` lies below an empty registered gitlink directory."""
+    ancestor = config_dir / relative
+    try:
+        target.resolve(strict=False).relative_to(ancestor.resolve())
+    except ValueError:
+        return False
+    if not ancestor.is_dir():
+        return False
+    try:
+        next(ancestor.iterdir())
+    except StopIteration:
+        return True
+    except OSError:
+        return False
+    return False
+
+
+@contextmanager
+def overlay_stripped_configs(execution_root: Path) -> Iterator[None]:
+    """Strip export-empty `[patch]` entries while preserving Cargo inputs.
+
+    The Atlas pre-push gate exports a revision to a temporary tree whose
+    submodule checkouts are empty directories (`read-tree` writes gitlink
+    entries without cloning), while the root `.cargo/config.toml` overlay
+    patches point inside those empty directories. Any cargo invocation with
+    dependency resolution then fails to load the patched source even when the
+    patched packages are unused. Only path-only entries under empty registered
+    gitlinks are export artifacts; independent overrides and malformed entries
+    remain visible to Cargo. Files with `include` directives, unparsable TOML,
+    or no `[patch]` table are left untouched.
+    """
+    saved: list[tuple[Path, bytes]] = []
+    body_error: BaseException | None = None
+    try:
+        directory = execution_root
+        while True:
+            for name in ('config.toml', 'config'):
+                config = directory / '.cargo' / name
+                if not config.is_file():
+                    continue
+                try:
+                    raw = config.read_bytes()
+                    text = raw[3:] if raw.startswith(b'\xef\xbb\xbf') else raw
+                    data = tomllib.loads(text.decode('utf-8'))
+                except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+                    continue
+                if 'patch' not in data or 'include' in data:
+                    continue
+                data, changed = _without_missing_patch_entries(config, data)
+                if not changed:
+                    continue
+                stripped = _config_text(data).encode('utf-8')
+                if stripped == raw:
+                    continue
+                saved.append((config, raw))
+                config.write_bytes(stripped)
+            parent = directory.parent
+            if parent == directory:
+                break
+            directory = parent
+        yield
+    except BaseException as error:
+        body_error = error
+    finally:
+        restore_errors: list[BuildIdentityError] = []
+        for config, raw in reversed(saved):
+            try:
+                config.write_bytes(raw)
+            except OSError as error:
+                failure = BuildIdentityError(f"cannot restore Cargo configuration {config}")
+                failure.__cause__ = error
+                restore_errors.append(failure)
+        if restore_errors:
+            if body_error is None:
+                raise BuildIdentityError(
+                    "cannot restore one or more Cargo configurations"
+                ) from ExceptionGroup("Cargo configuration restoration failed", restore_errors)
+            raise BaseExceptionGroup(
+                "Cargo operation and configuration restoration failed",
+                [body_error, *restore_errors],
+            )
+        if body_error is not None:
+            raise body_error

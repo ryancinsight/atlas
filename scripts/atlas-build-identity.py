@@ -11,6 +11,12 @@ from typing import Sequence
 
 from atlas_build_check import check_record
 from atlas_build_identity import DEFAULT_LEASE_SECONDS, IdentityError, run_build
+from atlas_cast_gate import (
+    HISTORICAL_CAST_CONFIG,
+    HISTORICAL_CAST_KEY,
+    HISTORICAL_CAST_PROFILE,
+    historical_cast_command,
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -60,6 +66,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         command = tuple(args.command)
         if command[:1] == ("--",):
             command = command[1:]
+        clean_config: tuple[str, ...] = ()
+        if args.command_key == HISTORICAL_CAST_KEY:
+            packages = [args.package] if args.mode == "check" else args.package
+            if args.profile != "debug" or args.artifact or args.features:
+                raise IdentityError("historical cast identity requires the ordinary debug selection")
+            try:
+                command = historical_cast_command(
+                    command, root=args.root, manifest=args.manifest, command_cwd=args.command_cwd,
+                    selection=args.selection or packages,
+                )
+            except (OSError, ValueError) as error:
+                raise IdentityError(str(error)) from error
+            args.profile = HISTORICAL_CAST_PROFILE
+            clean_config = HISTORICAL_CAST_CONFIG[1:]
         if args.mode == "check":
             code, value = check_record(
                 args.root,
@@ -94,6 +114,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             command_key=args.command_key,
             ignore_paths=args.ignore_path,
             selection=args.selection,
+            clean_config=clean_config,
         )
         # One JSON line per package, in `--package` order; `run_build` builds
         # a repeated package once and returns one result for it.

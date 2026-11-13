@@ -60,7 +60,8 @@ def publish_stack(stack: Path, with_checker: bool, fetched: bool = True) -> None
     (stack / ".gitmodules").write_text(REGISTRY, encoding="utf-8", newline="\n")
     (stack / "scripts").mkdir(parents=True)
     if with_checker:
-        shutil.copyfile(CHECKER, stack / "scripts" / "lockfile.py")
+        for tool in ("lockfile.py", "process_tree.py", "windows_process.py", "darwin_process.py"):
+            shutil.copyfile(SCRIPTS / tool, stack / "scripts" / tool)
     else:
         (stack / "scripts" / "other.py").write_text("pass\n", encoding="utf-8")
     git(stack, "add", ".gitmodules", "scripts")

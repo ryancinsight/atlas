@@ -31,7 +31,9 @@ on a new cast. This gate is the enforcement:
   of one it depends on is not measured there. The comparison covers the
   packages named by `--base-package`; the hook names a manifest's packages
   only when that manifest's base built, so one that fails to compile leaves
-  its own packages to their rows and no others.
+  its own packages to their rows and no others. A newly locked standalone
+  manifest is held to zero only when real metadata on immutable exports
+  proves that no base workspace owned it.
 
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
@@ -52,8 +54,12 @@ holds the ones the base's workspace had: a package the base never had carries
 no count there, so its casts are judged by the row that records them, and a
 crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
-absent from it.
+absent from it. `--zero-base-package` records the proven standalone exception.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
+    atlas_cast_gate.py new-standalone-owners --repo <dir> --base <sha> \
+        --tip <sha> --manifest fuzz/Cargo.toml [--manifest ...]
+    atlas_cast_gate.py resolved-changes --repo <dir> --base <sha> --tip <sha> \
+        --base-export <dir> --tip-export <dir>
     atlas_cast_gate.py measure --member eunomia --export <dir>
     atlas_cast_gate.py ratchet --repo <atlas> --base <sha> --tip <sha>
 
@@ -73,14 +79,19 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
+import time
 import tomllib
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
+HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
+HISTORICAL_CAST_PROFILE = "cast-history"
+HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
 
@@ -116,21 +127,26 @@ def cargo(config: pathlib.Path | None) -> list[str]:
 
 def clippy_command(export: pathlib.Path, packages: Iterable[str],
                    config: pathlib.Path | None = None,
-                   manifest: str = "Cargo.toml") -> list[str]:
+                   manifest: str = "Cargo.toml", *,
+                   profile: str | None = None) -> list[str]:
     """The clippy run that reports every `as` in `packages` of `manifest`.
 
     `manifest` is relative to `export`: the member's root workspace, or a
     standalone crate (cargo-fuzz) that the root workspace excludes. No
     packages selects every package of that manifest's workspace.
     """
+    if profile not in (None, HISTORICAL_CAST_PROFILE):
+        raise ValueError(f"unsupported cast profile {profile}")
     selection: list[str] = []
     for package in packages:
         selection += ["-p", package]
     if not selection:
         selection = ["--workspace"]
     return [
-        *cargo(config), "clippy", "--manifest-path", str(export / manifest),
-        *selection, "--all-targets", "--locked", "--message-format=json",
+        *cargo(config), "clippy", *(HISTORICAL_CAST_CONFIG if profile is not None else ()),
+        "--manifest-path", str(export / manifest),
+        *selection, *(["--profile", profile] if profile is not None else []),
+        "--all-targets", "--locked", "--message-format=json",
         "--", "--force-warn", LINT,
     ]
 
@@ -141,44 +157,108 @@ class Workspace:
 
     root: pathlib.Path
     packages: list[dict]
+    members: frozenset[str]
+    environment: dict[str, str]
 
     def names(self) -> dict[str, str]:
         """Package id to package name, for the workspace members."""
-        return {p["id"]: p["name"] for p in self.packages}
+        return {p["id"]: p["name"] for p in self.packages if p["id"] in self.members}
+
+    def member_manifests(self) -> dict[pathlib.Path, str]:
+        """Absolute member manifest paths to their package names."""
+        return {
+            pathlib.Path(p["manifest_path"]): p["name"]
+            for p in self.packages if p["id"] in self.members
+        }
+
+
+def _workspace_record(record: object, environment: dict[str, str]) -> Workspace:
+    """Validate the ownership fields emitted by Cargo metadata."""
+    if not isinstance(record, dict):
+        raise ValueError("cargo metadata record must be an object")
+    root = record.get("workspace_root")
+    packages = record.get("packages")
+    members = record.get("workspace_members")
+    if not isinstance(root, str) or not pathlib.Path(root).is_absolute():
+        raise ValueError("cargo metadata workspace_root must be an absolute path")
+    if not isinstance(packages, list):
+        raise ValueError("cargo metadata packages must be an array")
+    if (not isinstance(members, list)
+            or any(not isinstance(member, str) for member in members)):
+        raise ValueError("cargo metadata workspace_members must be an array of strings")
+
+    by_id: dict[str, dict] = {}
+    by_manifest: dict[str, str] = {}
+    for package in packages:
+        if not isinstance(package, dict):
+            raise ValueError("cargo metadata package must be an object")
+        package_id = package.get("id")
+        name = package.get("name")
+        manifest_path = package.get("manifest_path")
+        if (not isinstance(package_id, str) or not package_id
+                or not isinstance(name, str) or not name):
+            raise ValueError("cargo metadata package id and name must be nonempty strings")
+        if (not isinstance(manifest_path, str)
+                or not pathlib.Path(manifest_path).is_absolute()):
+            raise ValueError("cargo metadata package manifest_path must be an absolute path")
+        if package_id in by_id:
+            raise ValueError(f"cargo metadata repeats package id {package_id!r}")
+        normalized_manifest = os.path.normcase(os.path.realpath(manifest_path))
+        if normalized_manifest in by_manifest:
+            raise ValueError(
+                "cargo metadata repeats a normalized package manifest path "
+                f"for {by_manifest[normalized_manifest]!r} and {package_id!r}"
+            )
+        by_id[package_id] = package
+        by_manifest[normalized_manifest] = package_id
+
+    member_ids = frozenset(members)
+    if len(member_ids) != len(members):
+        raise ValueError("cargo metadata repeats a workspace member")
+    missing = sorted(member_ids - by_id.keys())
+    if missing:
+        raise ValueError(f"cargo metadata omits workspace member packages: {missing!r}")
+    member_names = [by_id[member]["name"] for member in members]
+    if len(set(member_names)) != len(member_names):
+        raise ValueError("cargo metadata repeats a workspace member package name")
+    return Workspace(pathlib.Path(root), packages, member_ids, environment)
 
 
 def workspace(export: pathlib.Path, config: pathlib.Path | None = None,
               manifest: str = "Cargo.toml",
-              command_cwd: pathlib.Path | None = None) -> Workspace:
+              command_cwd: pathlib.Path | None = None,
+              metadata_timeout: float = 120.0) -> Workspace:
     """Read `export`'s manifest with config discovery at `command_cwd`.
 
     Omission runs Cargo from the export, preserving the legacy invocation.
+    Cargo owns workspace interpretation; malformed, unlocked, or incomplete
+    metadata is an error rather than evidence that a package is absent.
     """
-    out = subprocess.run(
-        [*cargo(config), "metadata", "--no-deps", "--format-version", "1",
-         "--manifest-path", str(export / manifest)],
-        cwd=command_cwd or export,
-        capture_output=True, text=True, encoding="utf-8", check=True,
-    ).stdout
-    record = json.loads(out)
-    return Workspace(pathlib.Path(record["workspace_root"]), record["packages"])
+    from atlas_build_inputs import effective_compiler_environment
+    import process_tree
 
-
-FUZZ_CFG = "--cfg fuzzing"
-
-
-def clippy_environment(packages: list[dict]) -> dict[str, str]:
-    """The environment clippy runs in: `--cfg fuzzing` for a cargo-fuzz crate.
-
-    `cargo fuzz` compiles its targets with `--cfg fuzzing`, and fuzz-only
-    hooks in the crates under test sit behind that cfg, so a fuzz target does
-    not compile without it. `RUSTFLAGS` replaces config `build.rustflags`; the
-    stack config sets none.
-    """
-    env = dict(os.environ)
-    if any((p.get("metadata") or {}).get("cargo-fuzz") is True for p in packages):
-        env["RUSTFLAGS"] = f"{env.get('RUSTFLAGS', '')} {FUZZ_CFG}".strip()
-    return env
+    if not 0 < metadata_timeout:
+        raise ValueError("cargo metadata timeout must be positive")
+    directory = command_cwd or export
+    manifest_path = export / manifest
+    cargo_command = cargo(config)
+    environment = effective_compiler_environment(
+        manifest_path, directory, cargo_command
+    )
+    command = [
+        *cargo_command, "metadata", "--no-deps", "--locked", "--format-version", "1",
+        "--manifest-path", str(manifest_path),
+    ]
+    completed = process_tree.run(
+        command, cwd=directory, env=environment, timeout=min(metadata_timeout, 120.0)
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(
+            completed.returncode, command,
+            output=completed.stdout, stderr=completed.stderr,
+        )
+    out = (completed.stdout or b"").decode("utf-8", errors="strict")
+    return _workspace_record(json.loads(out), environment)
 
 
 def sites(messages: Iterable[str], export: pathlib.Path,
@@ -225,7 +305,8 @@ def sites(messages: Iterable[str], export: pathlib.Path,
 def run_clippy(export: pathlib.Path, packages: Iterable[str],
                config: pathlib.Path | None = None,
                manifest: str = "Cargo.toml",
-               command_cwd: pathlib.Path | None = None) -> tuple[int, set[Site]]:
+               command_cwd: pathlib.Path | None = None, *,
+               profile: str | None = None) -> tuple[int, set[Site]]:
     """Run clippy on `packages` of `export`: its exit status and cast sites.
 
     Each diagnostic's rendered text goes to stderr, so a caller reading the
@@ -234,8 +315,9 @@ def run_clippy(export: pathlib.Path, packages: Iterable[str],
     space = workspace(export, config, manifest, command_cwd)
     names = space.names()
     proc = subprocess.Popen(
-        clippy_command(export, packages, config, manifest), cwd=command_cwd or export,
-        env=clippy_environment(space.packages),
+        clippy_command(export, packages, config, manifest, profile=profile),
+        cwd=command_cwd or export,
+        env=space.environment,
         stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
     )
     assert proc.stdout is not None
@@ -354,29 +436,264 @@ def package_build_script(repo: pathlib.Path, tip: str, path: str) -> bool:
                           capture_output=True).returncode == 0
 
 
-def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
-    """Why the range needs the base count: each change that can bring existing
-    casts into a pushed package without adding their lines. A copy is not
-    one: without `-C` it diffs as an added file, every line added."""
+def changed_entries(repo: pathlib.Path, base: str, tip: str) -> list[tuple[str, ...]]:
+    """The paths of each change the range makes. A rename gives its source and
+    target, so a file moved between packages changes both. A copy is not one:
+    without `-C` it diffs as an added file, every line added."""
     fields = pushed_diff(repo, base, tip, ["--name-status", "-z"]).decode("utf-8").split("\0")
-    reasons: list[str] = []
+    entries: list[tuple[str, ...]] = []
     index = 0
     while index < len(fields) and fields[index]:
-        status = fields[index]
-        if status[0] == "R":
-            source, target = fields[index + 1], fields[index + 2]
-            index += 3
-            reasons.append(f"{source} -> {target}")
-            paths = [source, target]
-        else:
-            paths = [fields[index + 1]]
-            index += 2
+        width = 3 if fields[index][0] == "R" else 2
+        entries.append(tuple(fields[index + 1:index + width]))
+        index += width
+    return entries
+
+
+def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
+    """Why the range needs the base count: each change that can bring existing
+    casts into a pushed package without adding their lines."""
+    reasons: list[str] = []
+    for paths in changed_entries(repo, base, tip):
+        if len(paths) == 2:
+            reasons.append(" -> ".join(paths))
         for path in paths:
             name = path.rsplit("/", 1)[-1]
             if (name in BUILD_INPUTS or "/.cargo/" in f"/{path}"
                     or package_build_script(repo, tip, path)):
                 reasons.append(f"{path} changed")
     return list(dict.fromkeys(reasons))
+
+
+# Toolchain pins: a change reaches every package by no resolved dependency,
+# so `resolved_changes` gates every member.
+GLOBAL_INPUTS = ("rust-toolchain", "rust-toolchain.toml")
+
+
+@dataclass(frozen=True)
+class ResolvedPackage:
+    """One workspace package as `cargo metadata` resolves it at one revision.
+
+    `signature` holds the resolved inputs metadata reports for the package:
+    its edition, rust-version, links, targets, declared and enabled
+    features, each direct dependency with its package, extern name and
+    kinds, and every package it reaches with that package's enabled
+    features. A path package is named by its directory, so a retarget to
+    another directory holding the same name and version differs. Paths are
+    relative to the export, so two checkouts of one revision compare equal.
+    Metadata unifies features across platforms and dependency kinds, so a
+    feature that another platform's, a build or a dev edge already enables
+    reads the same at both revisions even when the host's build of a
+    package changes; callers that must see such a change follow `reaches`.
+    `reaches` names every package the member depends on, directly or not.
+    """
+
+    signature: tuple
+    reaches: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class Resolution:
+    """A workspace as `cargo metadata` resolves it for the host at one revision.
+
+    `root_manifest` is the workspace root manifest relative to the export.
+    `members` holds each workspace member's `ResolvedPackage`. `reach` maps
+    every resolved package name, member or not, to the names it depends on
+    directly or not, merged across the versions that share the name.
+    """
+
+    root_manifest: str
+    members: dict[str, ResolvedPackage]
+    reach: dict[str, frozenset[str]]
+
+
+def _relative(path: str, export: pathlib.Path) -> str:
+    """`path` relative to `export`, `/`-separated; raises outside it."""
+    inner = pathlib.Path(os.path.realpath(path))
+    outer = pathlib.Path(os.path.realpath(export))
+    relative = inner.relative_to(outer).as_posix()
+    return "" if relative == "." else relative
+
+
+def resolution(record: dict, export: pathlib.Path) -> Resolution:
+    """The workspace a `cargo metadata` record resolves, relative to `export`."""
+    members = set(record["workspace_members"])
+    by_id = {package["id"]: package for package in record["packages"]}
+
+    def label(package_id: str) -> str:
+        package = by_id[package_id]
+        source = package["source"] or (
+            "path " + _relative(str(pathlib.Path(package["manifest_path"]).parent), export))
+        return f"{package['name']}@{package['version']} {source}"
+
+    nodes = {node["id"]: node for node in record["resolve"]["nodes"]}
+
+    def reached(package_id: str) -> set[str]:
+        """Every package `package_id` depends on, directly or not."""
+        seen: set[str] = set()
+        pending = [dependency["pkg"] for dependency in nodes[package_id]["deps"]]
+        while pending:
+            current = pending.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            pending.extend(dependency["pkg"] for dependency in nodes[current]["deps"])
+        return seen
+
+    resolved: dict[str, ResolvedPackage] = {}
+    for package_id in members:
+        package = by_id[package_id]
+        node = nodes[package_id]
+        reaches = reached(package_id)
+        targets = tuple(sorted(
+            (
+                target["name"], tuple(target["kind"]), tuple(target["crate_types"]),
+                target.get("edition", ""), tuple(sorted(target.get("required-features", []))),
+                _relative(target["src_path"], export), target.get("test", True),
+                target.get("doctest", True),
+            )
+            for target in package["targets"]
+        ))
+        dependencies = tuple(sorted(
+            (
+                label(dependency["pkg"]), dependency["name"],
+                tuple(sorted((kind["kind"] or "normal", kind["target"] or "")
+                             for kind in dependency["dep_kinds"])),
+            )
+            for dependency in node["deps"]
+        ))
+        signature = (
+            package["edition"], package.get("rust_version") or "", package.get("links") or "",
+            json.dumps(package["features"], sort_keys=True), targets,
+            tuple(sorted(node["features"])), dependencies,
+            tuple(sorted((label(current), tuple(sorted(nodes[current]["features"])))
+                         for current in reaches)),
+        )
+        resolved[package["name"]] = ResolvedPackage(
+            signature, frozenset(by_id[current]["name"] for current in reaches))
+    reach: dict[str, frozenset[str]] = {}
+    for package_id in nodes:
+        name = by_id[package_id]["name"]
+        reach[name] = reach.get(name, frozenset()) | frozenset(
+            by_id[current]["name"] for current in reached(package_id))
+    root = _relative(record["workspace_root"], export)
+    return Resolution(f"{root}/Cargo.toml" if root else "Cargo.toml", resolved, reach)
+
+
+def read_resolution(export: pathlib.Path, manifest: str,
+                    config: pathlib.Path | None = None) -> Resolution:
+    """The workspace `manifest` belongs to, resolved against the export's
+    committed lock. `--filter-platform` keeps only the host's dependency
+    edges, which are the ones clippy compiles; it does not filter features,
+    which metadata reports unified across platforms (`ResolvedPackage`)."""
+    from atlas_build_inputs import effective_compiler_environment
+
+    manifest_path = export / manifest
+    cargo_command = cargo(config)
+    environment = effective_compiler_environment(manifest_path, export, cargo_command)
+    out = subprocess.run(
+        [*cargo_command, "metadata", "--format-version", "1", "--locked",
+         "--filter-platform", "host-tuple", "--manifest-path", str(manifest_path)],
+        cwd=export, env=environment,
+        capture_output=True, text=True, encoding="utf-8", check=True,
+    ).stdout
+    return resolution(json.loads(out), export)
+
+
+def changed_table_packages(base_text: str | None, tip_text: str | None) -> frozenset[str]:
+    """The package names of every `[workspace.dependencies]` entry the range
+    adds, removes or changes, at either side (`package = ...` renames)."""
+    def table(text: str | None) -> dict:
+        data = tomllib.loads(text) if text is not None else {}
+        workspace = data.get("workspace")
+        entries = workspace.get("dependencies") if isinstance(workspace, dict) else None
+        return entries if isinstance(entries, dict) else {}
+
+    def package_name(key: str, entry: object) -> str:
+        renamed = entry.get("package") if isinstance(entry, dict) else None
+        return renamed if isinstance(renamed, str) else key
+
+    base, tip = table(base_text), table(tip_text)
+    return frozenset(
+        package_name(key, side[key])
+        for key in base.keys() | tip.keys() if base.get(key) != tip.get(key)
+        for side in (base, tip) if key in side
+    )
+
+
+def without_workspace_dependencies(text: str | None) -> dict | None:
+    """A root manifest with `[workspace.dependencies]` removed: those entries
+    reach a package only through its own resolved dependencies."""
+    if text is None:
+        return None
+    data = tomllib.loads(text)
+    workspace = data.get("workspace")
+    if isinstance(workspace, dict):
+        workspace.pop("dependencies", None)
+    return data
+
+
+def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathlib.Path,
+                     tip_export: pathlib.Path, manifest: str,
+                     config: pathlib.Path | None = None) -> tuple[frozenset[str] | None, str]:
+    """The members a changed root manifest compiles differently, or None and
+    the reason when every member must be gated.
+
+    A root manifest whose only change is to `[workspace.dependencies]` reaches
+    a member only through the packages the member resolves and the features
+    their compilation enables. A member is changed when its resolved
+    signature differs, when it is new, or when it is or reaches a package a
+    changed entry names or one such a package reaches, at either revision:
+    an entry's features enable features only of its package and the
+    packages that package depends on, and metadata's unified features can
+    hide that change from every signature (`ResolvedPackage`). Any other root
+    change, a range that leaves the root manifest unchanged, a changed
+    toolchain pin, cargo config or nextest config, a manifest Python cannot
+    parse, and a revision cargo cannot resolve gate every member: those
+    reach members by no resolved dependency this reads.
+    """
+    from atlas_build_inputs import BuildIdentityError
+
+    try:
+        paths = [path for entry in changed_entries(repo, base, tip) for path in entry]
+    except (subprocess.CalledProcessError, OSError, UnicodeDecodeError) as error:
+        return None, f"git could not list the pushed range ({error})"
+    for path in paths:
+        if (path.rsplit("/", 1)[-1] in GLOBAL_INPUTS or "/.cargo/" in f"/{path}"
+                or f"/{path}".endswith("/.config/nextest.toml")):
+            return None, f"{path} changed"
+    try:
+        base_resolution = read_resolution(base_export, manifest, config)
+        tip_resolution = read_resolution(tip_export, manifest, config)
+    except (subprocess.CalledProcessError, OSError, ValueError, KeyError) as error:
+        return None, f"cargo metadata could not resolve both revisions ({error})"
+    except BuildIdentityError as error:
+        # The build environment parses `manifest` with `tomllib` first, so a
+        # manifest cargo accepts but Python cannot parse ends here.
+        return None, f"the build environment cannot be read ({error})"
+    root_manifest = base_resolution.root_manifest
+    if tip_resolution.root_manifest != root_manifest:
+        return None, "the workspace root moved"
+    if root_manifest not in paths:
+        return None, f"{root_manifest} is not changed by the pushed range"
+    base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
+    try:
+        if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
+            return None, f"{root_manifest} changes beyond [workspace.dependencies]"
+        entries = changed_table_packages(base_text, tip_text)
+    except tomllib.TOMLDecodeError as error:
+        return None, f"{root_manifest} does not parse as TOML here ({error})"
+    touched = set(entries)
+    for name in entries:
+        touched |= base_resolution.reach.get(name, frozenset())
+        touched |= tip_resolution.reach.get(name, frozenset())
+    base_packages = base_resolution.members
+    return frozenset(
+        name for name, package in tip_resolution.members.items()
+        if name not in base_packages or base_packages[name].signature != package.signature
+        or name in touched or package.reaches & touched
+        or base_packages[name].reaches & touched
+    ), ""
 
 
 def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
@@ -509,6 +826,91 @@ def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
     return frozenset(candidates) & present
 
 
+def new_standalone_owners(repo: pathlib.Path, base: str, tip: str,
+                          manifests: Iterable[str], base_export: pathlib.Path,
+                          tip_export: pathlib.Path, config: pathlib.Path | None = None,
+                          metadata_timeout: float = 120.0) -> frozenset[str]:
+    """New singleton owners proven from native metadata on immutable exports.
+
+    Unsupported topology keeps the ordinary historical comparison.
+    """
+    from lockfile import tracked_texts
+
+    base_texts = tracked_texts(repo, staged=False, revision=base)
+    tip_texts = tracked_texts(repo, staged=False, revision=tip)
+    base_manifests = {name: text for name, text in base_texts.items()
+                      if pathlib.PurePosixPath(name).name == "Cargo.toml"}
+    documents: dict[str, dict[str, object]] = {}
+    for name, text in base_manifests.items():
+        try:
+            documents[name] = tomllib.loads(text)
+        except tomllib.TOMLDecodeError as error:
+            raise ValueError(f"{base}:{name} does not parse as TOML ({error})") from error
+    candidates = []
+    for manifest in set(manifests):
+        path = pathlib.PurePosixPath(manifest)
+        lock = path.with_name("Cargo.lock").as_posix()
+        if (manifest in base_manifests and manifest in tip_texts
+                and lock not in base_texts and lock in tip_texts):
+            candidates.append((manifest, lock))
+    if len(candidates) != 1:
+        return frozenset()
+    manifest, lock = candidates[0]
+    path = pathlib.PurePosixPath(manifest)
+    root_workspace = documents.get("Cargo.toml", {}).get("workspace")
+    package = documents[manifest].get("package")
+    if (path == pathlib.PurePosixPath("Cargo.toml")
+            or not isinstance(root_workspace, dict)
+            or root_workspace.get("exclude", []) != []
+            or not isinstance(package, dict)
+            or "workspace" in documents[manifest] or "workspace" in package
+            or {name for name in base_texts if name.endswith("Cargo.lock")}
+            != {"Cargo.lock"}
+            or {name for name in tip_texts if name.endswith("Cargo.lock")}
+            != {"Cargo.lock", lock}):
+        return frozenset()
+
+    deadline = time.monotonic() + min(metadata_timeout, 120.0)
+
+    def read_workspace(export: pathlib.Path, relative: str) -> Workspace:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("cargo metadata exhausted the cast-gate deadline")
+        return workspace(export, config, relative, export, remaining)
+
+    def relative_members(space: Workspace, export: pathlib.Path) -> dict[str, str]:
+        export_root = pathlib.Path(os.path.realpath(export))
+        found = {}
+        for member_path, name in space.member_manifests().items():
+            try:
+                relative = pathlib.Path(os.path.realpath(member_path)).relative_to(export_root)
+            except ValueError as error:
+                raise ValueError(f"workspace member lies outside {export}") from error
+            found[relative.as_posix()] = name
+        return found
+
+    base_space = read_workspace(base_export, "Cargo.toml")
+    base_members = relative_members(base_space, base_export)
+    if (pathlib.Path(os.path.realpath(base_space.root))
+            != pathlib.Path(os.path.realpath(base_export))
+            or manifest in base_members
+            or set(base_members) - {"Cargo.toml"}
+            != set(base_manifests) - {"Cargo.toml", manifest}):
+        return frozenset()
+    candidate_space = read_workspace(tip_export, manifest)
+    candidate_members = relative_members(candidate_space, tip_export)
+    if (pathlib.Path(os.path.realpath(candidate_space.root))
+            != pathlib.Path(os.path.realpath(tip_export / path.parent))
+            or set(candidate_members) != {manifest}):
+        return frozenset()
+    candidate_name = candidate_members[manifest]
+    if candidate_name in base_space.names().values():
+        raise ValueError(
+            f"{manifest}: newly owned package name already exists at the base: {candidate_name}"
+        )
+    return frozenset({manifest})
+
+
 @dataclass(frozen=True)
 class Baseline:
     """Sanctioned conversion and cast modules, and per-package site counts."""
@@ -590,6 +992,11 @@ def counts(found: set[Site], sanctioned: frozenset[str]) -> dict[str, int]:
 
 def clippy(args: argparse.Namespace) -> int:
     export = pathlib.Path(args.export)
+    if args.profile is not None or args.config is not None:
+        if (not args.present_only or args.profile != HISTORICAL_CAST_PROFILE
+                or args.config != HISTORICAL_CAST_CONFIG[1] or args.cargo_config is not None):
+            raise ValueError("the historical cast profile requires its bound config and --present-only")
+        _check_historical_profile(export, export / args.manifest, args.command_cwd or export)
     sites_file = pathlib.Path(args.sites)
     packages = list(args.package)
     if args.present_only:
@@ -607,7 +1014,7 @@ def clippy(args: argparse.Namespace) -> int:
             write_sites(sites_file, set())
             return 0
     status, found = run_clippy(
-        export, packages, args.cargo_config, args.manifest, args.command_cwd
+        export, packages, args.cargo_config, args.manifest, args.command_cwd, profile=args.profile
     )
     write_sites(sites_file, found)
     if args.packages_out:
@@ -630,6 +1037,7 @@ def check(args: argparse.Namespace) -> int:
     repo = pathlib.Path(args.repo)
     added = pushed_additions(repo, args.base or None, args.tip)
     held = held_to_base(repo, args.base, args.base_package, base)
+    held |= frozenset(args.zero_base_package)
     problems = violations(args.member, found, added, args.package, baseline, base,
                           held)
     for problem in problems:
@@ -697,6 +1105,30 @@ def triggers(args: argparse.Namespace) -> int:
     return 0
 
 
+def owners(args: argparse.Namespace) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    for manifest in sorted(new_standalone_owners(
+            pathlib.Path(args.repo), args.base, args.tip, args.manifest,
+            pathlib.Path(args.base_export), pathlib.Path(args.tip_export),
+            args.cargo_config, args.metadata_timeout)):
+        print(manifest)
+    return 0
+
+
+def changes(args: argparse.Namespace) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    changed, reason = resolved_changes(
+        pathlib.Path(args.repo), args.base, args.tip, pathlib.Path(args.base_export),
+        pathlib.Path(args.tip_export), args.manifest, args.cargo_config,
+    )
+    if changed is None:
+        print(f"cast gate: every member is gated: {reason}", file=sys.stderr)
+        return 3
+    for package in sorted(changed):
+        print(package)
+    return 0
+
+
 def measure(args: argparse.Namespace) -> int:
     baseline = Baseline.load(args.baseline)
     status, found = run_clippy(
@@ -709,6 +1141,108 @@ def measure(args: argparse.Namespace) -> int:
     return 0
 
 
+def _clippy_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--export", required=True, help="checkout of the pushed tip")
+    parser.add_argument("--sites", required=True, help="file the cast sites are written to")
+    parser.add_argument("-p", "--package", action="append", default=[],
+                     help="a package to gate; none gates every package of --manifest")
+    parser.add_argument("--manifest", default="Cargo.toml",
+                     help="manifest relative to the export: a standalone crate's, for one")
+    parser.add_argument("--packages-out",
+                     help="file the manifest's workspace package names are written to")
+    parser.add_argument("--present-only", action="store_true",
+                     help="skip packages (or a manifest) absent from the export: a range's base")
+    parser.add_argument("--command-cwd", type=pathlib.Path,
+                     help="directory Cargo runs from; defaults to the export")
+    parser.add_argument("--profile", choices=[HISTORICAL_CAST_PROFILE],
+                        help="physical Cargo profile for historical casts only")
+    parser.add_argument("--config", choices=[HISTORICAL_CAST_CONFIG[1]],
+                        help="stack-owned inline Cargo config for historical casts")
+
+
+def _check_historical_profile(
+    export: pathlib.Path, manifest: pathlib.Path, command_cwd: pathlib.Path,
+) -> None:
+    from atlas_build_source import cargo_config_digest
+
+    if any(name.upper().startswith("CARGO_PROFILE_CAST_HISTORY_") for name in os.environ):
+        raise ValueError("historical cast profile must inherit the stack dev profile")
+    if os.environ.get("CARGO_BUILD_PROFILE") not in (None, "", "debug", "dev"):
+        raise ValueError("historical cast comparison requires dev as the ordinary Cargo profile")
+    cargo_config_digest(command_cwd, forbidden_profile=HISTORICAL_CAST_PROFILE)
+    export = export.resolve(strict=True)
+    path = manifest.resolve(strict=True)
+    if not path.is_relative_to(export):
+        raise ValueError("historical cast manifest lies outside its export")
+    pending = [
+        directory / "Cargo.toml" for directory in (path.parent, *path.parent.parents)
+        if directory.is_relative_to(export) and (directory / "Cargo.toml").is_file()
+    ]
+    checked: set[pathlib.Path] = set()
+    while pending:
+        candidate = pending.pop()
+        source = candidate.resolve(strict=True)
+        if not source.is_relative_to(export):
+            raise ValueError(f"Cargo manifest {candidate} lies outside the export")
+        if source in checked:
+            continue
+        checked.add(source)
+        data = tomllib.loads(source.read_text(encoding="utf-8-sig"))
+        profiles = data.get("profile", {})
+        if not isinstance(profiles, dict):
+            raise ValueError(f"Cargo profile table is malformed in {candidate}")
+        if HISTORICAL_CAST_PROFILE in profiles:
+            raise ValueError(f"reserved Cargo profile {HISTORICAL_CAST_PROFILE} is defined in {candidate}")
+        workspace = data.get("package", {}).get("workspace")
+        if workspace is not None:
+            target = (source.parent / workspace / "Cargo.toml").resolve()
+            if not target.is_relative_to(export):
+                raise ValueError(f"Cargo workspace from {candidate} lies outside the export")
+            pending.append(target)
+
+
+def historical_cast_command(
+    command: tuple[str, ...], *, root: pathlib.Path, manifest: pathlib.Path,
+    command_cwd: pathlib.Path | None, selection: Iterable[str],
+) -> tuple[str, ...]:
+    """Bind the hook's historical command to the same profile as identity."""
+    if len(command) < 3 or command[2] != "clippy":
+        raise ValueError("historical cast identity requires the owned clippy command")
+    interpreter = shutil.which(command[0])
+    if interpreter is None or not pathlib.Path(interpreter).samefile(sys.executable):
+        raise ValueError("historical cast command requires the identity interpreter")
+    script = pathlib.Path(command[1])
+    owned = pathlib.Path(__file__).resolve()
+    if script.name != owned.name or not script.is_absolute():
+        raise ValueError("historical cast command must name the owned absolute script")
+    if script.read_bytes().replace(b"\r\n", b"\n") != owned.read_bytes().replace(b"\r\n", b"\n"):
+        raise ValueError("historical cast command differs from the bound stack tool")
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False, exit_on_error=False)
+    _clippy_options(parser)
+    try:
+        options = parser.parse_args(command[3:])
+    except (argparse.ArgumentError, SystemExit) as error:
+        raise ValueError("invalid historical cast arguments") from error
+    export = pathlib.Path(options.export).resolve(strict=True)
+    manifest_path = (export / options.manifest).resolve(strict=True)
+    if (
+        not options.present_only
+        or options.profile is not None
+        or options.config is not None
+        or options.packages_out is not None
+        or export != root.resolve(strict=True)
+        or manifest_path != manifest.resolve(strict=True)
+        or not manifest_path.is_relative_to(export)
+        or (options.command_cwd or export).resolve(strict=True)
+            != (command_cwd or root).resolve(strict=True)
+        or not options.package
+        or sorted(options.package) != sorted(selection)
+    ):
+        raise ValueError("historical cast arguments do not match the selected build")
+    _check_historical_profile(export, manifest_path, command_cwd or root)
+    return (*command, "--profile", HISTORICAL_CAST_PROFILE, *HISTORICAL_CAST_CONFIG)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--baseline", type=pathlib.Path, default=BASELINE)
@@ -717,18 +1251,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="cargo config file (the stack config without its [patch] overlay)")
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("clippy", help="run clippy, recording its cast sites")
-    run.add_argument("--export", required=True, help="checkout of the pushed tip")
-    run.add_argument("--sites", required=True, help="file the cast sites are written to")
-    run.add_argument("-p", "--package", action="append", default=[],
-                     help="a package to gate; none gates every package of --manifest")
-    run.add_argument("--manifest", default="Cargo.toml",
-                     help="manifest relative to the export: a standalone crate's, for one")
-    run.add_argument("--packages-out",
-                     help="file the manifest's workspace package names are written to")
-    run.add_argument("--present-only", action="store_true",
-                     help="skip packages (or a manifest) absent from the export: a range's base")
-    run.add_argument("--command-cwd", type=pathlib.Path,
-                     help="directory Cargo runs from; defaults to the export")
+    _clippy_options(run)
     run.set_defaults(run=clippy)
     gate = commands.add_parser("check", help="gate a pushed revision")
     gate.add_argument("--member", required=True)
@@ -741,8 +1264,10 @@ def main(argv: list[str] | None = None) -> int:
     gate.add_argument("--base-sites", action="append", default=[],
                       help="a file `clippy` wrote for the range's base")
     gate.add_argument("--base-package", action="append", default=[],
-                      help="a package the base can hold to its count; the ones the base "
-                           "never had are held to their rows alone")
+                      help="a package with a proven base count, including zero for a "
+                           "newly owned standalone manifest")
+    gate.add_argument("--zero-base-package", action="append", default=[],
+                      help="a newly owned package explicitly held to zero")
     gate.set_defaults(run=check)
     trigger = commands.add_parser(
         "base-triggers", help="print why the range needs the base count; nothing when it does not")
@@ -750,6 +1275,27 @@ def main(argv: list[str] | None = None) -> int:
     trigger.add_argument("--base", required=True)
     trigger.add_argument("--tip", required=True)
     trigger.set_defaults(run=triggers)
+    owner = commands.add_parser("new-standalone-owners")
+    owner.add_argument("--repo", required=True)
+    owner.add_argument("--base", required=True)
+    owner.add_argument("--tip", required=True)
+    owner.add_argument("--manifest", action="append", default=[], required=True)
+    owner.add_argument("--base-export", required=True)
+    owner.add_argument("--tip-export", required=True)
+    owner.add_argument("--metadata-timeout", type=float, default=120.0)
+    owner.set_defaults(run=owners)
+    resolved = commands.add_parser(
+        "resolved-changes",
+        help=("print the members a changed root manifest resolves differently, one per "
+              "line sorted by name; exit 3 for all"))
+    resolved.add_argument("--repo", required=True, help="the member repository")
+    resolved.add_argument("--base", required=True)
+    resolved.add_argument("--tip", required=True)
+    resolved.add_argument("--base-export", required=True, help="checkout of the range's base")
+    resolved.add_argument("--tip-export", required=True, help="checkout of the pushed tip")
+    resolved.add_argument("--manifest", default="Cargo.toml",
+                          help="workspace manifest relative to the exports")
+    resolved.set_defaults(run=changes)
     count = commands.add_parser("measure", help="print per-package counts for a member")
     count.add_argument("--member", required=True)
     count.add_argument("--export", required=True)

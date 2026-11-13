@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
 import shutil
 import subprocess
 import sys
@@ -77,8 +78,12 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
 
         def fake_run(command, **_kwargs):
             self.resolution_calls += 1
+            resolves = self.resolves or "locate-project" in command
             return subprocess.CompletedProcess(
-                command, 0 if self.resolves else 101, "{}", "" if self.resolves else "stale"
+                command, 0 if resolves else 101,
+                json.dumps({"workspace_root": str(Path(command[command.index("--manifest-path") + 1]).parent),
+                            "root": command[command.index("--manifest-path") + 1]}),
+                "" if resolves else "stale"
             )
 
         lockfile.run_bounded = fake_run
@@ -207,14 +212,14 @@ class CheckJudgesEveryLockTests(unittest.TestCase):
         self._write("Cargo.lock", SERDE)
         self._write("sealed/Cargo.toml", NO_DEPENDENCIES)
 
-        original = Path.read_text
+        original = Path.open
 
-        def read_text(path, *arguments, **keywords):
+        def open_input(path, *arguments, **keywords):
             if path.name == "Cargo.toml" and path.parent.name == "sealed":
                 raise PermissionError(13, "Permission denied", str(path))
             return original(path, *arguments, **keywords)
 
-        with mock.patch.object(Path, "read_text", read_text):
+        with mock.patch.object(Path, "open", open_input):
             code, stderr = self._check()
         self.assertEqual(code, 1)
         self.assertIn("could not be read", stderr)

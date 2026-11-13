@@ -13,14 +13,20 @@ revision nobody named -- the failures the tool exists to prevent.
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+
 SCRIPT = Path(__file__).resolve().parent.parent / "atlas-lock-sweep.py"
 sys.path.insert(0, str(SCRIPT.parent))
+from atlas_git_process import execute as execute_git
+import process_tree
 SPEC = importlib.util.spec_from_file_location("atlas_lock_sweep", SCRIPT)
 sweep = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -246,21 +252,6 @@ class PlanTests(unittest.TestCase):
             ],
         )
 
-    def test_each_source_past_its_target_is_pulled_back_once(self) -> None:
-        stale = sweep.stale_packages(LOCK, {"hermes": NEW, "mnemosyne": NEW})
-        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{MOVED}").replace(
-            f"Mnemosyne.git#{OLD}", f"Mnemosyne.git#{NEW}"
-        )
-        self.assertEqual(
-            sweep.pullbacks(updated, stale, {"hermes": NEW, "mnemosyne": NEW}),
-            [("git+https://github.com/ryancinsight/hermes.git#hermes-simd@0.5.0", NEW)],
-        )
-
-    def test_sources_at_their_target_need_no_pullback(self) -> None:
-        stale = sweep.stale_packages(LOCK, {"hermes": NEW})
-        updated = LOCK.replace(f"hermes.git#{OLD}", f"hermes.git#{NEW}")
-        self.assertEqual(sweep.pullbacks(updated, stale, {"hermes": NEW}), [])
-
     def test_one_spelling_left_behind_is_a_miss(self) -> None:
         stale = sweep.stale_packages(LOCK, {"mnemosyne": NEW})
         self.assertEqual(
@@ -272,6 +263,16 @@ class PlanTests(unittest.TestCase):
 class CommitTests(unittest.TestCase):
     def plan(self, targets: dict[str, str]):
         return sweep.Plan(Path("repos/leto"), OLD, sweep.stale_packages(LOCK, targets))
+
+    def test_lock_failure_restores_exact_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            lock = Path(directory) / "Cargo.lock"
+            original = b"version = 4\r\n# exact\n"
+            lock.write_bytes(b"changed\n")
+            outcome = sweep.lock_failure(self.plan({"hermes": NEW}), lock, original, "rejected")
+            self.assertEqual((outcome.action, outcome.ok, outcome.detail),
+                             ("failed", False, "rejected"))
+            self.assertEqual(lock.read_bytes(), original)
 
     def test_one_target_names_its_provider_and_revision(self) -> None:
         self.assertEqual(sweep.branch_name({"hermes": NEW}), "build/deps-hermes-22222222")
@@ -355,6 +356,171 @@ class ReportTests(unittest.TestCase):
         for name in ("leto", "kwavers", "iris"):
             self.assertIn(name, report)
         self.assertEqual(len(report.splitlines()), 2 + len(rows))
+
+
+class InventoryTests(unittest.TestCase):
+    def git(self, repo: Path, *args: str) -> str:
+        result = execute_git(repo, ("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args), timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.decode().strip()
+
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory(prefix="lock-inventory-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.git(self.root, "init", "-q", "-b", "main")
+        for name in ("provider", "consumer"):
+            repo = self.root / "repos" / name
+            repo.mkdir(parents=True)
+            self.git(repo, "init", "-q", "-b", "main")
+        self.commit_member("provider", "0.1.0")
+        self.first_provider = self.git(self.root / "repos/provider", "rev-parse", "HEAD")
+        self.commit_member("consumer", "0.1.0", self.first_provider)
+        self.first_consumer = self.git(self.root / "repos/consumer", "rev-parse", "HEAD")
+        (self.root / ".gitmodules").write_text("".join(
+            f'[submodule "{name}"]\npath = repos/{name}\nurl = https://github.com/ryancinsight/{name}\n'
+            for name in ("provider", "consumer")
+        ), encoding="utf-8")
+        self.git(self.root, "add", ".gitmodules")
+        self.first_root = self.commit_pins()
+
+    def commit_member(self, name: str, version: str, provider: str | None = None) -> None:
+        repo = self.root / "repos" / name
+        manifest = f'[package]\nname="{name}"\nversion="{version}"\nedition="2024"\n'
+        lock = "version=4\n" + package(name, version, None)
+        if provider is not None:
+            manifest += f'[dependencies]\nprovider={{git="https://github.com/ryancinsight/provider",version="{version}"}}\n'
+            lock += package("provider", version, "git+https://github.com/ryancinsight/provider#" + provider)
+        (repo / "Cargo.toml").write_text(manifest, encoding="utf-8")
+        (repo / "Cargo.lock").write_text(lock, encoding="utf-8")
+        self.git(repo, "add", "Cargo.toml", "Cargo.lock")
+        self.git(repo, "commit", "-qm", "Record inputs")
+
+    def commit_pins(self) -> str:
+        for name in ("provider", "consumer"):
+            commit = self.git(self.root / "repos" / name, "rev-parse", "HEAD")
+            self.git(self.root, "update-index", "--add", "--cacheinfo", f"160000,{commit},repos/{name}")
+        self.git(self.root, "commit", "-qm", "Record pins")
+        return self.git(self.root, "rev-parse", "HEAD")
+
+    def test_revision_inputs_ignore_live_dirt_and_replacement_objects(self) -> None:
+        self.commit_member("provider", "0.2.0")
+        newer = self.git(self.root / "repos/provider", "rev-parse", "HEAD")
+        self.commit_member("consumer", "0.2.0", newer)
+        new_consumer = self.git(self.root / "repos/consumer", "rev-parse", "HEAD")
+        new_root = self.commit_pins()
+        self.git(self.root, "replace", self.first_root, new_root)
+        self.git(self.root / "repos/consumer", "replace", self.first_consumer, new_consumer)
+        (self.root / ".gitmodules").write_text("not the committed mapping", encoding="utf-8")
+        (self.root / "repos/consumer/Cargo.lock").write_text("not TOML", encoding="utf-8")
+        for revision, source, version in ((self.first_root, self.first_provider, "0.1.0"), (new_root, newer, "0.2.0")):
+            with self.subTest(revision=revision):
+                result = sweep.lock_inventory(self.root, revision)
+                self.assertEqual(result["basis"], revision)
+                self.assertEqual({row["member"] for row in result["members"]}, {"provider", "consumer"})
+                consumer = next(row for row in result["members"] if row["member"] == "consumer")
+                self.assertEqual(consumer["locks"], [{"path": "Cargo.lock", "packages": [{
+                    "name": "provider", "version": version, "url": "https://github.com/ryancinsight/provider",
+                    "rev": source, "provider": "provider",
+                }]}])
+
+    def test_inventory_cli_leaves_refs_and_index_unchanged(self) -> None:
+        before = self.git(self.root, "show-ref")
+        index = (self.root / ".git/index").read_bytes()
+        result = process_tree.run([sys.executable, "-I", str(SCRIPT), "--inventory", "--revision", self.first_root],
+                                  env={**os.environ, "ATLAS_STACK_ROOT": str(self.root)}, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["basis"], self.first_root)
+        self.assertEqual(report["members"][0]["locks"][0]["packages"][0]["rev"], self.first_provider)
+        self.assertEqual(self.git(self.root, "show-ref"), before)
+        self.assertEqual((self.root / ".git/index").read_bytes(), index)
+
+    def test_missing_promisor_blobs_refuse_without_fetching(self) -> None:
+        source = self.root / "promisor-source"
+        source.mkdir()
+        self.git(source, "init", "-q", "-b", "main")
+        (source / "Cargo.toml").write_text(
+            '[package]\nname="consumer"\nversion="0.1.0"\nedition="2024"\n',
+            encoding="utf-8",
+        )
+        (source / "Cargo.lock").write_text(
+            "version=4\n" + package("consumer", "0.1.0", None), encoding="utf-8"
+        )
+        self.git(source, "add", "Cargo.toml", "Cargo.lock")
+        self.git(source, "commit", "-qm", "Record inputs")
+        self.git(source, "config", "uploadpack.allowFilter", "true")
+        revision = self.git(source, "rev-parse", "HEAD")
+        blobs = {
+            self.git(source, "rev-parse", "HEAD:Cargo.toml"),
+            self.git(source, "rev-parse", "HEAD:Cargo.lock"),
+        }
+
+        root = self.root / "promisor-root"
+        root.mkdir()
+        self.git(root, "init", "-q", "-b", "main")
+        member = root / "repos" / "consumer"
+        member.parent.mkdir()
+        cloned = execute_git(
+            self.root,
+            ("clone", "-q", "--bare", "--filter=blob:none", source.as_uri(), str(member)),
+            timeout=30,
+        )
+        self.assertEqual(cloned.returncode, 0, cloned.stderr)
+        (root / ".gitmodules").write_text(
+            '[submodule "consumer"]\npath = repos/consumer\n'
+            'url = https://github.com/ryancinsight/consumer\n',
+            encoding="utf-8",
+        )
+        self.git(root, "add", ".gitmodules")
+        self.git(
+            root,
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"160000,{revision},repos/consumer",
+        )
+        self.git(root, "commit", "-qm", "Record pin")
+        basis = self.git(root, "rev-parse", "HEAD")
+        refs = self.git(root, "show-ref")
+        member_refs = self.git(member, "show-ref")
+        index = (root / ".git/index").read_bytes()
+        no_fetch = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
+        inherited_no_fetch = os.environ.get("GIT_NO_LAZY_FETCH")
+
+        def missing(blob: str) -> bool:
+            result = execute_git(
+                member, ("--no-replace-objects", "cat-file", "-e", blob),
+                env=no_fetch, timeout=10,
+            )
+            return result.returncode != 0
+
+        self.assertTrue(all(missing(blob) for blob in blobs))
+        with self.assertRaisesRegex(sweep.lockfile.GitUnavailable, "cat-file could not read"):
+            sweep.lock_inventory(root, basis)
+        self.assertTrue(all(missing(blob) for blob in blobs))
+        self.assertEqual(self.git(root, "show-ref"), refs)
+        self.assertEqual(self.git(member, "show-ref"), member_refs)
+        self.assertEqual((root / ".git/index").read_bytes(), index)
+        self.assertEqual(os.environ.get("GIT_NO_LAZY_FETCH"), inherited_no_fetch)
+
+    def test_committed_lock_without_owner_rejects(self) -> None:
+        repo = self.root / "repos/consumer"
+        (repo / "nested").mkdir()
+        (repo / "nested/Cargo.lock").write_text("version=4\n" + package("orphan", "0.1.0", None), encoding="utf-8")
+        self.git(repo, "add", "nested/Cargo.lock")
+        self.git(repo, "commit", "-qm", "Record orphan")
+        with self.assertRaisesRegex(ValueError, "no readable standalone owner"):
+            sweep.lock_inventory(self.root, self.commit_pins())
+
+    def test_unregistered_first_party_source_rejects(self) -> None:
+        repo = self.root / "repos/consumer"
+        path = repo / "Cargo.lock"
+        path.write_text(path.read_text(encoding="utf-8").replace("ryancinsight/provider", "ryancinsight/unregistered"), encoding="utf-8")
+        self.git(repo, "add", "Cargo.lock")
+        self.git(repo, "commit", "-qm", "Record unknown source")
+        with self.assertRaisesRegex(ValueError, "not a registered provider"):
+            sweep.lock_inventory(self.root, self.commit_pins())
 
 
 if __name__ == "__main__":

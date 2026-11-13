@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import functools
+import json
 import os
 import subprocess
+import sys
 import time
 import uuid
 from contextlib import ExitStack
@@ -13,6 +15,7 @@ from pathlib import Path
 from typing import Sequence
 
 from atlas_build_artifacts import (
+    ARTIFACT_CENSUS_SECONDS,
     artifact_identities,
     artifact_identity,
     artifact_owners,
@@ -20,7 +23,14 @@ from atlas_build_artifacts import (
     validate_artifact_paths,
 )
 from atlas_build_dep_info import current_inputs, package_layout, record_inputs
-from atlas_build_inputs import _dependency_data, build_spec
+from atlas_build_inputs import (
+    _config_arguments,
+    _dependency_data,
+    build_spec,
+    compiler_environment,
+    effective_compiler_command,
+    effective_compiler_environment,
+)
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -34,13 +44,14 @@ from atlas_build_records import (
     VERSION,
     BuildSpec,
     _record_matches,
+    _record_mismatch_reasons,
     _recorded_artifact,
     _sibling_record,
     _write_atomic,
     read_record,
     record_path,
 )
-from atlas_build_source import _canonical, source_identity
+from atlas_build_source import _canonical, overlay_stripped_configs, source_identity
 from atlas_build_stale_packages import PackageState, _path_packages, _stale_packages
 from atlas_build_stamps import (
     BuildDirectory,
@@ -49,11 +60,145 @@ from atlas_build_stamps import (
     _unstamped_git,
     _write_git_stamps,
 )
+from atlas_build_writers import (
+    BUILDING,
+    CLEANING,
+    COMPLETE,
+    heartbeat,
+    mark,
+    mark_broad_clean,
+    resumable,
+    run_identity,
+)
 
 DEFAULT_LEASE_SECONDS = 900
+_CLEAN_PLAN_PREFIX = "atlas-build-clean-plan: "
+_PROGRESS_DIR_ENV = "ATLAS_GATE_PROGRESS_DIR"
+_PROGRESS_STAGES = (
+    "pre-command",
+    "cleanup",
+    "command",
+    "source-dependencies",
+    "git-stamps",
+    "census-inputs",
+    "publication",
+)
 
 
 IdentityError = BuildIdentityError
+
+
+def _progress_directory() -> Path | None:
+    value = os.environ.get(_PROGRESS_DIR_ENV)
+    if value is None:
+        return None
+    progress = Path(value)
+    if not progress.is_absolute() or not progress.is_dir():
+        raise IdentityError(f"{_PROGRESS_DIR_ENV} must name an existing absolute directory")
+    return progress
+
+
+def _progress_now_ns() -> int:
+    """Read the monotonic clock used by every progress-stage boundary."""
+    return time.monotonic_ns()
+
+
+class _ProgressSidecar:
+    """Atomically retain diagnostic stage timing without certifying artifacts."""
+
+    def __init__(self, run_id: str) -> None:
+        self._path: Path | None = None
+        self._run_id = run_id
+        self._origin_ns: int | None = None
+        self._stages: list[dict[str, object]] = []
+        try:
+            progress = _progress_directory()
+            if progress is None:
+                return
+            self._path = progress / f"identity-progress-{run_id}.json"
+            self._origin_ns = _progress_now_ns()
+            self._stages.append(
+                {"name": _PROGRESS_STAGES[0], "started_after_ns": 0, "status": "running"}
+            )
+            self._publish("incomplete")
+        except Exception:
+            self._path = None
+
+    def advance(self, stage: str) -> None:
+        """Complete the current stage and start `stage` at one clock reading."""
+        if self._path is None:
+            return
+        try:
+            if stage != _PROGRESS_STAGES[len(self._stages)]:
+                raise IdentityError(f"unexpected build progress stage: {stage}")
+            elapsed = self._elapsed_ns()
+            current = self._stages[-1]
+            current["completed_after_ns"] = elapsed
+            current["status"] = "completed"
+            self._stages.append(
+                {"name": stage, "started_after_ns": elapsed, "status": "running"}
+            )
+            self._publish("incomplete")
+        except Exception:
+            self._path = None
+
+    def fail(self, error: BaseException) -> None:
+        """Retain the incomplete stage when the identity run raises."""
+        if self._path is None:
+            return
+        try:
+            current = self._stages[-1]
+            current["completed_after_ns"] = self._elapsed_ns()
+            current["status"] = "failed"
+            self._publish("incomplete", type(error).__name__)
+        except Exception:
+            self._path = None
+
+    def finish(self) -> None:
+        """Complete publication while keeping the sidecar diagnostic-only."""
+        if self._path is None:
+            return
+        try:
+            current = self._stages[-1]
+            current["completed_after_ns"] = self._elapsed_ns()
+            current["status"] = "completed"
+            self._publish("complete")
+        except Exception:
+            self._path = None
+
+    def _elapsed_ns(self) -> int:
+        if self._origin_ns is None:
+            raise IdentityError("build progress clock has no origin")
+        return _progress_now_ns() - self._origin_ns
+
+    def _publish(self, disposition: str, failure: str | None = None) -> None:
+        if self._path is None or self._origin_ns is None:
+            return
+        payload: dict[str, object] = {
+            "certifies_artifacts": False,
+            "clock": "monotonic_ns",
+            "disposition": disposition,
+            "origin_ns": self._origin_ns,
+            "run": self._run_id,
+            "schema": 1,
+            "stages": self._stages,
+        }
+        if failure is not None:
+            payload["failure"] = failure
+        _write_atomic(self._path, payload, replace_attempts=1)
+
+
+def _emit_clean_plan(payload: dict[str, object], run_id: str) -> None:
+    """Emit one decision and retain it atomically when the gate owns progress."""
+    progress = _progress_directory()
+    if progress is not None:
+        _write_atomic(progress / f"clean-plan-{run_id}.json", payload)
+    print(
+        _CLEAN_PLAN_PREFIX
+        + json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -110,6 +255,70 @@ def run_build(
     ignore_paths: Sequence[Path] = (),
     lease_wait_seconds: float = 0,
     selection: Sequence[str] = (),
+    *,
+    clean_config: Sequence[str] = (),
+) -> tuple[BuildResult, ...]:
+    """Run a build under the manifest's effective compiler environment."""
+    if clean_config and (clean_command is not None or tuple(clean_config) != _config_arguments(command)):
+        raise IdentityError("cleanup Cargo config differs from the bound command")
+    run_id = uuid.uuid4().hex
+    progress = _ProgressSidecar(run_id)
+    try:
+        execution_root = _canonical(command_cwd or root, strict=True)
+        environment = effective_compiler_environment(manifest, execution_root, command)
+        command = effective_compiler_command(command, environment)
+        environment["CARGO_TARGET_DIR"] = _canonical(target_dir).as_posix()
+        with compiler_environment(environment):
+            with overlay_stripped_configs(execution_root):
+                result = _run_build(
+                    root,
+                    manifest,
+                    packages,
+                    target_dir,
+                    command,
+                    profile,
+                    target,
+                    features,
+                    artifact_paths,
+                    clean_command,
+                    lease_seconds,
+                    command_cwd,
+                    command_key,
+                    ignore_paths,
+                    lease_wait_seconds,
+                    selection,
+                    clean_config=clean_config,
+                    run_id=run_id,
+                    progress=progress,
+                )
+    except BaseException as error:
+        progress.fail(error)
+        raise
+    progress.finish()
+    return result
+
+
+def _run_build(
+    root: Path,
+    manifest: Path,
+    packages: Sequence[str],
+    target_dir: Path,
+    command: Sequence[str],
+    profile: str = "debug",
+    target: str = "host",
+    features: str = "",
+    artifact_paths: Sequence[Path] = (),
+    clean_command: Sequence[str] | None = None,
+    lease_seconds: int = DEFAULT_LEASE_SECONDS,
+    command_cwd: Path | None = None,
+    command_key: str | None = None,
+    ignore_paths: Sequence[Path] = (),
+    lease_wait_seconds: float = 0,
+    selection: Sequence[str] = (),
+    *,
+    run_id: str,
+    progress: _ProgressSidecar,
+    clean_config: Sequence[str],
 ) -> tuple[BuildResult, ...]:
     """Run `command` once for `packages`, binding each one's record to it.
 
@@ -179,6 +388,9 @@ def run_build(
 
     inputs = read_inputs()
     first_spec = inputs[packages[0]][1]
+    writer_identity = run_identity(
+        first_spec, {package: str(inputs[package][0]["digest"]) for package in packages}
+    )
     records = {package: record_path(spec) for package, (_, spec) in inputs.items()}
     environment = dict(os.environ)
     environment["CARGO_TARGET_DIR"] = target_dir.as_posix()
@@ -206,7 +418,6 @@ def run_build(
     # One bound for acquiring every lease, across both phases, and the run's
     # place in every queue, fixed by the same clock read: `(arrival, run)`.
     arrival_ns = time.monotonic_ns()
-    run_id = uuid.uuid4().hex
     deadline_ns = arrival_ns + int(lease_wait_seconds * 1_000_000_000)
 
     taken: list[OwnerLease] = []
@@ -312,7 +523,7 @@ def run_build(
                 states = locked_records()
         siblings = {
             package: None
-            if state.matched or state.existing is not None
+            if state.matched
             else _sibling_record(
                 inputs[package][1], inputs[package][0],
                 lambda record: current_inputs(record["inputs"], layout) == record["inputs"],
@@ -323,7 +534,7 @@ def run_build(
         # for the target's stale Git packages, which are cleaned regardless.
         stale = {
             package: not state.matched
-            and (state.existing is not None or siblings[package] is None or bool(state.stale_git))
+            and (siblings[package] is None or bool(state.stale_git))
             for package, state in states.items()
         }
         # The files each record lists, as read under this run's leases: its
@@ -336,7 +547,7 @@ def run_build(
         }
         for package, sibling in siblings.items():
             if sibling is not None:
-                named[package] = _recorded_artifact(sibling, target_dir, ())
+                named[package] = sibling.artifact
         # Git packages this run builds: the stale ones it cleans, and the
         # unstamped ones it trusts. Each is stamped as building before the
         # clean and the command, and with its content only after both.
@@ -345,16 +556,28 @@ def run_build(
             for package, (dependencies, _) in inputs.items()
         }
         rebuilt: frozenset[str] = frozenset()
+        # Packages an earlier run of this identity cleaned and was killed
+        # while rebuilding: held exclusive and discovered afresh like the
+        # cleaned ones, but not cleaned again. A stale Git stamp still cleans.
+        resumed: frozenset[str] = frozenset()
         targets: frozenset[str] = frozenset()
+        marked: frozenset[str] = frozenset()
+        custom_clean = False
         if any(stale.values()):
+            marked = resumable(directory, held, writer_identity) - frozenset().union(
+                *(state.stale_git for state in states.values())
+            )
             if clean_command is not None:
-                _run_checked(clean_command, execution_root, environment)
                 # Opaque, so it may have cleaned everything it held; only the
                 # stale Git packages are certainly cleaned, by Cargo below.
-                rebuilt = held
                 targets = held & frozenset().union(
                     *(states[package].stale_git for package in packages if stale[package])
                 )
+                if held <= marked and not targets:
+                    resumed = held
+                else:
+                    custom_clean = True
+                    rebuilt = held
             else:
                 # Each stale package cleans what its own rule asked for in the
                 # widen loop, never recomputed: every package cleaned here was
@@ -368,8 +591,51 @@ def run_build(
                         named[package] = states[package].current
                     else:
                         own &= states[package].stale_git
-                    targets |= own
+                    resumed |= own & marked
+                    targets |= own - marked
                 rebuilt = targets
+        package_decisions = {}
+        for package, state in states.items():
+            if state.existing is None:
+                reasons = ["record-absent"]
+            else:
+                dependencies, spec = inputs[package]
+                reasons = list(
+                    _record_mismatch_reasons(
+                        state.existing, spec, dependencies, state.current, state.inputs
+                    )
+                )
+            if state.stale_git:
+                reasons.append("stale-git")
+            if package in marked:
+                reasons.append("resumable-build")
+            if siblings[package] is not None:
+                reasons.append("sibling-record")
+            package_decisions[package] = {
+                "matched": state.matched,
+                "reasons": reasons,
+                "record_present": state.existing is not None,
+                "requested": sorted(asked[package]),
+                "sibling": siblings[package] is not None,
+                "stale_git": sorted(state.stale_git),
+            }
+        requested = frozenset().union(*asked.values())
+        clean_plan = {
+            "clean": sorted(rebuilt),
+            "packages": package_decisions,
+            "phase": phases[0],
+            "profile": profile,
+            "requested": sorted(requested),
+            "resume": sorted(resumed),
+            "run": run_id,
+            "schema": 1,
+            "target": target,
+        }
+        _emit_clean_plan(clean_plan, run_id)
+        progress.advance("cleanup")
+        if custom_clean:
+            mark_broad_clean(directory, held, writer_identity)
+            _run_checked(clean_command, execution_root, environment)
         for package, (dependencies, _) in inputs.items():
             git_built[package] |= set(targets) & _git_names(dependencies)
             _write_git_stamps(dependencies, directory, git_built[package], building=True)
@@ -380,9 +646,11 @@ def run_build(
         # stalled every push that shared its dependencies for over an hour. A
         # `cargo clean` naming no package would clean everything.
         if targets:
+            mark(directory, targets, CLEANING, writer_identity)
             _run_checked(
                 [
                     *_cargo_command(),
+                    *(argument for value in clean_config for argument in ("--config", value)),
                     "clean",
                     *(argument for clean_package in sorted(targets) for argument in ("-p", clean_package)),
                     *directory.clean_arguments(),
@@ -393,7 +661,10 @@ def run_build(
                 environment,
             )
         # The packages whose artifacts this run writes and discovers afresh.
-        fresh = {*packages, *rebuilt}
+        fresh = {*packages, *rebuilt, *resumed}
+        # The last writer of every package the command writes, from here until
+        # its record lands: a kill leaves this identity's mark for a rerun.
+        mark(directory, fresh, BUILDING, writer_identity)
         if not artifact_paths and all(
             named[package] is not None or recorded_packages[package] <= fresh
             for package in packages
@@ -418,7 +689,10 @@ def run_build(
                 raise IdentityError(
                     "a dependency is held shared but no record names its artifacts"
                 )
-        _run_checked(command, execution_root, environment)
+        progress.advance("command")
+        with heartbeat(directory, fresh, writer_identity):
+            _run_checked(command, execution_root, environment)
+        progress.advance("source-dependencies")
         final_source = source_identity(root, (target_dir,), ignore_paths)
         if final_source.as_dict() != first_spec.source.as_dict():
             raise IdentityError("source tree changed while the build was running")
@@ -427,11 +701,16 @@ def run_build(
         )
         if any(final_snapshots[package] != inputs[package][0] for package in packages):
             raise IdentityError("dependency graph changed while the build was running")
+        progress.advance("git-stamps")
         # The checkout content is the snapshot's, unchanged across the build.
         for package, (dependencies, _) in inputs.items():
             _write_git_stamps(dependencies, directory, git_built[package], building=False)
+        progress.advance("census-inputs")
         # A file several packages' records list is read once per run.
         settled: dict[str, str] = {}
+        census_deadline_ns = time.monotonic_ns() + int(
+            ARTIFACT_CENSUS_SECONDS * 1_000_000_000
+        )
         discovered = {}
         if not artifact_paths:
             discovered = artifact_identities(
@@ -448,8 +727,9 @@ def run_build(
                 manifest,
                 execution_root,
                 workspace_owners(),
+                deadline_ns=census_deadline_ns,
             )
-        results = []
+        prepared = []
         for package in packages:
             dependencies, spec = inputs[package]
             if shared_recorded[package] and not artifact_paths:
@@ -475,7 +755,7 @@ def run_build(
                     named[package]["files"],
                     workspace_owners(),
                     settled,
-                    deadline_ns,
+                    census_deadline_ns,
                     discovered[package],
                 )
             else:
@@ -497,22 +777,32 @@ def run_build(
                     if artifact_paths
                     else discovered[package]
                 )
-            _write_atomic(
-                records[package],
-                {
-                    "version": VERSION,
-                    "source": spec.source.as_dict(),
-                    "build": spec.as_dict(),
-                    "dependencies": dependencies,
-                    "artifact": artifact,
-                    # Declared paths are not a closure: the repository decides.
-                    "inputs": {}
-                    if artifact_paths
-                    else record_inputs(
-                        target_dir, artifact["files"], recorded_packages[package], layout
-                    ),
-                },
+            prepared.append(
+                (
+                    package,
+                    spec,
+                    artifact,
+                    {
+                        "version": VERSION,
+                        "source": spec.source.as_dict(),
+                        "build": spec.as_dict(),
+                        "dependencies": dependencies,
+                        "artifact": artifact,
+                        # Declared paths are not a closure: the repository decides.
+                        "inputs": {}
+                        if artifact_paths
+                        else record_inputs(
+                            target_dir, artifact["files"], recorded_packages[package], layout
+                        ),
+                    },
+                )
             )
+        if time.monotonic_ns() >= census_deadline_ns:
+            raise IdentityError("artifact census did not converge before its deadline")
+        progress.advance("publication")
+        results = []
+        for package, spec, artifact, record in prepared:
+            _write_atomic(records[package], record)
             # Cleaned by its own rule or by another package's in this run.
             cleaned = stale[package] or package in rebuilt
             results.append(
@@ -523,4 +813,5 @@ def run_build(
                     tuple(target_dir / relative for relative in artifact["files"]),
                 )
             )
+        mark(directory, fresh, COMPLETE, writer_identity)
     return tuple(results)

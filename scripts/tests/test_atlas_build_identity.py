@@ -41,6 +41,7 @@ import atlas_build_records as build_records
 import atlas_build_snapshot as build_snapshot
 import atlas_build_source as build_source
 import atlas_build_stamps as build_stamps
+import atlas_build_writers as writers
 from atlas_build_lease import (
     EXCLUSIVE,
     SHARED,
@@ -924,6 +925,332 @@ PEER_REWRITER = (
 )
 
 
+class RecordIndexTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-record-index-")
+        self.addCleanup(temp.cleanup)
+        self.target = Path(temp.name).resolve() / "target"
+        self.artifact = self.target / "deps" / "libdemo.rlib"
+        self.artifact.parent.mkdir(parents=True)
+        self.artifact.write_bytes(b"artifact")
+        self.source = build_source.SourceIdentity("root", "revision", "tree", False)
+
+    def spec(self, **changes: str) -> build_records.BuildSpec:
+        fields = {
+            "package": "demo",
+            "profile": "test",
+            "target": "host",
+            "features": "default",
+            "toolchain": "stable",
+            "target_dir": str(self.target),
+            "command_key": "clippy",
+            "selection": "demo",
+            "environment_digest": "environment",
+            "cargo_config_digest": "configuration",
+            "dependency_digest": "dependencies",
+        }
+        fields.update(changes)
+        return build_records.BuildSpec(source=self.source, **fields)
+
+    def record(
+        self,
+        spec: build_records.BuildSpec,
+        *,
+        source: build_source.SourceIdentity | None = None,
+        version: int = build_records.VERSION,
+    ) -> dict[str, object]:
+        actual_source = source or self.source
+        files = {"deps/libdemo.rlib": artifacts._file_digest(self.artifact)}
+        return {
+            "version": version,
+            "source": actual_source.as_dict(),
+            "build": {**spec.as_dict(), "source": actual_source.as_dict()},
+            "artifact": {"files": files, "digest": artifacts.artifact_digest(files)},
+            "dependencies": {
+                "root": "workspace:demo",
+                "digest": "dependencies",
+                "packages": [],
+                "edges": [],
+                "clean_packages": [],
+            },
+            "inputs": {},
+        }
+
+    def write(self, spec: build_records.BuildSpec, **changes: object) -> Path:
+        path = build_records.record_path(spec)
+        build_records._write_atomic(path, self.record(spec, **changes))
+        return path
+
+    def sibling(self, spec: build_records.BuildSpec) -> dict[str, object] | None:
+        dependencies = self.record(spec)["dependencies"]
+        assert isinstance(dependencies, dict)
+        selected = build_records._sibling_record(spec, dependencies, lambda _record: True)
+        return None if selected is None else selected.record
+
+    def test_warm_lookup_reads_only_the_family_and_unindexable_records(self) -> None:
+        requested = self.spec(command_key="nextest")
+        matching = self.spec(command_key="arbitrary-command")
+        matching_path = self.write(matching)
+        unrelated = [
+            self.write(self.spec(command_key=f"other-{field}", **{field: f"other-{field}"}))
+            for field in (
+                "package",
+                "profile",
+                "target",
+                "features",
+                "toolchain",
+                "selection",
+                "environment_digest",
+                "cargo_config_digest",
+            )
+        ]
+        obsolete = self.spec(command_key="obsolete")
+        obsolete_path = self.write(obsolete, version=6)
+        malformed_path = build_records.record_path(self.spec(command_key="malformed"))
+        malformed_path.write_text("{", encoding="utf-8")
+        paths = [matching_path, *unrelated, obsolete_path, malformed_path]
+        originals = {path.name: path.read_bytes() for path in paths}
+
+        self.assertEqual(self.sibling(requested), self.record(matching))
+        reads: list[str] = []
+        reader = build_records.read_record
+
+        def observe(path: Path) -> dict[str, object] | None:
+            reads.append(path.name)
+            return reader(path)
+
+        with patch.object(build_records, "read_record", side_effect=observe):
+            self.assertEqual(self.sibling(requested), self.record(matching))
+        self.assertEqual(
+            set(reads), {matching_path.name, obsolete_path.name, malformed_path.name}
+        )
+        self.assertTrue(all(path.name not in reads for path in unrelated))
+        self.assertEqual(
+            {path.name: path.read_bytes() for path in paths},
+            originals,
+        )
+
+    def test_every_scope_dimension_except_command_separates_families(self) -> None:
+        baseline = self.spec()
+        baseline_scope = {
+            key: baseline.as_dict()[key] for key in build_records._INDEX_SCOPE_FIELDS
+        }
+        for field in (*build_records._INDEX_SCOPE_FIELDS, "dependency_digest"):
+            with self.subTest(field=field):
+                changed = self.spec(**{field: f"other-{field}"})
+                changed_scope = {
+                    key: changed.as_dict()[key] for key in build_records._INDEX_SCOPE_FIELDS
+                }
+                if field == "command_key" or field == "dependency_digest":
+                    self.assertEqual(
+                        build_records._record_family(changed_scope),
+                        build_records._record_family(baseline_scope),
+                    )
+                else:
+                    self.assertNotEqual(
+                        build_records._record_family(changed_scope),
+                        build_records._record_family(baseline_scope),
+                    )
+
+    def test_missing_obsolete_and_recreated_records_are_reconciled(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        path = self.write(candidate, version=6)
+        self.assertIsNone(self.sibling(requested))
+        build_records._write_atomic(path, self.record(candidate))
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+        path.unlink()
+        self.assertIsNone(self.sibling(requested))
+        path.write_text("{", encoding="utf-8")
+        self.assertIsNone(self.sibling(requested))
+        build_records._write_atomic(path, self.record(candidate))
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+
+    def test_selected_record_is_reread_and_fully_compared(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        path = self.write(candidate)
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+        moved = build_source.SourceIdentity("other", "other", "other", False)
+        build_records._write_atomic(path, self.record(candidate, source=moved))
+        self.assertIsNone(self.sibling(requested))
+        changed = self.record(candidate)
+        assert isinstance(changed["build"], dict)
+        changed["build"]["dependency_digest"] = "other"
+        build_records._write_atomic(path, changed)
+        self.assertIsNone(self.sibling(requested))
+
+    def test_invalid_siblings_are_skipped_until_every_identity_holds(self) -> None:
+        requested = self.spec(command_key="verify")
+        dependencies = self.record(requested)["dependencies"]
+        assert isinstance(dependencies, dict)
+
+        malformed = build_records.record_path(self.spec(command_key="a-malformed"))
+        malformed.parent.mkdir(parents=True, exist_ok=True)
+        malformed.write_text("{", encoding="utf-8")
+
+        missing_spec = self.spec(command_key="b-missing-artifact")
+        missing = self.record(missing_spec)
+        missing_files = {"deps/missing.rlib": hashlib.sha256(b"missing").hexdigest()}
+        missing["artifact"] = {
+            "files": missing_files,
+            "digest": artifacts.artifact_digest(missing_files),
+        }
+        missing_path = build_records.record_path(missing_spec)
+        build_records._write_atomic(missing_path, missing)
+
+        unverified_spec = self.spec(command_key="c-unverified-artifact")
+        unverified = self.record(unverified_spec)
+        unverified_files = {"deps/libdemo.rlib": artifacts.UNVERIFIED}
+        unverified["artifact"] = {
+            "files": unverified_files,
+            "digest": artifacts.artifact_digest(unverified_files),
+        }
+        unverified_path = build_records.record_path(unverified_spec)
+        build_records._write_atomic(unverified_path, unverified)
+
+        changed_spec = self.spec(command_key="d-changed-artifact")
+        changed = self.record(changed_spec)
+        changed_files = {"deps/libdemo.rlib": hashlib.sha256(b"before").hexdigest()}
+        changed["artifact"] = {
+            "files": changed_files,
+            "digest": artifacts.artifact_digest(changed_files),
+        }
+        changed_path = build_records.record_path(changed_spec)
+        build_records._write_atomic(changed_path, changed)
+
+        input_spec = self.spec(command_key="e-changed-input")
+        input_record = self.record(input_spec)
+        input_record["inputs"] = {"demo": {"outside.rs": hashlib.sha256(b"old").hexdigest()}}
+        input_path = build_records.record_path(input_spec)
+        build_records._write_atomic(input_path, input_record)
+
+        dependency_spec = self.spec(command_key="f-changed-dependency")
+        dependency_record = self.record(dependency_spec)
+        assert isinstance(dependency_record["dependencies"], dict)
+        dependency_record["dependencies"]["digest"] = "other"
+        dependency_path = build_records.record_path(dependency_spec)
+        build_records._write_atomic(dependency_path, dependency_record)
+
+        selection_path = self.write(
+            self.spec(command_key="g-changed-selection", selection="other")
+        )
+        valid_spec = self.spec(command_key="z-valid")
+        valid_path = self.write(valid_spec)
+        candidates = [
+            malformed,
+            missing_path,
+            unverified_path,
+            changed_path,
+            input_path,
+            dependency_path,
+            selection_path,
+            valid_path,
+        ]
+
+        with patch.object(Path, "glob", return_value=candidates):
+            selected = build_records._sibling_record(
+                requested,
+                dependencies,
+                lambda record: record["inputs"] == {},
+            )
+        self.assertIsNotNone(selected)
+        assert selected is not None
+        self.assertEqual(selected.record, self.record(valid_spec))
+        self.assertEqual(selected.artifact, self.record(valid_spec)["artifact"])
+
+    def test_an_exact_command_record_is_not_its_own_sibling(self) -> None:
+        requested = self.spec(command_key="verify")
+        self.write(requested)
+        self.assertIsNone(self.sibling(requested))
+
+    def test_a_sibling_requires_the_same_revision_when_files_identify_the_root(self) -> None:
+        requested = self.spec(command_key="verify")
+        candidate = self.spec(command_key="compile")
+        moved = build_source.SourceIdentity("other-root", "other-revision", "other-tree", False)
+        record = self.record(candidate, source=moved)
+        dependencies = record["dependencies"]
+        assert isinstance(dependencies, dict)
+        dependencies["packages"] = [{"id": dependencies["root"], "kind": "path"}]
+        build_records._write_atomic(build_records.record_path(candidate), record)
+
+        self.assertIsNone(
+            build_records._sibling_record(requested, dependencies, lambda _record: True)
+        )
+
+    def test_malformed_index_content_fails_closed(self) -> None:
+        requested = self.spec(command_key="nextest")
+        self.write(self.spec(command_key="clippy"))
+        index = build_records._record_index_path(build_records.record_path(requested).parent)
+        index.parent.mkdir(parents=True)
+        scope = {
+            key: requested.as_dict()[key] for key in build_records._INDEX_SCOPE_FIELDS
+        }
+        for payload in (
+            '{"schema":1,"schema":1,"records":{}}',
+            json.dumps({"schema": 2, "records": {}}),
+            json.dumps({"schema": 1, "records": {"0" * 64: scope}}),
+        ):
+            with self.subTest(payload=payload):
+                index.write_text(payload, encoding="utf-8")
+                with self.assertRaises(BuildIdentityError):
+                    self.sibling(requested)
+
+    def test_competing_index_writers_leave_one_complete_index(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        expected = self.record(candidate)
+        self.write(candidate)
+        index = build_records._record_index_path(build_records.record_path(requested).parent)
+        barrier = threading.Barrier(2)
+        writer = build_records._write_atomic
+
+        def converge(path: Path, value: dict[str, object]) -> None:
+            if path == index:
+                barrier.wait()
+            writer(path, value)
+
+        results: list[dict[str, object] | None] = []
+        with patch.object(build_records, "_write_atomic", side_effect=converge):
+            threads = [
+                threading.Thread(target=lambda: results.append(self.sibling(requested)))
+                for _ in range(2)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+        self.assertEqual(results, [expected, expected])
+        self.assertEqual(
+            build_records._read_record_index(index),
+            {
+                build_records.record_path(candidate).stem: {
+                    key: candidate.as_dict()[key]
+                    for key in build_records._INDEX_SCOPE_FIELDS
+                }
+            }
+        )
+
+    def test_interrupted_index_publication_changes_no_record(self) -> None:
+        requested = self.spec(command_key="nextest")
+        candidate = self.spec(command_key="clippy")
+        record = self.write(candidate)
+        original = record.read_bytes()
+        index = build_records._record_index_path(record.parent)
+
+        def interrupt(path: Path, value: dict[str, object]) -> None:
+            if path == index:
+                raise BuildIdentityError("interrupted index publication")
+            build_records._write_atomic(path, value)
+
+        with patch.object(build_records, "_write_atomic", side_effect=interrupt):
+            with self.assertRaisesRegex(BuildIdentityError, "interrupted index publication"):
+                self.sibling(requested)
+        self.assertFalse(index.exists())
+        self.assertEqual(record.read_bytes(), original)
+        self.assertEqual(self.sibling(requested), self.record(candidate))
+
+
 class BuildIdentityTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-")
@@ -962,6 +1289,16 @@ class BuildIdentityTestCase(unittest.TestCase):
             "Path(os.environ['CLEAN_LOG']).write_text('cleaned\\n', encoding='utf-8')\n"
             "Path(os.environ['ARTIFACT']).unlink(missing_ok=True)\n",
         )
+
+    def writer_directory(self, profile: str = "debug", target: str = "host") -> build_stamps.BuildDirectory:
+        return build_stamps.BuildDirectory(build_source._canonical(self.target), profile, target)
+
+    def redirect_directory(self, target: Path, link: Path) -> None:
+        if os.name == "nt":
+            import _winapi
+            _winapi.CreateJunction(str(target), str(link))
+        else:
+            link.symlink_to(target, target_is_directory=True)
 
     def build(
         self,
@@ -1030,6 +1367,175 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         self.assertEqual(value["status"], "match")
+
+    def test_progress_sidecar_attributes_one_successful_run(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter(range(100, 180, 10))
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+        ):
+            result = self.build(source_token="timed")
+        sidecars = list(progress.glob("identity-progress-*.json"))
+        self.assertEqual(len(sidecars), 1)
+        payload = json.loads(sidecars[0].read_text(encoding="utf-8"))
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "timed")
+        self.assertEqual(payload["disposition"], "complete")
+        self.assertFalse(payload["certifies_artifacts"])
+        self.assertEqual(payload["clock"], "monotonic_ns")
+        self.assertEqual(payload["origin_ns"], 100)
+        self.assertEqual(
+            payload["stages"],
+            [
+                {
+                    "name": name,
+                    "started_after_ns": index * 10,
+                    "completed_after_ns": (index + 1) * 10,
+                    "status": "completed",
+                }
+                for index, name in enumerate(identity._PROGRESS_STAGES)
+            ],
+        )
+
+    def test_progress_sidecar_keeps_a_failed_command_incomplete(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter((100, 110, 120, 130))
+        running: list[dict[str, object]] = []
+        run_checked = identity._run_checked
+
+        def fail_command(command, cwd, environment):
+            if str(self.build_script) in command:
+                sidecars = list(progress.glob("identity-progress-*.json"))
+                self.assertEqual(len(sidecars), 1)
+                running.append(json.loads(sidecars[0].read_text(encoding="utf-8")))
+                raise identity.IdentityError("command failed with exit code 7")
+            return run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+            patch.object(identity, "_run_checked", side_effect=fail_command),
+        ):
+            with self.assertRaisesRegex(identity.IdentityError, "exit code 7"):
+                self.build(source_token="failed")
+        self.assertEqual(running[0]["disposition"], "incomplete")
+        self.assertFalse(running[0]["certifies_artifacts"])
+        self.assertEqual(running[0]["stages"][-1]["name"], "command")
+        self.assertEqual(running[0]["stages"][-1]["status"], "running")
+        sidecar = next(progress.glob("identity-progress-*.json"))
+        failed = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(failed["disposition"], "incomplete")
+        self.assertEqual(failed["failure"], "BuildIdentityError")
+        self.assertEqual(failed["stages"][-1]["status"], "failed")
+        self.assertEqual(
+            list((self.target / ".atlas" / "source-identity").glob("*.json")), []
+        )
+
+    def test_progress_sidecar_initial_write_cannot_change_success(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        run_id = identity.uuid.UUID(int=1)
+        obstruction = progress / f"identity-progress-{run_id.hex}.json"
+        obstruction.mkdir()
+        retry = build_records.retry_sharing_violation
+        diagnostic_policies: list[int] = []
+        diagnostic_replacements: list[Path] = []
+
+        def observe_retry(operation, path, attempts=lock_module.SHARING_RETRY_ATTEMPTS):
+            if path.name.startswith("identity-progress-"):
+                diagnostic_policies.append(attempts)
+                replace = operation
+
+                def counted_replace():
+                    diagnostic_replacements.append(path)
+                    return replace()
+
+                operation = counted_replace
+            return retry(operation, path, attempts)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity.uuid, "uuid4", return_value=run_id),
+            patch.object(identity, "_progress_now_ns", return_value=100),
+            patch.object(
+                build_records, "retry_sharing_violation", side_effect=observe_retry
+            ),
+        ):
+            result = self.build(source_token="initial-write")
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "initial-write")
+        self.assertTrue(obstruction.is_dir())
+        self.assertEqual(diagnostic_policies, [1])
+        self.assertEqual(diagnostic_replacements, [obstruction])
+
+    def test_progress_sidecar_final_write_cannot_change_success(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter(range(100, 180, 10))
+        write_atomic = identity._write_atomic
+
+        def fail_complete(path, payload, **kwargs):
+            if (
+                path.name.startswith("identity-progress-")
+                and payload["disposition"] == "complete"
+            ):
+                raise OSError("progress unavailable")
+            write_atomic(path, payload, **kwargs)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+            patch.object(identity, "_write_atomic", side_effect=fail_complete),
+        ):
+            result = self.build(source_token="final-write")
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "final-write")
+        sidecar = next(progress.glob("identity-progress-*.json"))
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(payload["disposition"], "incomplete")
+        self.assertFalse(payload["certifies_artifacts"])
+        self.assertEqual(payload["stages"][-1]["name"], "publication")
+        self.assertEqual(payload["stages"][-1]["status"], "running")
+
+    def test_progress_sidecar_failed_write_preserves_command_failure(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        ticks = iter((100, 110, 120, 130))
+        write_atomic = identity._write_atomic
+        run_checked = identity._run_checked
+
+        def fail_command(command, cwd, environment):
+            if str(self.build_script) in command:
+                raise identity.IdentityError("original command failure")
+            return run_checked(command, cwd, environment)
+
+        def fail_failure_record(path, payload, **kwargs):
+            if path.name.startswith("identity-progress-") and "failure" in payload:
+                raise OSError("progress unavailable")
+            write_atomic(path, payload, **kwargs)
+
+        with (
+            patch.dict(os.environ, {"ATLAS_GATE_PROGRESS_DIR": str(progress)}),
+            patch.object(identity, "_progress_now_ns", side_effect=lambda: next(ticks)),
+            patch.object(identity, "_run_checked", side_effect=fail_command),
+            patch.object(identity, "_write_atomic", side_effect=fail_failure_record),
+        ):
+            with self.assertRaisesRegex(identity.IdentityError, "original command failure"):
+                self.build(source_token="failed-write")
+        sidecar = next(progress.glob("identity-progress-*.json"))
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(payload["disposition"], "incomplete")
+        self.assertFalse(payload["certifies_artifacts"])
+        self.assertEqual(payload["stages"][-1]["name"], "command")
+        self.assertEqual(payload["stages"][-1]["status"], "running")
 
     def test_the_same_revision_at_another_root_reuses_and_cleans_nothing(self) -> None:
         """Each pre-push run exports the pushed revision to a new temporary path.
@@ -1207,6 +1713,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         clean: bool = True,
         snapshot: dict[str, object] | None = None,
         owners: dict[str, frozenset[str]] | None = None,
+        command_key: str | None = None,
     ) -> identity.BuildResult:
         """Build `demo`, whose clean closure holds a path dependency `dep`."""
         snapshot = snapshot or {
@@ -1240,6 +1747,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 artifact_paths=() if discover else [self.artifact],
                 clean_command=[sys.executable, str(self.clean_script)] if clean else None,
                 lease_wait_seconds=wait,
+                command_key=command_key,
             )[0]
 
     def dep_lock(self, package: str = "dep") -> Path:
@@ -1444,6 +1952,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         snapshot: dict[str, object] | None = None,
         owners: dict[str, frozenset[str]] | None = None,
         clean: bool = False,
+        command_key: str | None = None,
     ) -> list[str]:
         """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo.
 
@@ -1454,15 +1963,176 @@ class BuildIdentityTestCase(unittest.TestCase):
 
         def recording(command, cwd, environment):
             if (names := cleaned_names(command)) is not None:
+                progress_value = os.environ.get(identity._PROGRESS_DIR_ENV)
+                if progress_value is not None:
+                    records = list(Path(progress_value).glob("clean-plan-*.json"))
+                    self.assertEqual(len(records), 1)
                 packages.extend(names)
                 return
             run_checked(command, cwd, environment)
 
         with patch.object(identity, "_run_checked", side_effect=recording):
             self.dependency_build(
-                source_token, discover=True, clean=clean, snapshot=snapshot, owners=owners
+                source_token,
+                discover=True,
+                clean=clean,
+                snapshot=snapshot,
+                owners=owners,
+                command_key=command_key,
             )
         return sorted(packages)
+
+    def cleanup_decision(
+        self,
+        source_token: str,
+        snapshot: dict[str, object] | None = None,
+    ) -> tuple[dict[str, object], list[str]]:
+        """Return the structured decision emitted by one recorded clean run."""
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory(prefix="atlas-clean-plan-") as temporary, (
+            patch.dict(os.environ, {identity._PROGRESS_DIR_ENV: temporary})
+        ), redirect_stderr(stderr):
+            cleaned = self.cleaned_packages(source_token, snapshot=snapshot)
+            retained = list(Path(temporary).glob("clean-plan-*.json"))
+            self.assertEqual(len(retained), 1)
+            retained_payload = json.loads(retained[0].read_text(encoding="utf-8"))
+            retained_name = retained[0].name
+        payloads = [
+            line.removeprefix(identity._CLEAN_PLAN_PREFIX)
+            for line in stderr.getvalue().splitlines()
+            if line.startswith(identity._CLEAN_PLAN_PREFIX)
+        ]
+        self.assertEqual(len(payloads), 1)
+        payload = json.loads(payloads[0])
+        self.assertEqual(retained_payload, payload)
+        self.assertEqual(retained_name, f"clean-plan-{payload['run']}.json")
+        return payload, cleaned
+
+    def test_cleanup_decision_is_retained_before_custom_clean(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        progress = self.base / "progress"
+        progress.mkdir()
+        observed: list[dict[str, object]] = []
+        run_checked = identity._run_checked
+
+        def inspect_before_clean(command, cwd, environment):
+            if str(self.clean_script) in command:
+                records = list(progress.glob("clean-plan-*.json"))
+                self.assertEqual(len(records), 1)
+                observed.append(json.loads(records[0].read_text(encoding="utf-8")))
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.dict(os.environ, {identity._PROGRESS_DIR_ENV: str(progress)}),
+            patch.object(identity, "_run_checked", side_effect=inspect_before_clean),
+        ):
+            result = self.dependency_build("first", clean=True)
+
+        self.assertEqual(result.status, "rebuilt")
+        self.assertEqual(len(observed), 1)
+        self.assertEqual(observed[0]["clean"], ["demo", "dep"])
+
+    def test_cleanup_decision_rejects_an_invalid_progress_directory(self) -> None:
+        payload = {"run": "a" * 32, "schema": 1}
+        with (
+            patch.dict(os.environ, {identity._PROGRESS_DIR_ENV: "relative"}),
+            self.assertRaisesRegex(identity.IdentityError, "existing absolute directory"),
+        ):
+            identity._emit_clean_plan(payload, str(payload["run"]))
+
+    def test_cleanup_decision_reports_missing_and_matching_records(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+
+        first, cleaned = self.cleanup_decision("first")
+        self.assertEqual(cleaned, ["demo", "dep"])
+        self.assertEqual(first["schema"], 1)
+        self.assertEqual(
+            (first["phase"], first["profile"], first["target"]), (2, "debug", "host")
+        )
+        self.assertRegex(first["run"], r"^[0-9a-f]{32}$")
+        self.assertEqual(first["requested"], ["demo", "dep"])
+        self.assertEqual(first["clean"], ["demo", "dep"])
+        self.assertEqual(first["resume"], [])
+        self.assertEqual(
+            first["packages"]["demo"],
+            {
+                "matched": False,
+                "reasons": ["record-absent"],
+                "record_present": False,
+                "requested": ["demo", "dep"],
+                "sibling": False,
+                "stale_git": [],
+            },
+        )
+
+        matched, cleaned = self.cleanup_decision("first")
+        self.assertEqual(cleaned, [])
+        self.assertEqual(
+            (matched["phase"], matched["requested"], matched["clean"]), (1, [], [])
+        )
+        self.assertEqual(matched["resume"], [])
+        self.assertEqual(matched["packages"]["demo"]["reasons"], [])
+        self.assertTrue(matched["packages"]["demo"]["matched"])
+        self.assertTrue(matched["packages"]["demo"]["record_present"])
+
+    def test_cleanup_decision_identifies_a_building_git_stamp(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        revision = git(self.root, "rev-parse", "HEAD")
+        snapshot = self.path_and_git_snapshot(revision)
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True, snapshot=snapshot)
+        self.git_stamp(revision).write_text(
+            json.dumps({"content_digest": build_stamps._BUILDING}), encoding="utf-8"
+        )
+
+        plan, cleaned = self.cleanup_decision("first", snapshot=snapshot)
+        self.assertEqual(
+            (cleaned, plan["requested"], plan["clean"]), (["dep"], ["dep"], ["dep"])
+        )
+        self.assertEqual(plan["resume"], [])
+        self.assertEqual(plan["packages"]["demo"]["reasons"], ["stale-git"])
+        self.assertEqual(plan["packages"]["demo"]["stale_git"], ["dep"])
+        self.assertFalse(plan["packages"]["demo"]["matched"])
+
+    def test_a_building_git_stamp_overrides_a_valid_sibling(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        first_revision = git(self.root, "rev-parse", "HEAD")
+        first_snapshot = self.path_and_git_snapshot(first_revision)
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build(
+            "first", discover=True, snapshot=first_snapshot, command_key="verify"
+        )
+        second_revision = self.commit_source_change(
+            "fn main() { changed(); }\n", "change source"
+        )
+        second_snapshot = self.path_and_git_snapshot(second_revision)
+        self.dependency_build(
+            "second", discover=True, snapshot=second_snapshot, command_key="compile"
+        )
+        self.git_stamp(second_revision).write_text(
+            json.dumps({"content_digest": build_stamps._BUILDING}), encoding="utf-8"
+        )
+
+        self.assertEqual(
+            self.cleaned_packages(
+                "second", snapshot=second_snapshot, command_key="verify"
+            ),
+            ["dep"],
+        )
+
+    def test_cleanup_decision_identifies_resumable_path_build_progress(self) -> None:
+        self.killed_after_source_change()
+        plan, cleaned = self.cleanup_decision("second")
+        self.assertEqual(cleaned, [])
+        self.assertEqual(
+            (plan["requested"], plan["clean"], plan["resume"]), (["demo"], [], ["demo"])
+        )
+        self.assertEqual(
+            plan["packages"]["demo"]["reasons"], ["source", "build", "resumable-build"]
+        )
+        self.assertFalse(plan["packages"]["demo"]["matched"])
+        self.assertTrue(plan["packages"]["demo"]["record_present"])
 
     def test_a_registry_content_change_alone_cleans_nothing(self) -> None:
         # The record mismatches on the registry record's digest alone, so the
@@ -1724,6 +2394,324 @@ class BuildIdentityTestCase(unittest.TestCase):
         third = self.dependency_build("second", discover=True, snapshot=second_snapshot)
         self.assertEqual(third.status, "reused")
         self.assertFalse(third.cleaned)
+
+    def killed_run(self, source_token: str, in_clean: bool = False) -> list[str]:
+        """A run the supervisor kills: `cargo clean` is recorded, then the build command dies.
+
+        With `in_clean` the kill lands inside the clean instead.
+        """
+        cleaned: list[str] = []
+        run_checked = identity._run_checked
+
+        def killing(command, cwd, environment):
+            if (names := cleaned_names(command)) is not None:
+                if in_clean:
+                    raise identity.IdentityError("killed inside the clean")
+                cleaned.extend(names)
+                return
+            if str(self.build_script) in command:
+                raise identity.IdentityError("killed inside the command")
+            run_checked(command, cwd, environment)
+
+        with patch.object(identity, "_run_checked", side_effect=killing):
+            with self.assertRaises(identity.IdentityError):
+                self.dependency_build(source_token, discover=True, clean=False)
+        return sorted(cleaned)
+
+    def killed_after_source_change(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        self.commit_source_change("fn main() { changed(); }\n", "change source")
+        self.assertEqual(self.killed_run("second"), ["demo"])
+
+    def test_a_killed_run_is_resumed_without_cleaning_again(self) -> None:
+        # A supervisor deadline between the clean and the record leaves the
+        # old record beside rebuilt artifacts. Cleaning again on every rerun
+        # made a cold build that outlasts the deadline impossible to finish.
+        self.killed_after_source_change()
+        self.assertEqual(self.cleaned_packages("second"), [])
+        third = self.dependency_build("second", discover=True)
+        self.assertEqual(third.status, "reused")
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "second")
+
+    def test_a_killed_run_is_resumed_again_after_a_second_kill(self) -> None:
+        self.killed_after_source_change()
+        self.assertEqual(self.killed_run("second"), [])
+        self.assertEqual(self.cleaned_packages("second"), [])
+
+    def test_a_different_source_cleans_after_a_killed_run(self) -> None:
+        self.killed_after_source_change()
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        self.assertEqual(self.cleaned_packages("third"), ["demo"])
+
+    def test_a_rewrite_after_a_finished_run_cleans(self) -> None:
+        # The resumed run finishes, so its mark is complete; a later rewrite
+        # of its artifacts by any other writer is not its progress.
+        self.killed_after_source_change()
+        self.assertEqual(self.cleaned_packages("second"), [])
+        self.artifact.write_text("written by another build", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_a_run_killed_inside_its_clean_cleans_again(self) -> None:
+        self.killed_after_source_change()
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        self.assertEqual(self.killed_run("third", in_clean=True), [])
+        self.assertEqual(self.cleaned_packages("third"), ["demo"])
+
+    def test_a_write_by_a_peer_after_the_kill_cleans(self) -> None:
+        # A peer without a lease rebuilt the package from other source, and
+        # Cargo trusts artifacts whose sources are older than they are.
+        self.killed_after_source_change()
+        time.sleep(0.05)
+        self.artifact.write_text("written by a peer", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_a_fingerprint_written_by_a_peer_after_the_kill_cleans(self) -> None:
+        self.killed_after_source_change()
+        fingerprint = self.target / "debug" / ".fingerprint" / "demo-0123456789abcdef"
+        time.sleep(0.05)
+        fingerprint.mkdir(parents=True)
+        (fingerprint / "dep-lib-demo").write_text("peer", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
+
+    def test_progress_older_than_the_last_heartbeat_resumes(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        built = target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        built.parent.mkdir(parents=True, exist_ok=True)
+        built.write_text("progress", encoding="utf-8")
+        time.sleep(0.05)
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+        self.assertEqual(writers.resumable(directory, ["demo"], "another"), frozenset())
+        time.sleep(0.05)
+        built.write_text("later", encoding="utf-8")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+
+    def test_profiles_hold_independent_writer_progress_across_targets(self) -> None:
+        debug = self.writer_directory()
+        cross_debug = self.writer_directory(target="x86_64-unknown-linux-gnu")
+        history = self.writer_directory(profile="cast-history")
+        self.assertEqual(writers.writer_path(debug, "demo"), writers.writer_path(cross_debug, "demo"))
+        self.assertNotEqual(writers.writer_path(debug, "demo"), writers.writer_path(history, "demo"))
+        built = self.target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        built.write_text("progress", encoding="utf-8")
+        mark_ns = built.stat().st_mtime_ns + 1_000_000
+        writers.mark(debug, ["demo"], writers.BUILDING, "debug-run", mark_ns)
+        writers.mark(history, ["demo"], writers.BUILDING, "history-run", mark_ns)
+        writers.mark(history, ["demo"], writers.COMPLETE, "history-run", mark_ns)
+        self.assertEqual(writers.resumable(debug, ["demo"], "debug-run"), {"demo"})
+
+        cross_built = self.target / "x86_64-unknown-linux-gnu" / "debug" / "deps" / "libdemo-abcdef.rlib"
+        cross_built.parent.mkdir(parents=True)
+        cross_built.write_text("later same-profile write", encoding="utf-8")
+        written_ns = mark_ns + 1_000_000
+        os.utime(cross_built, ns=(written_ns, written_ns))
+        self.assertEqual(writers.resumable(debug, ["demo"], "debug-run"), frozenset())
+
+    def test_legacy_writer_fingerprint_allows_unchanged_and_rejects_changes(self) -> None:
+        directory = self.writer_directory()
+        built = self.target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        built.write_text("progress", encoding="utf-8")
+        os.utime(built, ns=(10, 10))
+        legacy = {"version": 1, "state": writers.CLEANING, "identity": "old-tool", "heartbeat_ns": 30}
+        legacy_path = writers._legacy_writer_path(directory.target_dir, "demo")
+        build_records._write_atomic(legacy_path, legacy)
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity", 20)
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+        legacy["identity"] = "later-old-tool"
+        build_records._write_atomic(legacy_path, legacy)
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity", 40)
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_a_broad_clean_invalidates_every_marked_profile(self) -> None:
+        debug = self.writer_directory()
+        history = self.writer_directory(profile="cast-history")
+        writers.mark(debug, ["demo"], writers.BUILDING, "debug-run", 10)
+        writers.mark(history, ["demo"], writers.BUILDING, "history-run", 20)
+        writers.mark_broad_clean(debug, ["demo"], "clean-run")
+        for directory in (debug, history):
+            marker = json.loads(writers.writer_path(directory, "demo").read_text(encoding="utf-8"))
+            self.assertEqual((marker["state"], marker["identity"]), (writers.CLEANING, "clean-run"))
+
+        ambiguous = writers.writer_path(debug, "demo").parents[1] / "unknown"
+        ambiguous.write_text("not a profile", encoding="utf-8")
+        with self.assertRaises(BuildIdentityError):
+            writers.mark_broad_clean(debug, ["demo"], "other-clean")
+        with self.assertRaises(BuildIdentityError):
+            writers.writer_path(self.writer_directory(profile=".."), "demo")
+
+    def test_writer_junctions_cannot_redirect_publication(self) -> None:
+        for profile in (None, "custom"):
+            with self.subTest(profile=profile):
+                target = self.base / f"junction-target-{profile}"
+                directory = build_stamps.BuildDirectory(target, "debug", "host")
+                root = target / ".atlas" / "source-identity" / "writers"
+                link = root if profile is None else root / profile
+                link.parent.mkdir(parents=True)
+                outside = self.base / f"outside-{profile}"
+                outside.mkdir()
+                self.redirect_directory(outside, link)
+                with self.assertRaisesRegex(BuildIdentityError, "redirects outside|not confined"):
+                    writers.mark_broad_clean(directory, ["demo"], "identity")
+                self.assertEqual(list(outside.iterdir()), [])
+
+    def test_a_regular_host_profile_path_prevents_resume(self) -> None:
+        self.artifact.parent.rmdir()
+        (self.target / "debug").rmdir()
+        (self.target / "debug").write_text("not a profile directory", encoding="utf-8")
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_an_opaque_clean_invalidates_another_profiles_progress(self) -> None:
+        self.killed_after_source_change()
+        history = self.writer_directory(profile="cast-history")
+        writers.mark(history, ["demo"], writers.BUILDING, "history-run")
+        self.commit_source_change("fn main() { changed_again(); }\n", "change again")
+        run_checked = identity._run_checked
+
+        def killing(command, cwd, environment):
+            if str(self.clean_script) in command:
+                raise identity.IdentityError("killed inside the opaque clean")
+            run_checked(command, cwd, environment)
+
+        with patch.object(identity, "_run_checked", side_effect=killing):
+            with self.assertRaises(identity.IdentityError):
+                self.dependency_build("third", discover=True, clean=True)
+        marker = json.loads(writers.writer_path(history, "demo").read_text(encoding="utf-8"))
+        self.assertEqual(marker["state"], writers.CLEANING)
+
+    def test_a_longer_package_name_does_not_hide_a_peer_write(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo-core"], writers.BUILDING, "identity")
+        time.sleep(0.05)
+        peer = target / "debug" / "deps" / "libdemo_core-abcdef.rlib"
+        peer.parent.mkdir(parents=True, exist_ok=True)
+        peer.write_text("peer", encoding="utf-8")
+        self.assertEqual(writers.resumable(directory, ["demo-core"], "identity"), frozenset())
+
+    def test_the_heartbeat_refreshes_a_building_mark_while_the_command_runs(self) -> None:
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        first = json.loads(writers.writer_path(directory, "demo").read_text(encoding="utf-8"))
+        with patch.object(writers, "HEARTBEAT_SECONDS", 0.02):
+            with writers.heartbeat(directory, ["demo"], "identity"):
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    beat = json.loads(
+                        writers.writer_path(directory, "demo").read_text(encoding="utf-8")
+                    )
+                    if beat["heartbeat_ns"] > first["heartbeat_ns"]:
+                        break
+                    time.sleep(0.02)
+        self.assertGreater(beat["heartbeat_ns"], first["heartbeat_ns"])
+        self.assertEqual((beat["state"], beat["identity"]), (writers.BUILDING, "identity"))
+
+    def test_an_unlistable_directory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        time.sleep(0.05)
+        peer = target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        peer.parent.mkdir(parents=True, exist_ok=True)
+        peer.write_text("peer", encoding="utf-8")
+        (target / "atlas-cache").mkdir()
+        real = os.scandir
+
+        def scandir(path):
+            if Path(path).name == "atlas-cache":
+                raise PermissionError("denied")
+            return real(path)
+
+        with patch.object(os, "scandir", side_effect=scandir):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+        # The peer's write alone also cleans; without it the listable tree resumes.
+        peer.unlink()
+        (target / "atlas-cache").rmdir()
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+
+    def test_an_unwalkable_build_directory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        out = target / "debug" / "build" / "demo-0123456789abcdef" / "out"
+        out.mkdir(parents=True)
+        (out / "generated.rs").write_text("old", encoding="utf-8")
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+        real = os.walk
+
+        def walk(top, *arguments, **options):
+            if Path(top).name.startswith("demo-"):
+                options["onerror"](PermissionError("denied"))
+                return iter(())
+            return real(top, *arguments, **options)
+
+        with patch.object(os, "walk", side_effect=walk):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_a_file_rewritten_in_a_build_directory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        out = target / "debug" / "build" / "demo-0123456789abcdef" / "out"
+        out.mkdir(parents=True)
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        time.sleep(0.05)
+        (out / "generated.rs").write_text("peer", encoding="utf-8")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_a_directory_removed_mid_scan_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        deps = target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+        real = os.scandir
+
+        def scandir(path):
+            if Path(path) == deps and deps.exists():
+                # The listing of `debug` named `deps`; a peer's clean removes it before it is read.
+                with patch.object(os, "scandir", real):
+                    shutil.rmtree(deps)
+            return real(path)
+
+        with patch.object(os, "scandir", side_effect=scandir):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_progress_written_within_a_run_resumes_only_through_the_heartbeat(self) -> None:
+        self.killed_after_source_change()
+        run_checked = identity._run_checked
+
+        def outliving(command, cwd, environment):
+            if cleaned_names(command) is not None:
+                return
+            if str(self.build_script) in command:
+                self.artifact.write_text("progress", encoding="utf-8")
+                time.sleep(0.4)
+                raise identity.IdentityError("killed after progress")
+            run_checked(command, cwd, environment)
+
+        with (
+            patch.object(writers, "HEARTBEAT_SECONDS", 0.05),
+            patch.object(identity, "_run_checked", side_effect=outliving),
+        ):
+            with self.assertRaises(identity.IdentityError):
+                self.dependency_build("second", discover=True, clean=False)
+        self.assertEqual(self.artifact.read_text(encoding="utf-8"), "progress")
+        self.assertEqual(self.cleaned_packages("second"), [])
+
+    def test_an_unreadable_writer_mark_cleans(self) -> None:
+        self.killed_after_source_change()
+        mark = writers.writer_path(self.writer_directory(), "demo")
+        mark.write_text("{", encoding="utf-8")
+        self.assertEqual(self.cleaned_packages("second"), ["demo"])
 
     def test_a_shape_change_cleans_every_path_package(self) -> None:
         # `dep`'s own record differs only in `features`, a shape field.
@@ -2271,10 +3259,22 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual((code, value["status"]), (2, "missing"))
 
     def test_toolchain_identity_runs_in_the_source_root(self) -> None:
-        completed = subprocess.CompletedProcess(["rustc"], 0, "rustc 1.95.0\n", "")
-        with patch.object(build_source.subprocess, "run", return_value=completed) as run:
-            self.assertEqual(build_source.toolchain_identity(self.root), "rustc 1.95.0")
-        self.assertEqual(run.call_args.kwargs["cwd"], self.root)
+        def command_result(command, **_kwargs):
+            if "config" in command:
+                return subprocess.CompletedProcess(command, 0, "{}\n", "")
+            return subprocess.CompletedProcess(command, 0, "rustc 1.95.0\n", "")
+
+        with patch.object(build_source.subprocess, "run", side_effect=command_result) as run:
+            self.assertEqual(
+                build_source.toolchain_identity(self.root, {}), "rustc 1.95.0"
+            )
+        self.assertEqual(
+            [call.kwargs["cwd"] for call in run.call_args_list],
+            [self.root, self.root],
+        )
+        self.assertEqual(
+            run.call_args_list[-1].args[0], ["rustc", "--version", "--verbose"]
+        )
 
     def test_command_cwd_is_used_without_changing_record_scope(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -2664,6 +3664,160 @@ class BuildIdentityTestCase(unittest.TestCase):
                 second = build_inputs.build_spec(self.root, "demo", self.target, "debug", "host", "")
         self.assertNotEqual(first.environment_digest, second.environment_digest)
         self.assertNotEqual(build_records.record_path(first), build_records.record_path(second))
+
+    def test_an_ordinary_manifest_keeps_the_environment_unchanged(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        environment = {"CARGO_HOME": str(self.base / "cargo-home"), "RUSTFLAGS": "-Dwarnings"}
+        with patch.object(build_inputs.subprocess, "run") as cargo:
+            effective = build_inputs.effective_compiler_environment(
+                self.root / "Cargo.toml", self.root, environment=environment
+            )
+        self.assertEqual(effective, environment)
+        cargo.assert_not_called()
+
+    def test_fuzz_cfg_preserves_encoded_flags_and_is_idempotent(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        environment = {"CARGO_ENCODED_RUSTFLAGS": "-C\x1fdebuginfo=1"}
+        first = build_inputs.effective_compiler_environment(
+            manifest, self.root, environment=environment
+        )
+        second = build_inputs.effective_compiler_environment(
+            manifest, self.root, environment=first
+        )
+        self.assertEqual(
+            first["CARGO_ENCODED_RUSTFLAGS"],
+            "-C\x1fdebuginfo=1\x1f--cfg\x1ffuzzing",
+        )
+        self.assertEqual(second, first)
+
+    def test_inline_fuzz_flags_are_carried_into_the_executed_command(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        command = ["env", "RUSTFLAGS=--cfg original", "cargo", "check"]
+        effective = build_inputs.effective_compiler_environment(
+            manifest, self.root, command, environment={}
+        )
+        normalized = build_inputs.effective_compiler_command(command, effective)
+        self.assertEqual(
+            normalized,
+            ("env", "RUSTFLAGS=--cfg original --cfg fuzzing", "cargo", "check"),
+        )
+        self.assertEqual(
+            build_inputs.effective_compiler_command(normalized, effective), normalized
+        )
+
+    @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+    def test_fuzz_cfg_preserves_cargo_config_flags(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        (self.root / ".cargo").mkdir()
+        (self.root / ".cargo" / "config.toml").write_text(
+            '[build]\nrustflags = ["-C", "debuginfo=1", "--cfg", "configured"]\n',
+            encoding="utf-8",
+        )
+        effective = build_inputs.effective_compiler_environment(
+            manifest,
+            self.root,
+            environment={
+                "CARGO_HOME": str(self.base / "cargo-home"),
+                "PATH": os.environ["PATH"],
+            },
+        )
+        self.assertEqual(
+            effective["CARGO_ENCODED_RUSTFLAGS"].split("\x1f"),
+            ["-C", "debuginfo=1", "--cfg", "configured", "--cfg", "fuzzing"],
+        )
+
+    @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+    def test_target_qualified_fuzz_flags_fail_closed(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        manifest = self.root / "Cargo.toml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + "[package.metadata]\ncargo-fuzz = true\n",
+            encoding="utf-8",
+        )
+        (self.root / ".cargo").mkdir()
+        (self.root / ".cargo" / "config.toml").write_text(
+            '[target.x86_64-pc-windows-msvc]\nrustflags = ["-C", "debuginfo=1"]\n',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(BuildIdentityError, "target-qualified rustflags"):
+            build_inputs.effective_compiler_environment(
+                manifest,
+                self.root,
+                environment={
+                    "CARGO_BUILD_RUSTFLAGS": "--cfg environment",
+                    "CARGO_HOME": str(self.base / "cargo-home"),
+                    "PATH": os.environ["PATH"],
+                },
+            )
+
+    def test_cargo_build_rustc_is_the_probed_compiler(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["selected-rustc", "--version", "--verbose"], 0, "rustc selected\n", ""
+        )
+        with (
+            patch.object(build_source, "_configured_rustc", return_value=None),
+            patch.object(build_source.subprocess, "run", return_value=completed) as run,
+        ):
+            selected = build_source.toolchain_identity(
+                self.root, {"CARGO_BUILD_RUSTC": "selected-rustc"}
+            )
+        self.assertEqual(selected, "rustc selected")
+        self.assertEqual(run.call_args.args[0][0], "selected-rustc")
+
+    def test_cargo_config_rustc_is_the_probed_compiler(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["configured-rustc", "--version", "--verbose"],
+            0,
+            "rustc configured\n",
+            "",
+        )
+        with (
+            patch.object(build_source, "_configured_rustc", return_value="configured-rustc"),
+            patch.object(build_source.subprocess, "run", return_value=completed) as run,
+        ):
+            selected = build_source.toolchain_identity(self.root, {})
+        self.assertEqual(selected, "rustc configured")
+        self.assertEqual(run.call_args.args[0][0], "configured-rustc")
+
+    def test_cargo_toolchain_argument_without_a_compiler_fails_closed(self) -> None:
+        with patch.object(build_source, "_configured_rustc", return_value=None):
+            with self.assertRaisesRegex(BuildIdentityError, "cannot resolve compiler"):
+                build_source.toolchain_identity(
+                    self.root, {}, command=["cargo", "+1.95.0", "check"]
+                )
+
+    def test_cargo_toolchain_argument_with_rustup_proxy_fails_closed(self) -> None:
+        compilers = ["rustc"]
+        installed = shutil.which("rustc")
+        if installed is not None:
+            compilers.append(installed)
+        for compiler in compilers:
+            with self.subTest(compiler=compiler):
+                with self.assertRaisesRegex(BuildIdentityError, "rustup proxies"):
+                    build_source.toolchain_identity(
+                        self.root,
+                        {"RUSTC": compiler},
+                        command=["cargo", "+1.95.0", "check"],
+                    )
 
     def test_toolchain_identity_uses_the_cargo_execution_directory(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -3073,6 +4227,84 @@ class BuildIdentityTestCase(unittest.TestCase):
             )
         self.assertEqual(set(paths), {artifact.resolve(), output.resolve()})
 
+    def test_discovery_probes_only_owned_artifact_candidates(self) -> None:
+        deps = self.target / "debug" / "deps"
+        builds = self.target / "debug" / "build"
+        fingerprints = self.target / "debug" / ".fingerprint"
+        owned_build = builds / "wanted-222"
+        owned_fingerprint = fingerprints / "wanted-333"
+        for directory in (deps, owned_build, owned_fingerprint):
+            directory.mkdir(parents=True, exist_ok=True)
+        owned_library = deps / "libwanted-111.rlib"
+        owned_output = owned_build / "output"
+        owned_fingerprint_file = owned_fingerprint / "lib-wanted"
+        for path in (owned_library, owned_output, owned_fingerprint_file):
+            path.write_bytes(path.name.encode())
+        unselected = {
+            deps / "libother-111.rlib",
+            builds / "other-222",
+            fingerprints / "other-333",
+            deps / "libshared-444.rlib",
+            builds / "shared-555",
+            fingerprints / "shared-666",
+        }
+        (deps / "libother-111.rlib").write_bytes(b"other")
+        (builds / "other-222").mkdir()
+        (fingerprints / "other-333").mkdir()
+        (deps / "libshared-444.rlib").write_bytes(b"shared")
+        (builds / "shared-555").mkdir()
+        (fingerprints / "shared-666").mkdir()
+        file_probes: list[Path] = []
+        directory_probes: list[Path] = []
+        original_is_file = Path.is_file
+        original_is_dir = Path.is_dir
+
+        def count_file(path: Path) -> bool:
+            file_probes.append(path)
+            return original_is_file(path)
+
+        def count_directory(path: Path) -> bool:
+            directory_probes.append(path)
+            return original_is_dir(path)
+
+        with (
+            patch.object(Path, "is_file", count_file),
+            patch.object(Path, "is_dir", count_directory),
+        ):
+            paths = artifacts.discover_artifacts(
+                self.target,
+                "wanted",
+                "debug",
+                owners={
+                    "wanted": frozenset({"wanted"}),
+                    "other": frozenset({"other"}),
+                    "shared-a": frozenset({"shared"}),
+                    "shared-b": frozenset({"shared"}),
+                },
+            )
+
+        self.assertEqual(
+            set(paths),
+            {owned_library.resolve(), owned_output.resolve(), owned_fingerprint_file.resolve()},
+        )
+        self.assertEqual(
+            file_probes,
+            [owned_library, owned_output, owned_fingerprint_file],
+        )
+        self.assertEqual(
+            set(directory_probes),
+            {
+                deps,
+                builds,
+                fingerprints,
+                self.target / ".fingerprint",
+                owned_build,
+                owned_fingerprint,
+            },
+        )
+        self.assertTrue(unselected.isdisjoint(file_probes))
+        self.assertTrue(unselected.isdisjoint(directory_probes))
+
     def test_batch_artifact_identity_preserves_each_overlapping_closure(self) -> None:
         self.root.mkdir()
         deps = self.target / "debug" / "deps"
@@ -3088,6 +4320,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             directory = fingerprints / f"{name}-111"
             directory.mkdir(parents=True)
             (directory / "output").write_bytes(f"fingerprint-{name}".encode())
+        deadline_ns = time.monotonic_ns() + 1_000_000_000
 
         separate = {
             package: artifacts.artifact_identity(
@@ -3098,6 +4331,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 (),
                 related_packages=("shared",),
                 owners=owners,
+                deadline_ns=deadline_ns,
             )
             for package in ("a", "b")
         }
@@ -3107,6 +4341,7 @@ class BuildIdentityTestCase(unittest.TestCase):
             {"a": ("shared",), "b": ("shared",)},
             "debug",
             owners=owners,
+            deadline_ns=deadline_ns,
         )
 
         self.assertEqual(
@@ -3116,6 +4351,7 @@ class BuildIdentityTestCase(unittest.TestCase):
                 {},
                 "debug",
                 owners=owners,
+                deadline_ns=deadline_ns,
             ),
             {},
         )
@@ -3123,6 +4359,244 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertIn("debug/deps/libshared-111.rlib", batch["a"]["files"])
         self.assertNotIn("debug/deps/libb-111.rlib", batch["a"]["files"])
         self.assertNotIn("debug/deps/liba-111.rlib", batch["b"]["files"])
+
+    def _artifact_census(self, packages=None, owners=None, deadline_ns=None):
+        return artifacts.artifact_identities(
+            self.root, self.target, packages or {"a": ()}, "debug",
+            owners=owners or {"a": frozenset({"a"})}, deadline_ns=deadline_ns,
+        )
+
+    def test_artifact_census_restarts_when_an_optional_diagnostic_retires(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        library = deps / "liba-111.rlib"
+        diagnostic = fingerprint / "output-lib-a"
+        library.write_bytes(b"library")
+        diagnostic.write_bytes(b"warning")
+        original = artifacts._file_digest
+
+        def retire(path: Path, deadline_ns: int | None = None) -> str:
+            if path == diagnostic.resolve():
+                diagnostic.unlink()
+            return original(path, deadline_ns)
+
+        with patch.object(artifacts, "_file_digest", side_effect=retire):
+            result = self._artifact_census()
+        files = {"debug/deps/liba-111.rlib": hashlib.sha256(b"library").hexdigest()}
+        self.assertEqual(result, {"a": {"files": files, "digest": artifacts.artifact_digest(files)}})
+
+    def test_artifact_census_accepts_stable_diagnostic_rename_and_addition(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        library = deps / "liba-111.rlib"
+        old = fingerprint / "output-lib-a"
+        new = fingerprint / "output-test-a"
+        added = fingerprint / "output-bin-a"
+        library.write_bytes(b"library")
+        old.write_bytes(b"old")
+        original = artifacts._file_digest
+        changed = False
+
+        def rename(path: Path, deadline_ns: int | None = None) -> str:
+            nonlocal changed
+            digest = original(path, deadline_ns)
+            if path == old.resolve() and not changed:
+                old.rename(new)
+                added.write_bytes(b"added")
+                changed = True
+            return digest
+
+        with patch.object(artifacts, "_file_digest", side_effect=rename):
+            result = self._artifact_census()["a"]["files"]
+        expected = {
+            "debug/.fingerprint/a-111/output-bin-a": hashlib.sha256(b"added").hexdigest(),
+            "debug/.fingerprint/a-111/output-test-a": hashlib.sha256(b"old").hexdigest(),
+            "debug/deps/liba-111.rlib": hashlib.sha256(b"library").hexdigest(),
+        }
+        self.assertEqual(result, expected)
+
+    def test_artifact_census_repeats_after_content_changes(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"before")
+        original = artifacts._file_digest
+        reads = 0
+
+        def change(path: Path, deadline_ns: int | None = None) -> str:
+            nonlocal reads
+            reads += 1
+            if reads == 2:
+                path.write_bytes(b"after")
+            return original(path, deadline_ns)
+
+        with patch.object(artifacts, "_file_digest", side_effect=change):
+            result = self._artifact_census()["a"]["files"]
+        self.assertEqual(
+            result,
+            {"debug/deps/liba-111.rlib": hashlib.sha256(b"after").hexdigest()},
+        )
+        self.assertEqual(reads, 3)
+
+    def test_artifact_census_rejects_observed_product_retirement(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        diagnostic = fingerprint / "output-lib-a"
+        diagnostic.write_bytes(b"warning")
+        products = (
+            deps / "liba-111.rlib",
+            deps / "liba-111.rmeta",
+            deps / "a-111.exe",
+            fingerprint / "lib-a",
+        )
+        for product in products:
+            with self.subTest(product=product.name):
+                product.write_bytes(product.name.encode())
+                original = artifacts._file_digest
+
+                def retire(path: Path, deadline_ns: int | None = None) -> str:
+                    digest = original(path, deadline_ns)
+                    if path == product.resolve():
+                        product.unlink()
+                    return digest
+
+                with (
+                    patch.object(artifacts, "_file_digest", side_effect=retire),
+                    self.assertRaisesRegex(BuildIdentityError, "required artifact disappeared") as caught,
+                ):
+                    self._artifact_census()
+                self.assertIn(product.name, str(caught.exception))
+
+    def test_artifact_census_does_not_claim_a_late_product(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        first = deps / "liba-111.rlib"
+        late = deps / "liba-222.rlib"
+        first.write_bytes(b"first")
+        original = artifacts._file_digest
+
+        def add(path: Path, deadline_ns: int | None = None) -> str:
+            digest = original(path, deadline_ns)
+            late.write_bytes(b"late")
+            return digest
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=add),
+            self.assertRaisesRegex(BuildIdentityError, "artifact appeared after the first census") as caught,
+        ):
+            self._artifact_census()
+        self.assertIn(late.name, str(caught.exception))
+
+    def test_artifact_census_shares_overlapping_reads_and_ignores_other_owners(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        paths = {name: deps / f"lib{name}-111.rlib" for name in ("a", "b", "shared")}
+        for name, path in paths.items():
+            path.write_bytes(name.encode())
+        owners = {name: frozenset({name}) for name in paths}
+        original_digest = artifacts._file_digest
+        original_discover = artifacts._discover_artifacts_by_owner
+        reads: dict[Path, int] = {}
+        other_versions = 0
+
+        def count(path: Path, deadline_ns: int | None = None) -> str:
+            reads[path] = reads.get(path, 0) + 1
+            return original_digest(path, deadline_ns)
+
+        def mutate_other(*args: object, **kwargs: object):
+            nonlocal other_versions
+            other_versions += 1
+            paths["b"].write_bytes(f"b-{other_versions}".encode())
+            return original_discover(*args, **kwargs)
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=count),
+            patch.object(artifacts, "_discover_artifacts_by_owner", side_effect=mutate_other),
+        ):
+            result = self._artifact_census({"a": ("shared",), "shared": ()}, owners)
+        self.assertEqual(reads, {paths["a"].resolve(): 2, paths["shared"].resolve(): 2})
+        self.assertEqual(other_versions, 2)
+        self.assertNotIn("debug/deps/libb-111.rlib", result["a"]["files"])
+
+    def test_artifact_census_content_churn_exhausts_one_deadline(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"a")
+        original = artifacts._file_digest
+        ticks = iter(range(100))
+
+        def churn(path: Path, deadline_ns: int | None = None) -> str:
+            digest = original(path, deadline_ns)
+            path.write_bytes(b"b" if path.read_bytes() == b"a" else b"a")
+            return digest
+
+        with (
+            patch.object(artifacts.time, "monotonic_ns", side_effect=lambda: next(ticks)),
+            patch.object(artifacts, "_file_digest", side_effect=churn),
+            self.assertRaisesRegex(BuildIdentityError, "did not converge before its deadline") as caught,
+        ):
+            self._artifact_census(deadline_ns=5)
+        self.assertIsNone(caught.exception.__cause__)
+
+    def test_artifact_census_diagnostic_name_churn_exhausts_one_deadline(self) -> None:
+        self.root.mkdir()
+        deps = self.target / "debug" / "deps"
+        fingerprint = self.target / "debug" / ".fingerprint" / "a-111"
+        deps.mkdir(parents=True, exist_ok=True)
+        fingerprint.mkdir(parents=True)
+        (deps / "liba-111.rlib").write_bytes(b"library")
+        diagnostic = fingerprint / "output-lib-a"
+        diagnostic.write_bytes(b"warning")
+        original = artifacts._discover_artifacts_by_owner
+        ticks = iter(range(100))
+
+        def rename(*args: object, **kwargs: object):
+            nonlocal diagnostic
+            result = original(*args, **kwargs)
+            replacement = fingerprint / (
+                "output-test-a" if diagnostic.name == "output-lib-a" else "output-lib-a"
+            )
+            diagnostic.rename(replacement)
+            diagnostic = replacement
+            return result
+
+        with (
+            patch.object(artifacts.time, "monotonic_ns", side_effect=lambda: next(ticks)),
+            patch.object(artifacts, "_discover_artifacts_by_owner", side_effect=rename),
+            self.assertRaisesRegex(BuildIdentityError, "did not converge before its deadline") as caught,
+        ):
+            self._artifact_census(deadline_ns=5)
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertEqual([path.read_bytes() for path in fingerprint.glob("output-*")], [b"warning"])
+
+    def test_artifact_census_preserves_unreadable_error_cause(self) -> None:
+        self.root.mkdir()
+        library = self.target / "debug" / "deps" / "liba-111.rlib"
+        library.parent.mkdir(parents=True, exist_ok=True)
+        library.write_bytes(b"artifact")
+
+        def unreadable(path: Path, deadline_ns: int | None = None) -> str:
+            error = PermissionError(f"locked: {path}")
+            raise BuildIdentityError(f"cannot hash artifact {path}: {error}") from error
+
+        with (
+            patch.object(artifacts, "_file_digest", side_effect=unreadable),
+            self.assertRaisesRegex(BuildIdentityError, "cannot hash artifact") as caught,
+        ):
+            self._artifact_census()
+        self.assertEqual(type(caught.exception.__cause__), PermissionError)
 
     def test_dependency_snapshot_tracks_reachable_path_sources(self) -> None:
         init_repo(self.root, "fn main() {}\n")
@@ -3182,9 +4656,16 @@ class BuildIdentityTestCase(unittest.TestCase):
             "mnemosyne_memory-0123456789abcdef.d": "mnemosyne-memory",
             "libmnemosyne_extra-0123456789abcdef.rlib": None,
         }
+        owners_by_stem = artifacts._artifact_owners_by_stem(owners)
         for filename, owner in cases.items():
             with self.subTest(filename=filename):
-                self.assertEqual(artifacts._artifact_owner(filename, owners, "mnemosyne-build-util"), owner)
+                self.assertEqual(artifacts._artifact_owner(filename, owners_by_stem), owner)
+        ambiguous = artifacts._artifact_owners_by_stem(
+            {**owners, "mnemosyne-alias": frozenset({"libmnemosyne"})}
+        )
+        self.assertIsNone(
+            artifacts._artifact_owner("libmnemosyne-0123456789abcdef.rmeta", ambiguous)
+        )
 
     def test_dependency_snapshot_is_independent_of_the_export_path(self) -> None:
         """Cargo spells a path package's ID with its absolute directory."""
@@ -3711,10 +5192,10 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         owners = {name: frozenset({name}) for name in self.PACKAGES}
         file_digest = artifacts._file_digest
 
-        def digest(path: Path) -> str:
+        def digest(path: Path, deadline_ns: int | None = None) -> str:
             if unreadable is not None and Path(path) == unreadable and self.answers.exists():
                 raise BuildIdentityError(f"cannot hash artifact {path}: Permission denied")
-            return file_digest(path)
+            return file_digest(path, deadline_ns)
 
         recorded_artifact = identity._recorded_artifact
         reads = []
@@ -4086,6 +5567,290 @@ class EffectiveCargoConfigurationTestCase(unittest.TestCase):
 
     def test_a_build_rustflags_change_is_never_silently_reused(self) -> None:
         self.assert_reconfiguration_is_never_silently_reused("env")
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class EffectiveFuzzEnvironmentTestCase(unittest.TestCase):
+    """The fuzz cfg reaches discovery, dependencies, artifacts, and records."""
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-build-identity-fuzz-environment-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.root = self.base / "fuzz"
+        self.target = self.base / "target"
+        for relative, text in {
+            "Cargo.toml": (
+                '[package]\nname = "fuzz-probe"\nversion = "0.1.0"\nedition = "2024"\n'
+                '[package.metadata]\ncargo-fuzz = true\n'
+                '[dependencies]\nfuzz-dependency = { path = "dependency" }\n'
+                '[workspace]\nmembers = ["dependency"]\n'
+            ),
+            "src/lib.rs": (
+                "pub const VALUE: u32 = fuzz_dependency::VALUE + 1;\n"
+                "const _: () = assert!(VALUE == 42);\n"
+            ),
+            "dependency/Cargo.toml": (
+                '[package]\nname = "fuzz-dependency"\nversion = "0.1.0"\nedition = "2024"\n'
+            ),
+            "dependency/src/lib.rs": (
+                '#[cfg(not(fuzzing))]\ncompile_error!("dependency requires cfg(fuzzing)");\n'
+                "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n"
+            ),
+        }.items():
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        self.environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in {
+                "CARGO_BUILD_RUSTFLAGS",
+                "CARGO_ENCODED_RUSTFLAGS",
+                "CARGO_TARGET_DIR",
+                "RUSTFLAGS",
+            }
+        }
+        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+        subprocess.run(
+            ["cargo", "generate-lockfile", "--offline"],
+            cwd=self.root,
+            env=self.environment,
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        init_git(self.root)
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-qm", "fuzz fixture")
+
+    def _run_build(self):
+        with patch.dict(os.environ, self.environment, clear=True):
+            return identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+
+    def test_real_fuzz_cfg_build_reuses_and_flag_changes_rebuild(self) -> None:
+        first = self._run_build()
+        second = self._run_build()
+        self.assertEqual([first.status, second.status], ["rebuilt", "reused"])
+        self.assertEqual(first.record_path, second.record_path)
+        changed_environment = dict(self.environment)
+        changed_environment["CARGO_ENCODED_RUSTFLAGS"] = "-C\x1fdebuginfo=1"
+        with patch.dict(os.environ, changed_environment, clear=True):
+            changed = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                ["cargo", "check", "--workspace", "--all-targets", "--locked", "--offline"],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(changed.status, "rebuilt")
+        self.assertNotEqual(changed.record_path, second.record_path)
+
+    def test_tampered_effective_environment_record_is_rejected(self) -> None:
+        result = self._run_build()
+        record = json.loads(result.record_path.read_text(encoding="utf-8"))
+        record["build"]["environment_digest"] = "0" * 64
+        result.record_path.write_text(json.dumps(record), encoding="utf-8")
+        with patch.dict(os.environ, self.environment, clear=True):
+            status, value = check.check_record(
+                self.root,
+                "fuzz-probe",
+                self.target,
+                manifest=self.root / "Cargo.toml",
+                command=[
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
+        self.assertEqual((status, value["status"]), (2, "stale"))
+
+    def test_cargo_build_and_command_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(environment_marker))]\ncompile_error!("missing environment cfg");\n'
+            '#[cfg(not(command_marker))]\ncompile_error!("missing command cfg");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require merged flags")
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        with patch.dict(os.environ, environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "--config",
+                    'build.rustflags=["--cfg","command_marker"]',
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_string_command_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(command_marker))]\ncompile_error!("missing command cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require string config flags")
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        with patch.dict(os.environ, environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "cargo",
+                    "--config",
+                    'build.rustflags="--cfg command_marker"',
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
+
+    def test_cargo_build_and_file_string_config_flags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(file_marker))]\ncompile_error!("missing file cfg");\n'
+            '#[cfg(environment_marker)]\ncompile_error!("environment cfg was not replaced");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require file config flags")
+        config = self.base / "string-flags.toml"
+        config.write_text(
+            '[build]\nrustflags = "--cfg file_marker"\n', encoding="utf-8"
+        )
+        environment = dict(self.environment)
+        environment["CARGO_BUILD_RUSTFLAGS"] = "--cfg environment_marker"
+        arguments = (
+            str(config),
+            f"include=[{json.dumps(config.as_posix())}]",
+        )
+        for argument in arguments:
+            with self.subTest(argument=argument), patch.dict(
+                os.environ, environment, clear=True
+            ):
+                result = identity.run_build(
+                    self.root,
+                    self.root / "Cargo.toml",
+                    ("fuzz-probe",),
+                    self.target,
+                    [
+                        "cargo",
+                        "--config",
+                        argument,
+                        "check",
+                        "--workspace",
+                        "--all-targets",
+                        "--locked",
+                        "--offline",
+                    ],
+                    command_cwd=self.root,
+                )[0]
+            self.assertEqual(result.status, "rebuilt")
+
+    @unittest.skipUnless(shutil.which("env"), "needs env")
+    def test_inline_env_options_fail_before_the_child_runs(self) -> None:
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            self.assertRaisesRegex(BuildIdentityError, "cannot normalize env options"),
+        ):
+            identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "env",
+                    "-u",
+                    "CARGO_ENCODED_RUSTFLAGS",
+                    "RUSTFLAGS=--cfg original",
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )
+
+    @unittest.skipUnless(shutil.which("env"), "needs env")
+    def test_inline_rustflags_reach_the_fuzz_build(self) -> None:
+        dependency = self.root / "dependency" / "src" / "lib.rs"
+        dependency.write_text(
+            '#[cfg(not(fuzzing))]\ncompile_error!("missing fuzz cfg");\n'
+            '#[cfg(not(original))]\ncompile_error!("missing inline cfg");\n'
+            "#[cfg(fuzzing)]\npub const VALUE: u32 = 41;\n",
+            encoding="utf-8",
+        )
+        git(self.root, "add", "dependency/src/lib.rs")
+        git(self.root, "commit", "-qm", "require inline flags")
+        with patch.dict(os.environ, self.environment, clear=True):
+            result = identity.run_build(
+                self.root,
+                self.root / "Cargo.toml",
+                ("fuzz-probe",),
+                self.target,
+                [
+                    "env",
+                    "RUSTFLAGS=--cfg original",
+                    "cargo",
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ],
+                command_cwd=self.root,
+            )[0]
+        self.assertEqual(result.status, "rebuilt")
 
 
 @pytest.mark.slow
@@ -4851,6 +6616,8 @@ class SelectionVariantTestCase(unittest.TestCase):
         self.export = self.base / "gate" / "nested" / "ws"
         self.export.parent.mkdir(parents=True)
         subprocess.run(["git", "clone", "-q", str(self.source), str(self.export)], check=True)
+        git(self.export, "config", "user.name", "Atlas test")
+        git(self.export, "config", "user.email", "atlas-test@example.invalid")
         self.target = self.base / "target"
 
     @staticmethod
@@ -4878,8 +6645,12 @@ class SelectionVariantTestCase(unittest.TestCase):
             (root / relative).parent.mkdir(parents=True, exist_ok=True)
             (root / relative).write_text(text, encoding="utf-8")
 
-    def gate(self, packages: tuple[str, ...]) -> list[list[str] | None]:
-        """One build step over `packages`; the packages each `cargo clean` named."""
+    def run_gate(
+        self,
+        packages: tuple[str, ...],
+        command_key: str = "atlas-pre-push",
+    ) -> tuple[list[list[str] | None], tuple[identity.BuildResult, ...], list[list[str]]]:
+        """Run one real Cargo step and return cleans, results, and executed commands."""
         log = self.base / "cargo.log"
         log.unlink(missing_ok=True)
         wrapper = self.base / "cargo_log.py"
@@ -4891,21 +6662,35 @@ class SelectionVariantTestCase(unittest.TestCase):
             encoding="utf-8",
         )
         manifest = str(self.export / "Cargo.toml")
+        executed: list[list[str]] = []
+        run_checked = identity._run_checked
+
+        def observe(command, cwd, environment):
+            executed.append(list(command))
+            return run_checked(command, cwd, environment)
+
         with (
             patch.dict(os.environ, self.environment, clear=True),
             patch.object(identity, "_cargo_command", return_value=(sys.executable, str(wrapper))),
+            patch.object(identity, "_run_checked", side_effect=observe),
         ):
-            identity.run_build(
+            results = identity.run_build(
                 self.export, self.export / "Cargo.toml", packages, self.target,
                 ["cargo", "build", "-q", "--manifest-path", manifest, "--offline",
                  *(argument for package in packages for argument in ("-p", package))],
-                command_cwd=self.export, command_key="atlas-pre-push",
+                command_cwd=self.export, command_key=command_key,
             )
-        return [
+        cleans = [
             cleaned_names(argv)
             for argv in map(json.loads, log.read_text(encoding="utf-8").splitlines())
             if argv[1] == "clean"
         ]
+        return cleans, results, executed
+
+    def gate(self, packages: tuple[str, ...]) -> list[list[str] | None]:
+        """One build step over `packages`; the packages each `cargo clean` named."""
+        cleans, _, _ = self.run_gate(packages)
+        return cleans
 
     def run_a(self) -> str:
         binary = self.target / "debug" / ("a.exe" if os.name == "nt" else "a")
@@ -4932,6 +6717,46 @@ class SelectionVariantTestCase(unittest.TestCase):
         self.assertEqual(self.run_a(), "1")
         # The `-p a` record now exists: the same step again cleans nothing.
         self.assertEqual(self.gate(("a",)), [])
+
+    def test_a_stale_exact_record_recovers_from_a_valid_compiled_sibling(self) -> None:
+        stale_cleans, stale_results, _ = self.run_gate(("a",), command_key="verify")
+        self.assertEqual(stale_cleans, [["a", "d"]])
+        self.assertEqual(self.run_a(), "1")
+
+        self.write_workspace(self.export, value="2")
+        git(self.export, "add", ".")
+        git(self.export, "commit", "-q", "-m", "source two")
+        compile_cleans, compile_results, _ = self.run_gate(("a",), command_key="compile")
+        self.assertEqual(compile_cleans, [["a", "d"]])
+        self.assertNotEqual(stale_results[0].record_path, compile_results[0].record_path)
+        compiled_bytes = {
+            path.relative_to(self.target): path.read_bytes()
+            for path in compile_results[0].artifact_files
+        }
+        self.assertEqual(self.run_a(), "2")
+
+        verify_cleans, verify_results, executed = self.run_gate(("a",), command_key="verify")
+        verification_command = [
+            "cargo",
+            "build",
+            "-q",
+            "--manifest-path",
+            str(self.export / "Cargo.toml"),
+            "--offline",
+            "-p",
+            "a",
+        ]
+        self.assertEqual(verify_cleans, [])
+        self.assertIn(verification_command, executed)
+        self.assertEqual(
+            {
+                path.relative_to(self.target): path.read_bytes()
+                for path in verify_results[0].artifact_files
+            },
+            compiled_bytes,
+        )
+        self.assertFalse(verify_results[0].cleaned)
+        self.assertEqual(self.run_a(), "2")
 
 
 @pytest.mark.slow
