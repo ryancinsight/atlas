@@ -5722,6 +5722,28 @@ class StageSequenceTestCase(unittest.TestCase):
         self.assertEqual(self.probe(), "8")
         self.assertEqual(self.pruned, {}, "the killed stage's output is resumed under another stage's key")
 
+    def test_a_stage_after_a_killed_tests_stage_resumes_and_a_repush_prunes_nothing(self) -> None:
+        """The #685 judge's sequence: a tree-killed tests stage, then every stage twice more.
+
+        The clippy rerun resumes the killed units instead of pruning them, rustdoc
+        prunes none of the units the tests stage recorded, and a push of the same
+        tree afterwards compiles nothing.
+        """
+        self.push()
+        self.set_value(2)
+        kept = self.written_by("clippy")
+        self.stage("tests", kill=True)
+        self.settle(kept)
+        self.pruned.clear()
+        self.push()
+        self.assertEqual(self.pruned, {})
+        before = self.units()
+        self.cleans.clear()
+        self.push()
+        self.assertEqual((self.pruned, self.cleans), ({}, []))
+        self.assertEqual({name: value for name, value in self.units().items() if name in before}, before)
+        self.assertEqual(self.probe(), "7")
+
 
 @pytest.mark.slow
 @unittest.skipUnless(shutil.which("cargo"), "needs cargo")

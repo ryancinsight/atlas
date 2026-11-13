@@ -1775,17 +1775,19 @@ else
   echo "pre-push: source identity checker not reachable from this clone; CI enforces it" >&2
 fi
 
-# The source-identity checker executes each stage of the sequence -- warning-
-# denied Clippy, Nextest, Rustdoc -- as one command over every gated package,
-# so a stage holds its package leases through its own Cargo command and final
+# The source-identity checker executes each stage of the sequence -- Clippy,
+# Nextest, Rustdoc -- as one command over every gated package, so a stage
+# holds its package leases through its own Cargo command and final
 # source/dependency checks, and a stage's artifacts are recorded the moment
 # that stage succeeds. One command for the whole sequence recorded nothing
-# when the supervisor's deadline killed it in a later stage: the next run
-# found no record and cleaned what the killed run had built (ADR 0064).
-# A stage's record lists the units its package holds. When listed bytes
-# differ, say after a peer or a killed stage rewrote them, the next stage
-# removes those units and any unit no record lists, and rebuilds them; a
-# source or input change still cleans the package. A unit first created by a
+# when the supervisor's deadline killed it in a later stage, and left building
+# stamps on the Git packages it had not stamped (ADR 0064).
+# A stage's record lists the units its package held when the record was
+# written, and a run whose record matched lists the units it listed before.
+# When listed bytes differ, say after a peer rewrote them, the next stage
+# removes those units and any unit no record vouches for, and rebuilds them;
+# a source or input change still cleans the package, and a killed stage's
+# output is resumed by the next run of any stage. A unit first created by a
 # peer between stages that no record lists is accepted on Cargo's own
 # fingerprint alone.
 #
@@ -1817,6 +1819,7 @@ run_identity_sequence() {
   [ "$run_rustdoc" -ne 1 ] || stages+=(rustdoc)
   local identity_command verdict step_name
   for stage in "${stages[@]}"; do
+    : >"$stage_file"
     identity_command=(
       "$python_bin" "$identity_checker" run
       --root "$root"
