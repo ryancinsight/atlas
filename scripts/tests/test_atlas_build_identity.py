@@ -2453,6 +2453,15 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(third.status, "reused")
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "second")
 
+    def test_a_killed_run_is_resumed_under_another_command_key(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        self.dependency_build("first", discover=True, command_key="another-stage")
+        self.commit_source_change("fn main() { changed(); }\n", "change source")
+        self.assertEqual(self.killed_run("second"), ["demo"])
+        self.assertEqual(self.cleaned_packages("second", command_key="another-stage"), [])
+
     def test_a_killed_run_is_resumed_again_after_a_second_kill(self) -> None:
         self.killed_after_source_change()
         self.assertEqual(self.killed_run("second"), [])
@@ -6468,6 +6477,22 @@ class MultiPackageRunTestCase(unittest.TestCase):
         self.assertFalse([name for name in removed if healthy in name], removed)
         self.assertEqual({path: path.read_bytes() for path in unit(healthy)}, kept)
         self.assertNotIn(b"a stand-in for t", (deps / f"libt-{broken}.rmeta").read_bytes())
+
+    def test_units_only_another_stage_lists_are_not_pruned(self) -> None:
+        """Documentation units are listed by the documentation record alone."""
+        manifest = str(self.base / "gate1" / "nested" / "ws" / "Cargo.toml")
+        flags = ["-q", "--manifest-path", manifest, "--locked", "--offline", "-p", "a", "-p", "c"]
+        every = ["cargo", "clippy", "--all-targets", *flags]
+        debug = self.base / "target" / "debug"
+        self.push(self.base / "gate1", key="plain")
+        plain = {path.name for path in debug.glob("deps/libc-*.rmeta")}
+        self.push(self.base / "gate1", command=every, key="every")
+        self.push(self.base / "gate1", command=["cargo", "doc", "--no-deps", *flags], key="docs")
+        docs = {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in debug.glob(".fingerprint/*/doc-*")}
+        self.assertTrue(docs)
+        next(path for path in debug.glob("deps/libc-*.rmeta") if path.name not in plain).write_bytes(b"a stand-in for c")
+        self.push(self.base / "gate1", command=every, key="every")
+        self.assertEqual({path: (path.read_bytes(), path.stat().st_mtime_ns) for path in docs if path.exists()}, docs)
 
     def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
         first = self.push(self.base / "gate1", packages=("a", "b"))
