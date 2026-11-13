@@ -513,7 +513,13 @@ class GateFixture:
                 "    ;;\n"
                 "  nextest)\n"
                 "    unit 2222222222222222\n"
-                "    ;;\n"
+                # The test run rewrites its unit in place, as Cargo does when a
+                # source change recompiles it, and dies with the deadline.
+                '    if [ -e "$FIXTURE_ROOT/kill-tests" ]; then\n'
+                '      date +%s%N > "$profile"/deps/libfoo-2222222222222222.rlib\n'
+                '      date +%s%N > "$profile"/.fingerprint/foo-2222222222222222/lib-foo\n'
+                "      exit 137\n"
+                "    fi ;;\n"
                 "  doc)\n"
                 '    if [ -e "$FIXTURE_ROOT/kill-doc" ]; then exit 137; fi\n'
                 "    unit 3333333333333333 ;;\n"
@@ -3345,6 +3351,124 @@ class LaneGateTestCase(unittest.TestCase):
             ["atlas-pre-push-clippy", "atlas-pre-push-rustdoc", "atlas-pre-push-tests"],
             err,
         )
+
+    def _unit_lane(self, documentation_phase: str | None = None) -> tuple:
+        """A lane whose stub cargo builds one unit per stage, never rewriting a fresh one."""
+        stack, fixture, lane = self._lane(overlay=True, documentation_phase=documentation_phase)
+        _install_real_identity(stack)
+        shutil.copy2(SCRIPT.parents[1] / "cast-baseline.json", stack / "scripts")
+        fixture.set_cargo_behavior("stage-artifacts")
+        return stack, fixture, lane, stack / "target", stack / "target" / "debug" / "deps"
+
+    @staticmethod
+    def _rewrite_after_the_last_heartbeat(target: pathlib.Path) -> None:
+        """Date the killed stage's rewrite after its last heartbeat, so a rerun never resumes it."""
+        later = time.time() + 120
+        for path in target.rglob("*foo-2222222222222222*"):
+            if path.is_file():
+                os.utime(path, (later, later))
+
+    def _cargo_verbs(self, fixture: GateFixture) -> list[str]:
+        calls = fixture.calls.read_text(encoding="utf-8").splitlines()
+        fixture.calls.unlink()
+        return [line.split()[0] for line in calls]
+
+    def test_a_killed_tests_stage_rewriting_a_listed_unit_leaves_clippy_recorded(self) -> None:
+        """The tests stage rewrites in place a unit clippy's record lists, and dies.
+
+        A first push builds the test unit. The second push's tests stage
+        rewrites its files in place, as a recompile does, and dies. The third
+        push must find clippy's unit matching, remove only the rewritten
+        test unit and rebuild it, and clean nothing.
+        """
+        stack, fixture, lane, target, deps = self._unit_lane()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        _write(fixture.root / "kill-tests", "")
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 1, err)
+        self._rewrite_after_the_last_heartbeat(target)
+        clippy_unit = deps / "libfoo-1111111111111111.rlib"
+        built = clippy_unit.stat().st_mtime_ns
+        fixture.calls.unlink()
+        (fixture.root / "kill-tests").unlink()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("clean", self._cargo_verbs(fixture))
+        self.assertEqual(clippy_unit.stat().st_mtime_ns, built, err)
+        self.assertEqual(
+            (deps / "libfoo-2222222222222222.rlib").read_text(encoding="utf-8"),
+            "2222222222222222",
+            "the rewritten test unit is rebuilt",
+        )
+
+    def test_a_unit_a_peer_replaced_in_place_is_removed_and_rebuilt(self) -> None:
+        """A peer rebuilds a fresh test unit from other source into the shared target.
+
+        The files keep their names, so Cargo calls the unit fresh. The
+        recorded bytes differ, so the next push removes that unit and any
+        no record lists, rebuilds them, cleans nothing, and leaves clippy's
+        unit alone.
+        """
+        stack, fixture, lane, target, deps = self._unit_lane()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        clippy_unit = deps / "libfoo-1111111111111111.rlib"
+        built = clippy_unit.stat().st_mtime_ns
+        for path in (
+            deps / "libfoo-2222222222222222.rlib",
+            target / "debug" / ".fingerprint" / "foo-2222222222222222" / "lib-foo",
+        ):
+            path.write_text("peer", encoding="utf-8")
+        fixture.calls.unlink()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("clean", self._cargo_verbs(fixture))
+        self.assertEqual(
+            (deps / "libfoo-2222222222222222.rlib").read_text(encoding="utf-8"),
+            "2222222222222222",
+            "the peer's unit is rebuilt",
+        )
+        self.assertEqual(clippy_unit.stat().st_mtime_ns, built, err)
+        self.assertEqual(
+            (deps / "libfoo-3333333333333333.rlib").read_text(encoding="utf-8"),
+            "3333333333333333",
+        )
+
+    def test_clippy_recovering_through_a_sibling_keeps_its_units_after_a_tests_kill(self) -> None:
+        """Rustdoc records first, clippy's record is gone and stands in through it, tests die.
+
+        The sibling lists the test unit, and so does clippy's new record. The
+        killed tests stage rewrites that unit; clippy's rerun removes it
+        alone and cleans nothing.
+        """
+        stack, fixture, lane, target, deps = self._unit_lane(documentation_phase="pre-merge")
+        for phase in ("push", "documentation"):
+            code, err = self._run_in_lane(fixture, lane, target_directory=target, phase=phase)
+            self.assertEqual(code, 0, err)
+        records = target / ".atlas" / "source-identity"
+        clippy_records = [
+            path
+            for path in records.glob("*.json")
+            if json.loads(path.read_text(encoding="utf-8")).get("build", {}).get("command_key")
+            == "atlas-pre-push-clippy"
+        ]
+        self.assertEqual(len(clippy_records), 1)
+        clippy_records[0].unlink()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        _write(fixture.root / "kill-tests", "")
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 1, err)
+        self._rewrite_after_the_last_heartbeat(target)
+        clippy_unit = deps / "libfoo-1111111111111111.rlib"
+        built = clippy_unit.stat().st_mtime_ns
+        fixture.calls.unlink()
+        (fixture.root / "kill-tests").unlink()
+        code, err = self._run_in_lane(fixture, lane, target_directory=target)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("clean", self._cargo_verbs(fixture))
+        self.assertEqual(clippy_unit.stat().st_mtime_ns, built, err)
 
     def test_a_new_member_gates_each_package_once_by_its_exact_name(self) -> None:
         """A root-manifest change gates every member under its exact name.
