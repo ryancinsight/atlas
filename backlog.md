@@ -114,3 +114,12 @@
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Kill the surviving writer-scan mutants [patch] — todo
 <a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo
+<a id="atlas-board-index-ladder-crash"></a>- [ATLAS-BOARD-INDEX-LADDER-CRASH](backlog/atlas-board-index-ladder-crash.md) — The board index tool aborts on the milestone ladder file [patch] — todo
+<a id="atlas-board-lint-milestone"></a>- [ATLAS-BOARD-LINT-MILESTONE](backlog/atlas-board-lint-milestone.md) — Board lint does not count items missing a milestone [patch] — todo
+<a id="atlas-ci-ubuntu-2604"></a>- [ATLAS-CI-UBUNTU-2604](backlog/atlas-ci-ubuntu-2604.md) — Wheel callers must repin atlas python-wheels.yml after the Ubuntu 24.04 pin [patch] — todo
+<a id="atlas-ci-ubuntu-2604-apt"></a>- [ATLAS-CI-UBUNTU-2604-APT](backlog/atlas-ci-ubuntu-2604-apt.md) — Apt-installing atlas workflow jobs run on a runner image that moved [patch] — todo
+<a id="atlas-hook-credential-alias"></a>- [ATLAS-HOOK-CREDENTIAL-ALIAS](backlog/atlas-hook-credential-alias.md) — Decide the credential-alias and include handling in the exported Cargo config [patch] — todo
+<a id="atlas-hook-fleet-blob-drift"></a>- [ATLAS-HOOK-FLEET-BLOB-DRIFT](backlog/atlas-hook-fleet-blob-drift.md) — Member pre-push hooks carry a blob that is not on atlas main [patch] — todo
+<a id="atlas-hook-merge-range"></a>- [ATLAS-HOOK-MERGE-RANGE](backlog/atlas-hook-merge-range.md) — A pushed merge of the default branch gates the default branch's own commits [patch] — todo
+<a id="atlas-hook-nextest-config-owner"></a>- [ATLAS-HOOK-NEXTEST-CONFIG-OWNER](backlog/atlas-hook-nextest-config-owner.md) — A member's nextest config change selects no package in the pre-push gate [patch] — todo
+<a id="atlas-python-39-floor"></a>- [ATLAS-PYTHON-39-FLOOR](backlog/atlas-python-39-floor.md) — Decide the Python floor the wheel callers support [architecture] — todo

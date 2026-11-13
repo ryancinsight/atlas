@@ -1,0 +1,9 @@
+<a id="atlas-hook-credential-alias"></a>
+## ATLAS-HOOK-CREDENTIAL-ALIAS — Decide the credential-alias and include handling in the exported Cargo config [patch] — todo
+- Outcome: the pre-push gate's exported Cargo config either rebases `[credential-alias]` providers and mirrors `include` entries (ported from atlas#551) under a test, or the gap is shown absent and the preserved work is dropped with its reason recorded.
+- Evidence (origin/main 12708acf3ae4892d4443627f0d6d5016ddeb29d7): atlas#551 (`fix(overlay): Repair exported Cargo gates`, closed unmerged 2026-10-29) holds a `scripts/git-hooks/pre-push` at `refs/pull/551/head` (2706 lines). Its embedded Python defines `credential_alias_environment_key`, `rebase_credential_provider`, `reserve_config_aliases`, `mirror_include` and `mirror_config` at its lines 1173-1468.
+- Main's hook (2443 lines) has no `credential-alias` or `mirror` text and copies each `.cargo/config.toml` above the member (lines 1106-1111, 1179-1185). The stack `.cargo/config.toml` at main sets neither `credential-alias` nor `include`. Released metis#509 (closed 2026-11-13, label `released`; `refs/pull/509/head:.githooks/pre-push` equals atlas#551's hook blob) carries the same hook.
+- Oracle: a test in `scripts/tests/test_root_hook_guards.py` runs the export step on a config with a relative `[credential-alias]` provider and an `include`. It passes on main's hook (drop the work) or fails there and passes after the port (port it); the PR records which.
+- basis: 12708acf3ae4892d4443627f0d6d5016ddeb29d7; priority: verification; needs: none
+- scope: `scripts/git-hooks/pre-push`, `scripts/tests/test_root_hook_guards.py`
+- Next step: `git fetch origin pull/551/head`, extract the 296-line block, and run the oracle's test against main's hook; port only if it is red.
