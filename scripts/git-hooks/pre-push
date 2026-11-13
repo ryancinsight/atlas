@@ -1158,7 +1158,10 @@ else
 fi
 
 if [ -n "$gate_base" ]; then
-  if ! gate_changed="$(git diff --name-only "$gate_base" "$gate_sha")"; then
+  # Both sides of a rename: with rename detection git lists only the
+  # destination, so a source file moved under a skipped path (`backlog/`,
+  # `.github/`) left the package it was removed from ungated.
+  if ! gate_changed="$(git diff --no-renames --name-only "$gate_base" "$gate_sha")"; then
     echo "pre-push: BLOCKED -- could not discover changed paths between $gate_base and $gate_sha." >&2
     exit 1
   fi
@@ -1436,10 +1439,17 @@ while IFS= read -r changed_path; do
   # no cargo invocation. Without this, a single-package repository mapped them
   # to its root package and a hook-only or board-only push ran clippy, tests
   # and rustdoc for the whole package, queued behind every peer's build lease
-  # until the push deadline. No member's source includes, embeds or reads a
-  # root board file (`git grep` over every registered member's default branch);
-  # the paths are root-anchored, so a `docs/checklist.md` still gates.
-  case "$changed_path" in
+  # until the push deadline. A 2026-11-13 `git grep` for board path literals
+  # in `*.rs` and `*.toml` on every registered member's default branch found
+  # no include, embed or read of a root board file; nothing re-checks it.
+  # The match is on the repository-relative path (the meta root passes paths
+  # relative to `tools/<ws>/`), so a nested file of the same name, such as
+  # `docs/checklist.md` or `tools/<ws>/backlog.md`, takes the ownership walk.
+  repository_path="$changed_path"
+  if [ "$workspace_manifest" != "Cargo.toml" ]; then
+    repository_path="$(dirname "$workspace_manifest")/$changed_path"
+  fi
+  case "$repository_path" in
     .githooks/* | .github/*) continue ;;
     backlog.md | backlog/* | gap_audit.md | checklist.md) continue ;;
   esac
