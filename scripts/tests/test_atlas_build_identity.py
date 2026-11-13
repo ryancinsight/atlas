@@ -1956,10 +1956,25 @@ class BuildIdentityTestCase(unittest.TestCase):
     ) -> list[str]:
         """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo.
 
-        With `clean`, the run also has a custom clean command, which runs.
+        A package whose record fails only in some artifact bytes has its
+        mismatched and unlisted units removed instead; those are recorded by
+        package too. With `clean`, the run also has a custom clean command,
+        which runs.
         """
         packages: list[str] = []
         run_checked = identity._run_checked
+        prune_units = identity.prune_units
+
+        def pruning(doomed):
+            packages.extend(
+                sorted(
+                    {
+                        re.sub(r"-[0-9a-f]+$", "", path.name.split(".")[0].removeprefix("lib"))
+                        for path in doomed
+                    }
+                )
+            )
+            prune_units(doomed)
 
         def recording(command, cwd, environment):
             if (names := cleaned_names(command)) is not None:
@@ -1971,7 +1986,10 @@ class BuildIdentityTestCase(unittest.TestCase):
                 return
             run_checked(command, cwd, environment)
 
-        with patch.object(identity, "_run_checked", side_effect=recording):
+        with (
+            patch.object(identity, "_run_checked", side_effect=recording),
+            patch.object(identity, "prune_units", side_effect=pruning),
+        ):
             self.dependency_build(
                 source_token,
                 discover=True,
@@ -4980,6 +4998,9 @@ LEASE_PROBE = (
     "    lease.__exit__(None, None, None)\n"
     "    answers[f'{name}:{mode}'] = 'granted'\n"
     "Path(sys.argv[2]).write_text(json.dumps(answers, sort_keys=True), encoding='utf-8')\n"
+    "import os\n"
+    "if os.environ.get('REPLACEMENT'):\n"
+    "    Path(os.environ['REPLACEMENT']).write_text('renamed', encoding='utf-8')\n"
 )
 
 
@@ -5151,10 +5172,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
             self.clean,
             "import os\n"
             "from pathlib import Path\n"
-            "Path(os.environ['ARTIFACT']).write_text('rebuilt', encoding='utf-8')\n"
-            "if os.environ.get('RETIRE'):\n"
-            "    Path(os.environ['RETIRE']).unlink()\n"
-            "    Path(os.environ['REPLACEMENT']).write_text('renamed', encoding='utf-8')\n",
+            "Path(os.environ['ARTIFACT']).write_text('rebuilt', encoding='utf-8')\n",
         )
         init_repo(self.root, "fn main() {}\n")
 
@@ -5333,10 +5351,9 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         self.build("clippy", declared=False)
         self.artifacts["dep2"].write_text("changed", encoding="utf-8")
         replacement = self.artifacts["dep2"].with_name("libdep2-fedcba.rlib")
-        with patch.dict(
-            os.environ,
-            {"RETIRE": str(self.artifacts["dep2"]), "REPLACEMENT": str(replacement)},
-        ):
+        # The changed unit is removed, and the build command rebuilds it
+        # under another hash.
+        with patch.dict(os.environ, {"REPLACEMENT": str(replacement)}):
             self.build("clippy", declared=False)
         self.assertEqual(
             sorted(self.recorded()),
@@ -6236,9 +6253,15 @@ class MultiPackageRunTestCase(unittest.TestCase):
                 '[package]\nname = "a"\nversion = "0.1.0"\nedition = "2021"\n'
                 "[dependencies]\nb = { path = \"../b\" }\n"
             ),
-            "a/src/lib.rs": "//! a\n/// a\npub fn a() -> u32 { b::b() + 1 }\n",
+            "a/src/lib.rs": "//! a\n/// a\npub fn a() -> u32 { b::b() + 1 }\n#[test]\nfn probe() {\n"
+            '    std::fs::write(std::env::var("PROBE_OUT").unwrap(), a().to_string()).unwrap();\n}\n',
             "b/Cargo.toml": '[package]\nname = "b"\nversion = "0.1.0"\nedition = "2021"\n',
-            "b/src/lib.rs": "//! b\n/// b\npub fn b() -> u32 { 1 }\n",
+            "b/data.txt": "1\n",
+            "b/build.rs": 'fn main() {\n    println!("cargo:rerun-if-changed=data.txt");\n'
+            '    let value = std::fs::read_to_string("data.txt").unwrap();\n'
+            '    let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("gen.rs");\n'
+            '    std::fs::write(out, format!("pub const GEN: u32 = {};", value.trim())).unwrap();\n}\n',
+            "b/src/lib.rs": '//! b\ninclude!(concat!(env!("OUT_DIR"), "/gen.rs"));\n/// b\npub fn b() -> u32 { GEN }\n',
             "c/Cargo.toml": '[package]\nname = "c"\nversion = "0.1.0"\nedition = "2021"\n',
             "c/src/lib.rs": "//! c\n/// c\npub fn c() -> u32 { 3 }\n",
         }.items():
@@ -6271,6 +6294,7 @@ class MultiPackageRunTestCase(unittest.TestCase):
         command: list[str] | None = None,
         packages: tuple[str, ...] = ("a", "c"),
         record: tuple[str, ...] = (),
+        key: str = "atlas-pre-push",
     ):
         """One clippy step building `packages` and recording `record` (default:
         all of them), in the gate's export, cloned from the source when new."""
@@ -6293,7 +6317,7 @@ class MultiPackageRunTestCase(unittest.TestCase):
                 or ["cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
                     *(argument for package in packages for argument in ("-p", package))],
                 command_cwd=export,
-                command_key="atlas-pre-push",
+                command_key=key,
                 selection=packages,
             )
 
@@ -6344,8 +6368,138 @@ class MultiPackageRunTestCase(unittest.TestCase):
             path.write_bytes(b"a stand-in for " + path.name.encode())
         second = self.push(self.base / "gate2")
         self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
-        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
-        self.assertEqual(cleans, [["c"]])
+        # No `cargo clean`: `c`'s mismatched units are removed and rebuilt.
+        self.assertEqual([argv for argv in self.invocations() if argv[1] == "clean"], [])
+        for path in deps.glob("libc-*"):
+            self.assertNotIn(b"a stand-in for", path.read_bytes(), path.name)
+
+    def pruned(self, push) -> list[str]:
+        """The unit paths a push removed instead of cleaning, relative to the target."""
+        removed: list[str] = []
+        prune_units = identity.prune_units
+        target = self.base / "target"
+
+        def recording(doomed):
+            removed.extend(sorted(path.relative_to(target).as_posix() for path in doomed))
+            prune_units(doomed)
+
+        with patch.object(identity, "prune_units", side_effect=recording):
+            push()
+        return removed
+
+    def _peer_workspace(self) -> tuple[Path, Path, list[str], list[str]]:
+        """A peer's clone, the gate export, and the cargo flags and command over `a`."""
+        peer = self.base / "peer" / "ws"
+        peer.parent.mkdir()
+        subprocess.run(["git", "clone", "-q", str(self.source), str(peer)], check=True)
+        self.environment["PROBE_OUT"] = str(self.base / "probe.txt")
+        export = self.base / "gate1" / "nested" / "ws"
+        flags = ["--locked", "--offline", "-p", "a"]
+        command = ["cargo", "test", "-q", "--manifest-path", str(export / "Cargo.toml"), *flags]
+        return peer, export, flags, command
+
+    def _peer_test(self, peer: Path, flags: list[str], target: str) -> None:
+        subprocess.run(
+            ["cargo", "test", "-q", "--manifest-path", str(peer / "Cargo.toml"), *flags],
+            env={**self.environment, "CARGO_TARGET_DIR": target},
+            check=True, timeout=300, cwd=peer,
+        )
+
+    def test_a_peer_rerunning_a_build_script_is_not_trusted(self) -> None:
+        """A peer at the first revision rewrites `out/gen.rs`; every listed file keeps its bytes."""
+        peer, export, flags, command = self._peer_workspace()
+
+        def probe() -> str:
+            return (self.base / "probe.txt").read_text(encoding="utf-8")
+
+        def generated() -> set[str]:
+            outs = (self.base / "target" / "debug" / "build").glob("b-*/out/gen.rs")
+            return {path.read_text(encoding="utf-8") for path in outs}
+
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        self.assertEqual(probe(), "2")
+        (export / "b" / "data.txt").write_text("2\n", encoding="utf-8")
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        self.assertEqual(probe(), "3")
+        for edit in ("", "// only a changes\n"):
+            (peer / "b" / "data.txt").write_text("1" + chr(10), encoding="utf-8")
+            self._peer_test(peer, flags, str(self.base / "target"))
+            self.assertEqual((probe(), generated()), ("2", {"pub const GEN: u32 = 1;"}), "the peer built the first revision")
+            with (export / "a" / "src" / "lib.rs").open("a", encoding="utf-8") as stream:
+                stream.write(edit)
+            self.push(self.base / "gate1", command=command, packages=("a", "b"))
+            self.assertEqual((probe(), generated()), ("3", {"pub const GEN: u32 = 2;"}), repr(edit))
+
+    def test_a_peer_recompiling_the_build_script_is_not_trusted(self) -> None:
+        """A peer's other `build.rs` replaces the compile unit's executable in place.
+
+        The unit's `.d` and fingerprint files keep their bytes; only the
+        executable differs, so the build unit must list it.
+        """
+        peer, export, flags, command = self._peer_workspace()
+        probe = self.base / "probe.txt"
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        (export / "b" / "data.txt").write_text("2\n", encoding="utf-8")
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        build = peer / "b" / "build.rs"
+        build.write_text(build.read_text(encoding="utf-8").replace("= {};", "= {}00;"), encoding="utf-8")
+        self._peer_test(peer, flags, (self.base / "target").as_posix())
+        self.assertEqual(probe.read_text(encoding="utf-8"), "101", "the peer built its own script")
+        with (export / "a" / "src" / "lib.rs").open("a", encoding="utf-8") as stream:
+            stream.write("// only a changes\n")
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        outs = (self.base / "target" / "debug" / "build").glob("b-*/out/gen.rs")
+        self.assertEqual(
+            (probe.read_text(encoding="utf-8"), {path.read_text(encoding="utf-8") for path in outs}),
+            ("3", {"pub const GEN: u32 = 2;"}),
+        )
+
+    def test_a_matched_record_lists_again_only_the_files_it_listed(self) -> None:
+        first = self.push(self.base / "gate1")
+        peer = self.base / "target" / "debug" / "deps" / "libc-0123456789abcdef.rmeta"
+        peer.write_bytes(b"a peer's unit")
+        second = self.push(self.base / "gate2")
+        self.assertEqual([result.status for result in second], ["reused", "reused"])
+        listed = json.loads(second[1].record_path.read_text(encoding="utf-8"))["artifact"]["files"]
+        self.assertEqual(
+            sorted(listed), sorted(json.loads(first[1].record_path.read_text(encoding="utf-8"))["artifact"]["files"])
+        )
+        self.assertNotIn("debug/deps/" + peer.name, listed)
+
+    def test_files_still_present_vouch_for_their_units_when_a_listed_file_is_missing(self) -> None:
+        """The second stage lists test units the first never built. Of `c`'s two, the `t` target's has a
+        listed file gone and another replaced, so it is removed; the other is intact and stays."""
+        (self.source / "c" / "tests").mkdir()
+        (self.source / "c" / "tests" / "t.rs").write_text("#[test]\nfn t() {}\n", encoding="utf-8")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "tests")
+        deps = self.base / "target" / "debug" / "deps"
+        manifest = str(self.base / "gate1" / "nested" / "ws" / "Cargo.toml")
+        every = ["cargo", "clippy", "--all-targets", "-q", "--manifest-path", manifest, "--locked", "--offline", "-p", "a", "-p", "c"]
+        self.push(self.base / "gate1", key="first")
+        lib_units = {path.name for path in deps.glob("lib*.rmeta")}
+        self.push(self.base / "gate1", command=every, key="second")
+        broken, healthy = (
+            next(path for path in deps.glob(f"lib{name}-*.rmeta") if path.name not in lib_units).stem.rsplit("-", 1)[1]
+            for name in "tc"
+        )
+        debug = deps.parent
+
+        def unit(hash_: str) -> list[Path]:
+            return sorted([*deps.glob(f"*-{hash_}.*"), *(debug / ".fingerprint").glob(f"*-{hash_}/*")])
+
+        (deps / f"t-{broken}.d").unlink()
+        (deps / f"libt-{broken}.rmeta").write_bytes(b"a stand-in for t")
+        kept = {path: path.read_bytes() for path in unit(healthy)}
+        self.assertGreater(len(kept), 3)
+        removed = self.pruned(lambda: self.push(self.base / "gate1", command=every, key="second"))
+        # The unit of a target named `t` in package `c`: its fingerprint directory and its
+        # `deps` files go together, and none of the other unit's.
+        self.assertIn(f"debug/.fingerprint/c-{broken}", removed)
+        self.assertIn(f"debug/deps/libt-{broken}.rmeta", removed)
+        self.assertFalse([name for name in removed if healthy in name], removed)
+        self.assertEqual({path: path.read_bytes() for path in unit(healthy)}, kept)
+        self.assertNotIn(b"a stand-in for t", (deps / f"libt-{broken}.rmeta").read_bytes())
 
     def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
         first = self.push(self.base / "gate1", packages=("a", "b"))

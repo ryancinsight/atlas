@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import time
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -107,8 +108,13 @@ def artifact_identities(
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
     owners: dict[str, frozenset[str]] | None = None, *, deadline_ns: int | None = None,
+    listed: dict[str, Iterable[str]] | None = None,
 ) -> dict[str, dict[str, object]]:
-    """Prove stable artifact closures before returning their shared census."""
+    """Prove stable artifact closures before returning their shared census.
+
+    A package in `listed` (its record matched) lists again only the units
+    that record listed, so a unit another stage or a peer left is not vouched for.
+    """
 
     _canonical(root, strict=True)
     target_dir = _canonical(target_dir)
@@ -136,8 +142,10 @@ def artifact_identities(
         except OSError as error:
             raise BuildIdentityError(f"cannot enumerate artifacts in {target_dir}: {error}") from error
         selected = {
-            package: set().union(
-                *(by_owner.get(owner, set()) for owner in {package, *related})
+            package: _listed_units(
+                set().union(*(by_owner.get(owner, set()) for owner in {package, *related})),
+                target_dir,
+                listed[package] if listed and package in listed else None,
             )
             for package, related in packages.items()
         }
@@ -238,6 +246,73 @@ def changed_packages(
     return names
 
 
+def _listed_units(paths: set[Path], target_dir: Path, names: Iterable[str] | None) -> set[Path]:
+    """The files of the units that hold one of the recorded `names`."""
+    if names is None:
+        return paths
+    units = {_unit_hash(name.split("/")) for name in names}
+    return {path for path in paths if _unit_hash(path.relative_to(target_dir).parts) in units}
+
+
+def _unit_directory(parts: Sequence[str]) -> str | None:
+    """The `.fingerprint` or `build` directory a path lies in, or None for a `deps` file."""
+    for marker in (".fingerprint", "build"):
+        if marker in parts[:-1]:
+            return parts[parts.index(marker) + 1]
+    return None
+
+
+def _unit_hash(parts: Sequence[str]) -> str:
+    """The metadata hash a path's unit carries: its fingerprint or build directory, or its output name."""
+    name = _unit_directory(parts) or parts[-1].split(".", 1)[0]
+    return name.rsplit("-", 1)[-1]
+
+
+def prune_plan(
+    target_dir: Path,
+    profile: str,
+    target: str,
+    owners: dict[str, frozenset[str]],
+    packages: frozenset[str],
+    records: Sequence[tuple[dict[str, str], dict[str, str]]],
+) -> dict[str, list[Path]]:
+    """Per package, the unit paths whose bytes no record vouches for.
+
+    A unit (the fingerprint directory, build directory and `deps` outputs
+    carrying one metadata hash) is kept only when every file it holds is listed and
+    matches in some record, as `(recorded, current)` digests. Cargo rebuilds
+    a unit whose files are gone and dirties its dependents.
+    """
+    target_dir = _canonical(target_dir)
+    sound = {r for recorded, current in records for r, d in recorded.items() if current.get(r) == d}
+    found = _discover_artifacts_by_owner(target_dir, profile, target, owners, packages)
+    removed = {_unit_hash(r.split("/")) for recorded, _ in records for r in recorded if r not in sound}
+    for paths in found.values():
+        for path in paths:
+            if path.relative_to(target_dir).as_posix() not in sound:
+                removed.add(_unit_hash(path.relative_to(target_dir).parts))
+    doomed: dict[str, set[Path]] = {owner: set() for owner in packages}
+    for owner in packages:
+        for path in found.get(owner, set()):
+            parts = path.relative_to(target_dir).parts
+            if _unit_hash(parts) in removed:
+                unit = _unit_directory(parts)
+                doomed[owner].add(target_dir.joinpath(*parts[: parts.index(unit) + 1]) if unit else path)
+    return {owner: sorted(values) for owner, values in doomed.items()}
+
+
+def prune_units(doomed: Sequence[Path]) -> None:
+    """Remove the paths `prune_plan` named; a missing one is already gone."""
+    for path in doomed:
+        try:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+        except OSError as error:
+            raise BuildIdentityError(f"cannot remove stale unit {path}: {error}") from error
+
+
 def artifact_owners(manifest: Path, metadata_cwd: Path | None = None) -> dict[str, frozenset[str]]:
     """Each package's artifact stems, read once for several attributions."""
     return _workspace_artifact_owners(manifest, metadata_cwd)
@@ -249,12 +324,7 @@ def artifact_package(relative: str, owners: dict[str, frozenset[str]]) -> str | 
     # `<profile>/deps/<file>` names the file; `.../.fingerprint/<unit>/<file>`
     # and `<profile>/build/<unit>/<file>` the unit, since every build
     # script's files are `build_script_build-*`, whatever its package.
-    if ".fingerprint" in parts:
-        unit = parts[parts.index(".fingerprint") + 1]
-    elif len(parts) >= 3 and parts[-3] == "build":
-        unit = parts[-2]
-    else:
-        unit = parts[-1]
+    unit = _unit_directory(parts) or parts[-1]
     return _artifact_owner(unit, _artifact_owners_by_stem(owners))
 
 
@@ -483,14 +553,15 @@ def _discover_artifacts_by_owner(
         if not deps.is_dir():
             continue
         for path in deps.iterdir():
-            if path.suffix not in ARTIFACT_SUFFIXES:
+            if path.suffix and path.suffix not in ARTIFACT_SUFFIXES:
                 continue
             owner = _artifact_owner(path.name, owners_by_stem)
             if owner in requested and path.is_file():
                 selected.setdefault(owner, set()).add(path.resolve())
-    # A build script's dep-info and the paths it asked Cargo to watch
-    # (`output`), which `atlas_build_dep_info` reads; its binary and
-    # `out/` are rebuilt by Cargo and already covered by the fingerprint.
+    # Every file of a build unit: the compile unit's executable and dep-info,
+    # the run unit's `output` (read by `atlas_build_dep_info`), `out/`,
+    # `root-output`, `stderr` and timestamp. A peer's recompile or rerun
+    # rewrites those while the fingerprint files stay equal.
     build_dirs = [target_dir / profile / "build"]
     if target != "host":
         build_dirs.append(target_dir / target / profile / "build")
@@ -501,9 +572,7 @@ def _discover_artifacts_by_owner(
             owner = _artifact_owner(directory.name, owners_by_stem)
             if owner in requested and directory.is_dir():
                 selected.setdefault(owner, set()).update(
-                    path.resolve()
-                    for path in directory.iterdir()
-                    if (path.name == "output" or path.suffix == ".d") and path.is_file()
+                    path.resolve() for path in directory.rglob("*") if path.is_file()
                 )
 
     fingerprint_dirs = [
