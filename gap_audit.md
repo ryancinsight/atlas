@@ -1,5 +1,37 @@
 # atlas — cross-repository integration gap audit
 
+<a id="leaseless-peer-write"></a>
+## Finding 2026-11-13: a leaseless peer write reaches a gate record
+
+Risk: a peer that runs plain `cargo` (no identity lease) on the shared target while the hook's command runs, between clippy and tests or between tests and rustdoc, makes the gate pass and record stale outputs.
+Evidence: at b408be289b21d88da9bf544d83c2b93371ce0ff2, atlas#688's single/repush table (`refs/pull/688/head`) has the P1 and P2 columns red for every peer kind (nextest, clippy, doc, buildrs, data). The stale probe, generated `gen.rs` and doc page were reproduced by three independent judges: [first](https://github.com/ryancinsight/atlas/pull/688#issuecomment-6845595294), [second](https://github.com/ryancinsight/atlas/pull/688#issuecomment-6853241893), [third](https://github.com/ryancinsight/atlas/pull/688#issuecomment-6856400115).
+Fix direction: either such a peer write cannot reach a record, or the gate refuses to record it; the oracle is those P1 and P2 cells green through the harness of ATLAS-GATE-STAGE-MATRIX.
+Re-open trigger: the harness lands and measures the P1 and P2 cells, or a second stale record from a peer's plain `cargo` run is observed.
+
+<a id="sibling-standin"></a>
+## Finding 2026-11-13: the sibling stand-in vouches for a peer's bytes
+
+Risk: records copied through the sibling stand-in (ADR 0064; `scripts/atlas_build_identity.py:524-550`) vouch for a peer's bytes.
+Evidence: at b408be289b21d88da9bf544d83c2b93371ce0ff2, atlas#688's single/sibling table is red for nextest, doc, buildrs and data at P0 and in every K column, where single/repush is green. The stand-in's real users are the cast-gate keys (`atlas-pre-push-casts-base`, `atlas-pre-push-casts-standalone` in `scripts/git-hooks/pre-push`), and that interaction is unmeasured. Design verdicts: [6845698837](https://github.com/ryancinsight/atlas/pull/688#issuecomment-6845698837), [6855341854](https://github.com/ryancinsight/atlas/pull/688#issuecomment-6855341854).
+Fix direction: remove the stand-in, or make it sound under a revised ADR 0064; the oracle is those cells green and one cast-key cell measured through the harness of ATLAS-GATE-STAGE-MATRIX.
+Re-open trigger: the harness lands and measures the sibling cells, or a record copied through the stand-in is shown to vouch for changed bytes in a push.
+
+<a id="kwavers-deadline-margin"></a>
+## Finding 2026-11-13: a two-package kwavers push clears the pre-push deadline by 3 s
+
+Risk: a gated push of two kwavers packages finished 3 s inside the 600 s hook deadline on a quiet host, so ordinary run-to-run spread fails it.
+Evidence: ryancinsight/kwavers#1065 passed the installed pre-push gate on 2026-11-13. Stage timings: clippy 0-93 s, tests 93-399 s, rustdoc 399-435 s, verification 435-597 s; the verification stage alone took 162 s. Same-plan identity reruns differed by 58.4 s.
+Fix direction: attribute the 162 s verification stage per step and profile the slowest, so that push fits with a margin derived from run-to-run spread.
+Re-open trigger: a deadline kill of a gated kwavers push on a quiet host, or the per-step attribution is recorded.
+
+<a id="stage-records-rerun-cost"></a>
+## Finding 2026-11-13: a rerun after a deadline kill cleans packages the killed run did not write
+
+Risk: after a deadline kill the rerun cleans packages the killed run never wrote, so it costs more than a warm pass. No deadline failure occurred on a quiet host.
+Evidence: kwavers#1065's head with main's identity code, one run per row: cold pass 847.2 s; rerun after a 600 s kill 471.9 s; warm pass 326.2 s; rerun after a rustdoc kill (Job Object) 446.2 s. The rustdoc-kill rerun cleaned 14 of 15 path packages ("Removed 5978 files, 3.3GiB total"): 13 are dependencies, which `fresh` (`scripts/atlas_build_identity.py:664-667`) never marks `building`; the 14th, `kwavers-solver`, was the package rustdoc was writing, which the 5 s heartbeat window refused (`scripts/atlas_build_writers.py:238-246`). The cold-kill rerun cleaned 92 Git packages through stale Git stamps.
+Fix direction: a rerun cleans only the packages the killed run was writing. Marking dependencies `building` is unsound: it heartbeats shared dependencies over a peer's in-place write (finding G2 of [the design verdict](https://github.com/ryancinsight/atlas/pull/688#issuecomment-6855341854)). atlas#683 (`fix/gate-unit-prune`) is held pending a soundness oracle run through the harness of ATLAS-GATE-STAGE-MATRIX.
+Re-open trigger: the harness lands and runs the soundness oracle, or a deadline kill of a gated push is followed by a rerun beyond its warm-pass cost.
+
 ## Finding 2026-11-11: the workflow-lint guard can lint an action a runner does not load when the checkout rule places no checkout
 
 Risk: at cbce5fafe58f813a9d1b4f9510809c000df0c870 (the merge of atlas#677) the guard `scripts/atlas_workflow_lint.py` resolves at the candidate's root a step reference that the checkout rule (`governing` in `scripts/workflow_checkout_prefix.py`) maps to no checkout. For a job that checks the candidate out at `P` and then uses `./P/x`, the rule maps the reference to no checkout in five observed spellings: a later checkout into `P/sub`, of another repository or of the candidate; a later checkout of the candidate without `path:`; a later `docker://` step; and the first checkout's `path:` written `./P`. In each, a candidate that tracks `P/x/action.yml` is accepted whether or not it tracks `x/action.yml`, the reference stays as written, and the guard collects `P/x/action.yml` as its lint input, and not `x/action.yml` where the candidate tracks that file. Under the rule's stated assumptions (a checkout writes the tracked files of its commit into its path and nothing else that a reference can name; `path` is read relative to the workspace) a runner looks for `x/action.yml` in the checkout at `P` in the two `P/sub` spellings and the `./P` spelling: there a defect in `x` would pass the lint unseen, and a candidate without `x` would pass although the runner finds no action. In the spelling without `path:`, on a further premise that the rule does not make and that is not verified here (such a checkout writes the candidate into the workspace root; the rule treats it as a checkout of unknown location), the later checkout writes the candidate's own `P/x/action.yml` over that location, and the guard lints the file the runner loads. The rule treats the `docker://` step as a possible checkout of any location, so what a runner loads after it is not derived here. Every statement about a runner in this entry is derived from those assumptions, from the rule's opening premise that a job which checks out at `P` finds `./P/<rest>` at `<rest>` in that checkout, and, for the spelling without `path:`, from that further premise; none is observed on a runner. A candidate that does not track `P/x` is rejected in all five ("reference escapes or is missing from the checkout").
@@ -367,7 +399,7 @@ Risk: `refs/rescue/apollo-scratch-order-isolation` (apollo checkout only, unpush
 <a id="commit-msg-hook-absent"></a>
 ## Finding 2026-11-10: no commit-msg hook is installed in the stack
 
-Risk: commit subjects over 50 characters, body lines over 72, unparseable trailers and agent commits without an `Agent:` trailer reach default branches, because nothing checks a message before it is pushed. Evidence: ryancinsight/kwavers#961 landed two 52-character subjects; `scripts/git-hooks/` at `origin/main` holds `pre-commit`, `pre-push` and `rescue-push` only, and `.git/atlas-hooks` has no `commit-msg`.
+Risk: commit subjects over 50 characters, body lines over 72, unparseable trailers and agent commits without an `Agent:` trailer reach default branches, because nothing checks a message before it is pushed. Evidence: ryancinsight/kwavers#961 landed two 52-character subjects; `scripts/git-hooks/` at `origin/main` holds `pre-commit`, `pre-push` and `rescue-push` only, and `.git/atlas-hooks` has no `commit-msg`. On 2026-11-13 the code commit of the kwavers#1061 claim branch had a 53-character subject, accepted in a lane whose `.git/atlas-hooks` held no `commit-msg` hook.
 
 Catching check: a committed `scripts/git-hooks/commit-msg` (subject length and form, body width, literal `\n`, trailer parse, `Agent:` under a harness session variable; merge and `fixup!` commits exempt), installed by the stack setup path in every member, with the conformance scan asserting the installed hook path.
 
