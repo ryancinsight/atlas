@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import time
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -107,8 +108,15 @@ def artifact_identities(
     manifest: Path | None = None,
     metadata_cwd: Path | None = None,
     owners: dict[str, frozenset[str]] | None = None, *, deadline_ns: int | None = None,
+    listed: dict[str, Iterable[str]] | None = None,
 ) -> dict[str, dict[str, object]]:
-    """Prove stable artifact closures before returning their shared census."""
+    """Prove stable artifact closures before returning their shared census.
+
+    A package in `listed`, a run whose record matched, lists again only the
+    units that record listed: its verified files, and whatever its command
+    added to those units. A unit another stage or a peer left in the target
+    was not verified by this run, so its bytes are not vouched for here.
+    """
 
     _canonical(root, strict=True)
     target_dir = _canonical(target_dir)
@@ -136,8 +144,10 @@ def artifact_identities(
         except OSError as error:
             raise BuildIdentityError(f"cannot enumerate artifacts in {target_dir}: {error}") from error
         selected = {
-            package: set().union(
-                *(by_owner.get(owner, set()) for owner in {package, *related})
+            package: _listed_units(
+                set().union(*(by_owner.get(owner, set()) for owner in {package, *related})),
+                target_dir,
+                listed[package] if listed and package in listed else None,
             )
             for package, related in packages.items()
         }
@@ -236,6 +246,71 @@ def changed_packages(
             return None
         names.add(owner)
     return names
+
+
+def _listed_units(paths: set[Path], target_dir: Path, names: Iterable[str] | None) -> set[Path]:
+    """The files of the units that hold one of the recorded `names`."""
+    if names is None:
+        return paths
+    units = set().union(*(_unit_names(name.split("/")) for name in names), set())
+    return {path for path in paths if _unit_names(path.relative_to(target_dir).parts) & units}
+
+
+def _unit_names(parts: Sequence[str]) -> set[str]:
+    """The names a file's unit is known by: its fingerprint or build directory, or its output stem."""
+    if ".fingerprint" in parts:
+        return {parts[parts.index(".fingerprint") + 1]}
+    if len(parts) >= 3 and parts[-3] == "build":
+        return {parts[-2]}
+    name = parts[-1].split(".", 1)[0]
+    return {name, name[3:]} if name.startswith("lib") else {name}
+
+
+def prune_plan(
+    target_dir: Path,
+    profile: str,
+    target: str,
+    owners: dict[str, frozenset[str]],
+    packages: frozenset[str],
+    records: Sequence[tuple[dict[str, str], dict[str, str]]],
+) -> dict[str, list[Path]]:
+    """Per package, the unit paths whose bytes no record vouches for.
+
+    A unit (the fingerprint directory, build directory and `deps` outputs
+    sharing a hash) is kept only when every file it holds is listed and
+    matches in some record, as `(recorded, current)` digests. Cargo rebuilds
+    a unit whose files are gone and dirties its dependents.
+    """
+    target_dir = _canonical(target_dir)
+    sound = {r for recorded, current in records for r, d in recorded.items() if current.get(r) == d}
+    found = _discover_artifacts_by_owner(target_dir, profile, target, owners, packages)
+    removed = {n for recorded, _ in records for r in recorded if r not in sound for n in _unit_names(r.split("/"))}
+    for paths in found.values():
+        for path in paths:
+            if path.relative_to(target_dir).as_posix() not in sound:
+                removed |= _unit_names(path.relative_to(target_dir).parts)
+    doomed: dict[str, set[Path]] = {owner: set() for owner in packages}
+    for owner in packages:
+        for path in found.get(owner, set()):
+            parts = path.relative_to(target_dir).parts
+            if _unit_names(parts) & removed:
+                cut = parts.index(".fingerprint") + 2 if ".fingerprint" in parts else (
+                    len(parts) - 1 if len(parts) >= 3 and parts[-3] == "build" else len(parts)
+                )
+                doomed[owner].add(target_dir.joinpath(*parts[:cut]))
+    return {owner: sorted(values) for owner, values in doomed.items()}
+
+
+def prune_units(doomed: Sequence[Path]) -> None:
+    """Remove the paths `prune_plan` named; a missing one is already gone."""
+    for path in doomed:
+        try:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+        except OSError as error:
+            raise BuildIdentityError(f"cannot remove stale unit {path}: {error}") from error
 
 
 def artifact_owners(manifest: Path, metadata_cwd: Path | None = None) -> dict[str, frozenset[str]]:

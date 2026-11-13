@@ -6,6 +6,7 @@
 - Driver: [Atlas PR #667](https://github.com/ryancinsight/atlas/pull/667), [Atlas PR #665](https://github.com/ryancinsight/atlas/pull/665), [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
 - Revision: 2026-11-10 — Allowed a stale exact-command record to recover only through a fully verified different-command sibling, without claiming preservation of arbitrary build variants.
+- Revision: 2026-11-12 — A mismatch in listed bytes alone removes the mismatched and unlisted units in place of a package clean (PR #682 judge FAILs).
 - Revision: 2026-11-11 — Added a diagnostic-only monotonic stage sidecar after the RITK run recorded in `pg-progress.xlfn_69b` expired at 600.076 seconds during Nextest compilation; it remains incomplete until publication and never certifies artifacts.
 - Revision: 2026-11-09–11 — Indexed canonical scopes while retaining flat version-7 authority; added revision-bound, no-fetch lock inventories and simultaneous immutable-provider resolution; resumed identical killed-run output through physical-profile writer marks after four cold pushes exceeded 600 seconds; and required installation and publication to materialize the same immutable source-keyed supervisor family without replacing the live installed gate.
 
@@ -74,7 +75,7 @@ Relative config paths resolve against Cargo's execution root; framing uses direc
 
 Managed artifacts stay inside the shared target and belong to exact Cargo target names, never prefixes. A source path or artifact outside the shared target is rejected before any clean. Stable acceptance requires two reads with unchanged size and modification time within the run deadline.
 A matching record hashes only its named artifacts; exclusive rebuilds rediscover names and remove retired ones. Changed, unreadable, or unsettled files are unverified and force a later clean.
-An artifact-only mismatch cleans its owners. A shape or dimension change cleans every path package; otherwise source/input movement cleans only affected path packages and exact recorded-file owners, while unattributable movement cleans every path package.
+An artifact-only mismatch, or a sibling standing in for a failed record, removes the units of the affected owners whose listed bytes differ or that no record lists, and keeps the rest; the command rebuilds them. A unit is the fingerprint directory, build directory and `deps` outputs of one hash. Cargo rebuilds a unit whose files are gone and dirties its dependents (real-Cargo probe). A run whose record matched lists again only the units that record listed, so it never vouches for bytes a peer wrote; files still present vouch for their units when a listed file is missing. A shape or dimension change cleans every path package; otherwise source/input movement cleans only affected path packages and exact recorded-file owners, while unattributable movement cleans every path package.
 One `cargo clean` receives the union plus profile and target. Registry packages are never cleaned.
 Git packages use build-directory stamps keyed by package/source identity, profile, and target. A building sentinel precedes clean and Cargo; only command success plus a stable final snapshot writes the content digest.
 A failed or killed command leaves a stale sentinel. Unstamped external Git artifacts remain trusted; a stale stamp is cleaned even under a matching or sibling record, including after an opaque custom clean.
@@ -108,6 +109,7 @@ Provider changes require all 28 executable member hook copies before pin advance
 
 ## Known limits
 
+- A unit no record lists, such as one a peer first creates between runs, is accepted on Cargo's fingerprint alone until a mismatch removes it; outputs without a unit hash (uplifted copies, documentation) are not pruned and are rewritten by the rebuilt unit.
 - Resume loses up to one heartbeat interval of the killed run's output. A peer write that preserves file mtimes at or before the heartbeat is invisible; a completed run's mark never resumes, so rewrites after completion still clean.
 - Untracked proc-macro/build-script reads are absent from `inputs`; another-repository inputs outside every package are guarded only by the post-command snapshot; excluded non-member path packages may clean once per changed export path.
 - Alias-expanded `--config` paths are unseen unless otherwise reached. Unknown Cargo/TOML 1.1 grammar fails closed rather than being parsed.

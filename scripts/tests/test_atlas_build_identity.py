@@ -1956,10 +1956,25 @@ class BuildIdentityTestCase(unittest.TestCase):
     ) -> list[str]:
         """Rebuild through `cargo clean -p`, recording the packages instead of running Cargo.
 
-        With `clean`, the run also has a custom clean command, which runs.
+        A package whose record fails only in some artifact bytes has its
+        mismatched and unlisted units removed instead; those are recorded by
+        package too. With `clean`, the run also has a custom clean command,
+        which runs.
         """
         packages: list[str] = []
         run_checked = identity._run_checked
+        prune_units = identity.prune_units
+
+        def pruning(doomed):
+            packages.extend(
+                sorted(
+                    {
+                        re.sub(r"-[0-9a-f]+$", "", path.name.split(".")[0].removeprefix("lib"))
+                        for path in doomed
+                    }
+                )
+            )
+            prune_units(doomed)
 
         def recording(command, cwd, environment):
             if (names := cleaned_names(command)) is not None:
@@ -1971,7 +1986,10 @@ class BuildIdentityTestCase(unittest.TestCase):
                 return
             run_checked(command, cwd, environment)
 
-        with patch.object(identity, "_run_checked", side_effect=recording):
+        with (
+            patch.object(identity, "_run_checked", side_effect=recording),
+            patch.object(identity, "prune_units", side_effect=pruning),
+        ):
             self.dependency_build(
                 source_token,
                 discover=True,
@@ -4980,6 +4998,9 @@ LEASE_PROBE = (
     "    lease.__exit__(None, None, None)\n"
     "    answers[f'{name}:{mode}'] = 'granted'\n"
     "Path(sys.argv[2]).write_text(json.dumps(answers, sort_keys=True), encoding='utf-8')\n"
+    "import os\n"
+    "if os.environ.get('REPLACEMENT'):\n"
+    "    Path(os.environ['REPLACEMENT']).write_text('renamed', encoding='utf-8')\n"
 )
 
 
@@ -5151,10 +5172,7 @@ class CommandLeaseModeTestCase(unittest.TestCase):
             self.clean,
             "import os\n"
             "from pathlib import Path\n"
-            "Path(os.environ['ARTIFACT']).write_text('rebuilt', encoding='utf-8')\n"
-            "if os.environ.get('RETIRE'):\n"
-            "    Path(os.environ['RETIRE']).unlink()\n"
-            "    Path(os.environ['REPLACEMENT']).write_text('renamed', encoding='utf-8')\n",
+            "Path(os.environ['ARTIFACT']).write_text('rebuilt', encoding='utf-8')\n",
         )
         init_repo(self.root, "fn main() {}\n")
 
@@ -5333,10 +5351,9 @@ class CommandLeaseModeTestCase(unittest.TestCase):
         self.build("clippy", declared=False)
         self.artifacts["dep2"].write_text("changed", encoding="utf-8")
         replacement = self.artifacts["dep2"].with_name("libdep2-fedcba.rlib")
-        with patch.dict(
-            os.environ,
-            {"RETIRE": str(self.artifacts["dep2"]), "REPLACEMENT": str(replacement)},
-        ):
+        # The changed unit is removed, and the build command rebuilds it
+        # under another hash.
+        with patch.dict(os.environ, {"REPLACEMENT": str(replacement)}):
             self.build("clippy", declared=False)
         self.assertEqual(
             sorted(self.recorded()),
@@ -6271,6 +6288,7 @@ class MultiPackageRunTestCase(unittest.TestCase):
         command: list[str] | None = None,
         packages: tuple[str, ...] = ("a", "c"),
         record: tuple[str, ...] = (),
+        key: str = "atlas-pre-push",
     ):
         """One clippy step building `packages` and recording `record` (default:
         all of them), in the gate's export, cloned from the source when new."""
@@ -6293,7 +6311,7 @@ class MultiPackageRunTestCase(unittest.TestCase):
                 or ["cargo", "clippy", "-q", "--manifest-path", manifest, "--locked", "--offline",
                     *(argument for package in packages for argument in ("-p", package))],
                 command_cwd=export,
-                command_key="atlas-pre-push",
+                command_key=key,
                 selection=packages,
             )
 
@@ -6344,8 +6362,59 @@ class MultiPackageRunTestCase(unittest.TestCase):
             path.write_bytes(b"a stand-in for " + path.name.encode())
         second = self.push(self.base / "gate2")
         self.assertEqual([result.status for result in second], ["reused", "rebuilt"])
-        cleans = [cleaned_names(argv) for argv in self.invocations() if argv[1] == "clean"]
-        self.assertEqual(cleans, [["c"]])
+        # No `cargo clean`: `c`'s mismatched units are removed and rebuilt.
+        self.assertEqual([argv for argv in self.invocations() if argv[1] == "clean"], [])
+        for path in deps.glob("libc-*"):
+            self.assertNotIn(b"a stand-in for", path.read_bytes(), path.name)
+
+    def pruned(self, push) -> list[str]:
+        """The unit paths a push removed instead of cleaning, relative to the target."""
+        removed: list[str] = []
+        prune_units = identity.prune_units
+        target = self.base / "target"
+
+        def recording(doomed):
+            removed.extend(sorted(path.relative_to(target).as_posix() for path in doomed))
+            prune_units(doomed)
+
+        with patch.object(identity, "prune_units", side_effect=recording):
+            push()
+        return removed
+
+    def test_a_matched_record_lists_again_only_the_files_it_listed(self) -> None:
+        first = self.push(self.base / "gate1")
+        peer = self.base / "target" / "debug" / "deps" / "libc-0123456789abcdef.rmeta"
+        peer.write_bytes(b"a peer's unit")
+        second = self.push(self.base / "gate2")
+        self.assertEqual([result.status for result in second], ["reused", "reused"])
+        listed = json.loads(second[1].record_path.read_text(encoding="utf-8"))["artifact"]["files"]
+        self.assertEqual(
+            sorted(listed), sorted(json.loads(first[1].record_path.read_text(encoding="utf-8"))["artifact"]["files"])
+        )
+        self.assertNotIn("debug/deps/" + peer.name, listed)
+
+    def test_files_still_present_vouch_for_their_units_when_a_listed_file_is_missing(self) -> None:
+        """The second stage lists test units the first never built. Of `c`'s two, one has a
+        listed file gone and another replaced, so it is removed; the other is intact and stays."""
+        (self.source / "c" / "tests").mkdir()
+        (self.source / "c" / "tests" / "t.rs").write_text("#[test]\nfn t() {}\n", encoding="utf-8")
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "tests")
+        deps = self.base / "target" / "debug" / "deps"
+        manifest = str(self.base / "gate1" / "nested" / "ws" / "Cargo.toml")
+        every = ["cargo", "clippy", "--all-targets", "-q", "--manifest-path", manifest, "--locked", "--offline", "-p", "a", "-p", "c"]
+        self.push(self.base / "gate1", key="first")
+        lib_units = {path.name for path in deps.glob("lib*.rmeta")}
+        self.push(self.base / "gate1", command=every, key="second")
+        broken, healthy = (next(path for path in deps.glob(f"lib{name}-*.rmeta") if path.name not in lib_units) for name in "ct")
+        next((deps.parent / ".fingerprint" / broken.stem.removeprefix("lib")).glob("dep-*")).unlink()
+        broken.write_bytes(b"a stand-in for c")
+        kept = {path: path.read_bytes() for path in deps.glob(f"*{healthy.stem.removeprefix('lib')}.*")}
+        removed = self.pruned(lambda: self.push(self.base / "gate1", command=every, key="second"))
+        self.assertEqual(removed.count("debug/deps/" + broken.name), 1, removed)
+        self.assertFalse([name for name in removed if healthy.stem.removeprefix("lib") in name], removed)
+        self.assertEqual({path: path.read_bytes() for path in kept}, kept)
+        self.assertNotIn(b"a stand-in for c", broken.read_bytes())
 
     def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
         first = self.push(self.base / "gate1", packages=("a", "b"))
