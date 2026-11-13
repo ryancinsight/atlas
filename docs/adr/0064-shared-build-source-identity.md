@@ -3,10 +3,10 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Class: [arch]
-- Driver: [Atlas PR #667](https://github.com/ryancinsight/atlas/pull/667), [Atlas PR #665](https://github.com/ryancinsight/atlas/pull/665), [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
+- Driver: [Atlas PR #682](https://github.com/ryancinsight/atlas/pull/682), [Atlas PR #681](https://github.com/ryancinsight/atlas/pull/681), [Atlas PR #667](https://github.com/ryancinsight/atlas/pull/667), [Atlas PR #665](https://github.com/ryancinsight/atlas/pull/665), [Atlas PR #626](https://github.com/ryancinsight/atlas/pull/626), [Atlas PR #623](https://github.com/ryancinsight/atlas/pull/623), [Atlas PR #588](https://github.com/ryancinsight/atlas/pull/588), [Atlas PR #500](https://github.com/ryancinsight/atlas/pull/500) and [Moirai PR #596](https://github.com/ryancinsight/moirai/pull/596)
 - Item: ATLAS-BUILD-SOURCE-IDENTITY (closed by [PR #295](https://github.com/ryancinsight/atlas/pull/295), [PR #296](https://github.com/ryancinsight/atlas/pull/296), and [PR #299](https://github.com/ryancinsight/atlas/pull/299))
 - Revision: 2026-11-10 — Allowed a stale exact-command record to recover only through a fully verified different-command sibling, without claiming preservation of arbitrary build variants.
-- Revision: 2026-11-12 — A mismatch in listed bytes alone removes the mismatched and unlisted units in place of a package clean (PR #682 judge FAILs).
+- Revision: 2026-11-12 — The gate issues one identity run per stage (Clippy, Nextest, Rustdoc) over every gated package, so a stage finished before the deadline leaves its record. A mismatch in listed bytes alone removes the mismatched and unlisted units in place of a package clean (PR #682 judge FAILs).
 - Revision: 2026-11-11 — Added a diagnostic-only monotonic stage sidecar after the RITK run recorded in `pg-progress.xlfn_69b` expired at 600.076 seconds during Nextest compilation; it remains incomplete until publication and never certifies artifacts.
 - Revision: 2026-11-09–11 — Indexed canonical scopes while retaining flat version-7 authority; added revision-bound, no-fetch lock inventories and simultaneous immutable-provider resolution; resumed identical killed-run output through physical-profile writer marks after four cold pushes exceeded 600 seconds; and required installation and publication to materialize the same immutable source-keyed supervisor family without replacing the live installed gate.
 
@@ -45,7 +45,7 @@ An artifact is accepted only after one successful leased run proves that its pac
 Source-root paths and revisions never partition lease or record keys for overlapping artifacts: equivalent exports reuse, while different content contends and rebuilds.
 `atlas_build_records.py` owns record format, `atlas_build_inputs.py` dimensions and dependency data, and `atlas_build_identity.py` the run, clean, and lease protocol; operation-family modules under References own their stated parts.
 Record version 7 stores one record under `target/.atlas/source-identity` per shared target, package, profile, target, features, toolchain, environment, Cargo configuration, dependency closure, stable command key, and complete multi-package selection.
-Every package selected in one Cargo invocation participates because feature unification can change all selected artifacts; one gate step issues one command with every `-p`, reads metadata once, holds the union of leases, cleans one union, and keeps one record per package under command key `atlas-pre-push` without a package suffix.
+Every package selected in one Cargo invocation participates because feature unification can change all selected artifacts; one gate stage issues one command with every `-p`, reads metadata once, holds the union of leases, cleans one union, and keeps one record per package under the stage's command key (`atlas-pre-push-clippy`, `atlas-pre-push-tests`, `atlas-pre-push-rustdoc`) without a package suffix. A stage's record lands when that stage succeeds, so a killed later stage leaves the earlier records. Each stage's record is a different-command sibling of the others, so the recovery above lets one stage reuse the files another verified.
 Older, missing, malformed, or unsupported records mismatch; versions 1–6 are stale. Records are atomic and contain diagnostic root and revision, dirty state, path-package identities and inputs, resolved closure and dimensions, and actual artifact hashes.
 Revision remains diagnostic and guards declared-artifact runs but is absent from record paths and lease keys. Workspace path sources use workspace-relative identity.
 
@@ -97,7 +97,7 @@ After Cargo, named dependency files are rehashed until two reads settle; unreada
 ### Build entry points and Cargo applicability
 
 Pre-push judges each non-deletion pushed commit, not the working tree, through `read-tree -u --reset` in the member object store with long paths enabled, producing a symlink-preserving repository checkout at one short reusable path outside the development overlay; interruption removes it.
-One sequence covers all selected packages and holds leases through warning-denied Clippy, Nextest, Rustdoc, and final identity verification, all with the committed lock.
+One sequence of identity runs covers all selected packages, one run per stage: warning-denied Clippy, Nextest, then Rustdoc, each holding its leases through its own Cargo command and final identity verification, all with the committed lock. A stage runs only after the previous one succeeded. A peer that replaces a unit a record lists between two stages makes the next lookup mismatch under that stage's own leases, which removes the unit and rebuilds it.
 `workspace.metadata.atlas.documentation-phase` is either `"pre-push"` (default) or `"pre-merge"`. The latter is valid only when required CI documents the candidate and moves only Rustdoc to `pre-push documentation <candidate> [<base>]`, using the same hook, export, selection, target, leases, and final read; required CI remains merge authority.
 No record substitutes for executing documentation. Other build entry points reuse the same identity modules and format.
 
@@ -109,7 +109,8 @@ Provider changes require all 28 executable member hook copies before pin advance
 
 ## Known limits
 
-- A unit no record lists, such as one a peer first creates between runs, is accepted on Cargo's fingerprint alone until a mismatch removes it; outputs without a unit hash (uplifted copies, documentation) are not pruned and are rewritten by the rebuilt unit.
+- A unit no record lists, such as one a peer first creates between stages, is accepted on Cargo's fingerprint alone until a mismatch removes it; outputs without a unit hash (uplifted copies, documentation) are not pruned and are rewritten by the rebuilt unit.
+- Leases no longer span the push: a peer may build between two stages, and the next stage then re-verifies and removes what mismatches. Three lease acquisitions replace one per push. A mismatch also removes units no record lists, so a stage may rebuild another stage's fresh unit.
 - Resume loses up to one heartbeat interval of the killed run's output. A peer write that preserves file mtimes at or before the heartbeat is invisible; a completed run's mark never resumes, so rewrites after completion still clean.
 - Untracked proc-macro/build-script reads are absent from `inputs`; another-repository inputs outside every package are guarded only by the post-command snapshot; excluded non-member path packages may clean once per changed export path.
 - Alias-expanded `--config` paths are unseen unless otherwise reached. Unknown Cargo/TOML 1.1 grammar fails closed rather than being parsed.
@@ -127,7 +128,10 @@ The compact index reduces payload reads only for indexed canonical records. Unin
 
 ## Alternatives rejected
 
-- Progressive per-stage records, or recording after a partial command, either split a phase into several commands, which lets a peer replace artifacts between them, or record artifacts Cargo has not finished writing. A mark written before the command and honored only for an identical identity keeps one command per phase and records nothing unverified.
+- Recording after a partial command, or inside one running command at a stage boundary, writes artifacts Cargo may still rewrite beside live source, dependency and census checks. One command per stage keeps post-command verification.
+- One identity run for the sequence records nothing when the deadline kills a later stage, and leaves building stamps on the Git packages it had not stamped, which the next run cleans whatever the record (`stale-git`). A finished stage stamps and records on its own success.
+- One run per package and stage multiplied runs by the package count (36 for one 12-package step, `ATLAS-GATE-STEP-BATCH`); a stage run covers every gated package.
+- Listing only the units a command wrote (by modification time, plus units carried from a sibling) failed twice: a fresh unit a stage relied on was listed by no record, so a peer's in-place rebuild was accepted, and carried test units made clippy mismatch after a tests kill.
 - Raising the 600-second deadline or skipping the clean after any kill hides the cold-build cost or trusts artifacts of any writer; the mark is bound to one identity and replaced by every other writer.
 - Working-tree `.githooks`, hand-copied member hooks, or changing live installed refs let the candidate replace its judge or duplicate policy; immutable fetched tooling plus invocation-local prepared selection preserves the trust boundary.
 - Per-source targets fork the cache; manual cleaning has no ownership; Cargo fingerprint JSON and missing `.fingerprint` directories are not stable identity APIs.

@@ -493,6 +493,34 @@ class GateFixture:
                 "  exit 1\n"
                 "fi\nexit 0\n"
             )
+        elif mode == "stage-artifacts":
+            # Writes one artifact set per stage the way Cargo does: only when
+            # absent (a fresh unit is not rebuilt), removed by `clean`. The
+            # doc stage dies, as a deadline kill ends it, while the marker
+            # exists. Every artifact name is `foo-<hash>`, which the real
+            # identity checker attributes to the package `foo`.
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'profile="$CARGO_TARGET_DIR/debug"\n'
+                "unit() {\n"
+                '  mkdir -p "$profile/deps" "$profile/.fingerprint/foo-$1"\n'
+                '  [ -e "$profile/deps/libfoo-$1.rlib" ] || printf "%s" "$1" > "$profile/deps/libfoo-$1.rlib"\n'
+                '  [ -e "$profile/.fingerprint/foo-$1/lib-foo" ] || printf "%s" "$1" > "$profile/.fingerprint/foo-$1/lib-foo"\n'
+                "}\n"
+                'case "$1" in\n'
+                "  clippy)\n"
+                "    unit 1111111111111111\n"
+                "    ;;\n"
+                "  nextest)\n"
+                "    unit 2222222222222222\n"
+                "    ;;\n"
+                "  doc)\n"
+                '    if [ -e "$FIXTURE_ROOT/kill-doc" ]; then exit 137; fi\n'
+                "    unit 3333333333333333 ;;\n"
+                "  clean)\n"
+                '    rm -rf "$profile"/deps/*foo-* "$profile"/.fingerprint/foo-* ;;\n'
+                "esac\nexit 0\n"
+            )
         elif mode == "mutate-source-on-doc":
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
@@ -1455,13 +1483,15 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertEqual(code, 1, stderr)
             self.assertIn("clippy fails for tool", stderr)
             invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
-            self.assertEqual(len(invocations), 2)
+            # The first workspace completes its clippy and tests stages; the
+            # second fails in clippy and runs no further stage.
+            self.assertEqual(len(invocations), 3)
             self.assertEqual(
                 [
                     pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
                     for item in invocations
                 ],
-                ["checkout-path-dependencies", "version-guard"],
+                ["checkout-path-dependencies", "checkout-path-dependencies", "version-guard"],
             )
 
     def test_removed_selected_manifest_fails_closed(self) -> None:
@@ -3081,11 +3111,13 @@ class LaneGateTestCase(unittest.TestCase):
 
     inside_log = BlameClassifierTestCase.inside_log
 
-    def _lane(self, overlay: bool) -> tuple:
+    def _lane(self, overlay: bool, documentation_phase: str | None = "pre-merge") -> tuple:
         temp = tempfile.TemporaryDirectory(prefix="pre-push-lane-")
         self.addCleanup(temp.cleanup)
         stack = pathlib.Path(temp.name)
-        fixture = GateFixture(stack / "repos" / "foo")
+        fixture = GateFixture(
+            stack / "repos" / "foo", documentation_phase=documentation_phase
+        )
         _write(stack / "scripts" / "lockfile.py", _STACK_LOCKFILE_STUB, executable=True)
         _publish_stack_scripts(stack)
         if overlay:
@@ -3181,7 +3213,9 @@ class LaneGateTestCase(unittest.TestCase):
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
         commands = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
-        self.assertEqual(len(commands), 1, commands)
+        # One identity run per stage, each over the whole selection.
+        self.assertEqual(len(commands), 2, commands)
+        self.assertEqual([command[4] for command in commands], ["clippy", "tests"], commands)
         self.assertEqual(commands[0][0:2], ["bash", "-c"], commands[0])
         manifests = [pathlib.Path(value) for value in commands[0] if value.endswith("Cargo.toml")]
         # The sequence names the exported manifest absolutely and the form
@@ -3253,6 +3287,65 @@ class LaneGateTestCase(unittest.TestCase):
         )
         self.assertEqual(records, [], "a mutated source must not receive a build record")
 
+    def test_a_killed_later_stage_leaves_earlier_stages_recorded(self) -> None:
+        """Clippy and tests finish, rustdoc dies, and the rerun cleans nothing.
+
+        The deadline kills the sequence in a later stage; each stage records
+        its artifacts on its own success, so the next run finds clippy's and
+        the tests' records valid and reuses what they built instead of
+        cleaning it and rebuilding it.
+        """
+        # No documentation phase named: rustdoc belongs to the push itself.
+        stack, fixture, lane = self._lane(overlay=True, documentation_phase=None)
+        _install_real_identity(stack)
+        # The identity CLI imports the real cast gate, whose check reads its
+        # committed baseline from the stack's scripts.
+        shutil.copy2(SCRIPT.parents[1] / "cast-baseline.json", stack / "scripts")
+        fixture.set_cargo_behavior("stage-artifacts")
+        target = stack / "target"
+        deps = target / "debug" / "deps"
+        _write(fixture.root / "kill-doc", "")
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            target_directory=target,
+        )
+        self.assertEqual(code, 1, err)
+        built = {
+            path.name: path.stat().st_mtime_ns for path in sorted(deps.glob("libfoo-*.rlib"))
+        }
+        self.assertEqual(
+            sorted(built), ["libfoo-1111111111111111.rlib", "libfoo-2222222222222222.rlib"], err
+        )
+        calls = fixture.calls
+        calls.unlink()
+        (fixture.root / "kill-doc").unlink()
+        code, err = self._run_in_lane(
+            fixture,
+            lane,
+            target_directory=target,
+        )
+        self.assertEqual(code, 0, err)
+        verbs = [line.split()[0] for line in calls.read_text(encoding="utf-8").splitlines()]
+        self.assertNotIn("clean", verbs, verbs)
+        self.assertEqual(
+            {name: (deps / name).stat().st_mtime_ns for name in built},
+            built,
+            "the first run's artifacts must be reused, not rebuilt",
+        )
+        self.assertTrue((deps / "libfoo-3333333333333333.rlib").is_file())
+        # Each stage owns its record, so a later stage cannot erase an earlier one.
+        keys = sorted(
+            json.loads(path.read_text(encoding="utf-8"))["build"]["command_key"]
+            for path in (target / ".atlas" / "source-identity").glob("*.json")
+            if "build" in json.loads(path.read_text(encoding="utf-8"))
+        )
+        self.assertEqual(
+            keys,
+            ["atlas-pre-push-clippy", "atlas-pre-push-rustdoc", "atlas-pre-push-tests"],
+            err,
+        )
+
     def test_a_new_member_gates_each_package_once_by_its_exact_name(self) -> None:
         """A root-manifest change gates every member under its exact name.
 
@@ -3294,9 +3387,9 @@ class LaneGateTestCase(unittest.TestCase):
         gated = gating[0].removeprefix("pre-push: gating ").split(" ")
         self.assertEqual(sorted(gated), ["bar", "foo"], repr(gating[0]))
         runs = log.read_text(encoding="utf-8").splitlines()
-        # One identity run names every gated package and holds their leases
-        # across the complete push-phase clippy and tests sequence.
-        self.assertEqual(len(runs), 1, runs)
+        # Each stage's identity run names every gated package and holds their
+        # leases across that stage: clippy, then tests.
+        self.assertEqual(len(runs), 2, runs)
         self.assertEqual({frozenset(run.split()) for run in runs}, {frozenset({"'bar'", "'foo'"})})
 
     def test_a_package_without_test_targets_skips_only_the_tests_step(self) -> None:
@@ -3333,7 +3426,7 @@ class LaneGateTestCase(unittest.TestCase):
         )
         code, err = self._run_in_lane(fixture, lane, target_directory=stack / "target")
         self.assertEqual(code, 0, err)
-        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 1)
+        self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 2)
         stages = [
             line for line in fixture.calls.read_text(encoding="utf-8").splitlines()
             if line.split()[0] in {"clippy", "nextest", "doc"}
@@ -3467,7 +3560,7 @@ class LaneGateTestCase(unittest.TestCase):
             os.path.normcase(str(stack.resolve())),
             os.path.normcase(str(exported)),
         )
-        self.assertEqual(argv[argv.index("--command-key") + 1], "atlas-pre-push")
+        self.assertEqual(argv[argv.index("--command-key") + 1], "atlas-pre-push-rustdoc")
 
         stages = [
             line.split()
@@ -4822,7 +4915,8 @@ class SourceIdentityGateTestCase(unittest.TestCase):
 
             self.assertEqual(code, 0, stderr)
             lines = log.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(lines), 1, lines)
+            # Clippy, then tests: one identity run per stage.
+            self.assertEqual(len(lines), 2, lines)
             invocation = json.loads(lines[0])
             first = invocation["argv"]
             command = first[first.index("--") + 1:]
@@ -4837,8 +4931,10 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             self.assertEqual(command[-2:], ["-p", "foo"])
             self.assertEqual(first[0], "run")
             self.assertEqual(first[first.index("--package") + 1], "foo")
-            # One key for the step; the record is per package regardless.
-            self.assertEqual(first[first.index("--command-key") + 1], "atlas-pre-push")
+            # One key per stage; the record is per package regardless.
+            self.assertEqual(first[first.index("--command-key") + 1], "atlas-pre-push-clippy")
+            second = json.loads(lines[1])["argv"]
+            self.assertEqual(second[second.index("--command-key") + 1], "atlas-pre-push-tests")
             self.assertNotIn("--ignore-path", first)
             pushed = _git(fixture.root, "rev-parse", "feat")
             self.assertEqual(invocation["root_head"], pushed)
@@ -4874,7 +4970,7 @@ class SourceIdentityGateTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertIn(prepared, stderr)
             lines = log.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(lines), 1, lines)
+            self.assertEqual(len(lines), 2, lines)
             invocation = json.loads(lines[0])
             ran_from = pathlib.Path(invocation["path"]).resolve()
             self.assertNotIn(stack.resolve(), ran_from.parents)
@@ -4936,7 +5032,7 @@ class StackToolBaselineTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertNotIn("identity checker is missing", stderr)
             lines = identity_log.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(lines), 1, lines)
+            self.assertEqual(len(lines), 2, lines)
             invocation = json.loads(lines[0])
             ran_from = invocation["path"]
             argv = invocation["argv"]
@@ -5219,14 +5315,16 @@ class CastGateTestCase(unittest.TestCase):
             # The base's clippy is the leased command itself; the tip's runs
             # inside the identity sequence's embedded script, under its key.
             base_steps = invocation_argv("atlas-pre-push-casts-base")
-            tip_steps = invocation_argv("atlas-pre-push")
+            tip_steps = invocation_argv("atlas-pre-push-clippy")
             self.assertEqual(len(base_steps), 1, base_steps)
             self.assertEqual(len(tip_steps), 1, tip_steps)
             base_step, tip_step = base_steps[0], tip_steps[0]
             # The base builds first, in its own export, under its own key.
             self.assertEqual(base_step[base_step.index("--command-key") + 1],
                              "atlas-pre-push-casts-base")
-            self.assertEqual(tip_step[tip_step.index("--command-key") + 1], "atlas-pre-push")
+            self.assertEqual(
+                tip_step[tip_step.index("--command-key") + 1], "atlas-pre-push-clippy"
+            )
             base_root = base_step[base_step.index("--root") + 1]
             tip_root = tip_step[tip_step.index("--root") + 1]
             self.assertNotEqual(base_root, tip_root)
@@ -5486,7 +5584,7 @@ class CastGateTestCase(unittest.TestCase):
                 for item in (json.loads(line) for line in
                              identity_log.read_text(encoding="utf-8").splitlines())
             ]
-            self.assertEqual(keys, ["atlas-pre-push"])
+            self.assertEqual(keys, ["atlas-pre-push-clippy", "atlas-pre-push-tests"])
 
     def test_a_trigger_names_itself_on_the_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:

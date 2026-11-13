@@ -440,16 +440,15 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
     rather than comparing them against a prior expectation -- adoption, not
     mismatch detection, because Cargo already did the enforcing before this
     module looked. What exclusion actually buys: the pre-push hook runs
-    clippy, nextest, and `cargo doc` under one shared `command_key` for one
-    package precisely so they read one record (`_sibling_matches` ignores
-    only the command key, comparing every other build dimension); including
-    a rustdoc-only input here would give the doc step's
+    clippy, nextest, and `cargo doc` as stages with a `command_key` each, so
+    that one stage's record can stand in for another's (`_sibling_record`
+    ignores only the command key, comparing every other build dimension);
+    including a rustdoc-only input here would give the doc step's
     `env RUSTDOCFLAGS=... cargo doc` invocation a different
     `environment_digest` from the clippy and test steps' plain invocations,
-    splitting one shared record into two and making each stale to the
-    other -- a real-Cargo run of that exact three-step sequence measured
-    this cleaning the whole dependency closure on every push instead of
-    after the first.
+    so no stage's record could stand in for another's -- a real-Cargo run
+    of that exact three-step sequence measured this cleaning the whole
+    dependency closure on every push instead of after the first.
     """
     source = os.environ if environment is None else environment
     keys = {
