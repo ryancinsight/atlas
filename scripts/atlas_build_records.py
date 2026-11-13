@@ -7,7 +7,7 @@ import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Iterator, Sequence
 
 from atlas_build_artifacts import UNVERIFIED, recorded_artifact_identity
 from atlas_build_lease import BuildIdentityError
@@ -69,7 +69,12 @@ class BuildSpec:
 @dataclass(frozen=True)
 class _SiblingRecord:
     record: dict[str, object]
-    artifact: dict[str, object]
+    artifact: dict[str, object] | None
+
+    @property
+    def verified(self) -> bool:
+        """Whether every file it lists is still as recorded, so it may stand in."""
+        return self.artifact == self.record.get("artifact")
 
 
 def _content(record: object) -> object:
@@ -257,7 +262,19 @@ def _sibling_record(
     dependencies: dict[str, object],
     inputs_hold: Callable[[dict[str, object]], bool],
 ) -> _SiblingRecord | None:
-    """A record of the same build and source under another command key.
+    """The first sibling record whose files all still verify, which may stand in."""
+    return next((r for r in _sibling_records(spec, dependencies, inputs_hold) if r.verified), None)
+
+
+def _sibling_records(
+    spec: BuildSpec,
+    dependencies: dict[str, object],
+    inputs_hold: Callable[[dict[str, object]], bool],
+) -> Iterator[_SiblingRecord]:
+    """Every record of the same build and source under another command key.
+
+    Each carries its artifacts as they are now (None when one cannot be read);
+    only a verified one may stand in, but any lists units that are its own.
 
     Its artifact names cover the dependency closure this run reads, so a run
     that holds the dependencies shared hashes them by those names. The
@@ -268,7 +285,7 @@ def _sibling_record(
     build.pop("command_key")
     directory = record_path(spec).parent
     if not directory.is_dir():
-        return None
+        return
     candidates = list(directory.glob("*.json"))
     scopes = _indexed_record_scopes(directory, candidates)
     family = _record_family(
@@ -301,10 +318,7 @@ def _sibling_record(
             and record.get("dependencies") == dependencies
             and inputs_hold(record)
         ):
-            artifact = _recorded_artifact(record, Path(spec.target_dir), ())
-            if artifact == record.get("artifact"):
-                return _SiblingRecord(record, artifact)
-    return None
+            yield _SiblingRecord(record, _recorded_artifact(record, Path(spec.target_dir), ()))
 
 
 def _recorded_artifact(

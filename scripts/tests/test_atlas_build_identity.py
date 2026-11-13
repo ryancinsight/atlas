@@ -2453,6 +2453,15 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(third.status, "reused")
         self.assertEqual(self.artifact.read_text(encoding="utf-8"), "second")
 
+    def test_a_killed_run_is_resumed_under_another_command_key(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.dependency_build("first", discover=True)
+        self.dependency_build("first", discover=True, command_key="another-stage")
+        self.commit_source_change("fn main() { changed(); }\n", "change source")
+        self.assertEqual(self.killed_run("second"), ["demo"])
+        self.assertEqual(self.cleaned_packages("second", command_key="another-stage"), [])
+
     def test_a_killed_run_is_resumed_again_after_a_second_kill(self) -> None:
         self.killed_after_source_change()
         self.assertEqual(self.killed_run("second"), [])
@@ -5489,14 +5498,18 @@ class StageSequenceTestCase(unittest.TestCase):
 
     `kapp` depends on `kcore`, whose build script and library each stage
     compiles in its own units, and on a Git crate `kgit`. The sources are
-    given old mtimes, as a fresh export gives them, so Cargo calls whatever
-    it finds on disk fresh.
+    given old mtimes, as a fresh export gives them, so Cargo calls the units
+    it finds on disk fresh. Each test asserts what the runs pruned: nothing when
+    a killed stage's output is resumed, and for a peer's rebuild every pruned
+    file rewritten afterwards, so a no-op prune cannot pass on Cargo's own
+    freshness check.
     """
 
     def setUp(self) -> None:
         temp = tempfile.TemporaryDirectory(prefix="atlas-stage-sequence-")
         self.addCleanup(temp.cleanup)
         self.base = Path(temp.name).resolve()
+        self.pruned: dict[Path, int] = {}
         self.source = self.base / "ws"
         kgit = self.base / "kgit"
         (kgit / "src").mkdir(parents=True)
@@ -5510,7 +5523,7 @@ class StageSequenceTestCase(unittest.TestCase):
         for relative, text in {
             "Cargo.toml": '[workspace]\nmembers = ["kcore", "kapp"]\nresolver = "2"\n',
             "kcore/Cargo.toml": '[package]\nname = "kcore"\nversion = "0.1.0"\nedition = "2021"\n',
-            "kcore/build.rs": "fn main() {}\n",
+            "kcore/build.rs": 'fn main() {\n    println!("cargo:rerun-if-changed=build.rs");\n}\n',
             "kapp/Cargo.toml": '[package]\nname = "kapp"\nversion = "0.1.0"\nedition = "2021"\n\n'
             f'[dependencies]\nkcore = {{ path = "../kcore" }}\nkgit = {{ git = "{kgit.as_uri()}" }}\n',
             "kapp/src/lib.rs": "pub fn v() -> u32 { kcore::value() + kgit::g() }\n#[cfg(test)]\nmod t {\n"
@@ -5525,7 +5538,8 @@ class StageSequenceTestCase(unittest.TestCase):
             key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
         }
         self.environment["PROBE_OUT"] = str(self.base / "probe.txt")
-        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+        # Not resolved: a subst drive keeps `CARGO_HOME` short enough for Cargo's Git checkout.
+        self.environment["CARGO_HOME"] = str(Path(temp.name) / "cargo-home")
         subprocess.run(
             ["cargo", "generate-lockfile"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -5549,7 +5563,7 @@ class StageSequenceTestCase(unittest.TestCase):
         arguments = ["--locked", "--offline", "--manifest-path", manifest]
         command = {
             "clippy": ["cargo", "clippy", "--all-targets", *arguments],
-            "tests": ["cargo", "test", *arguments],
+            "tests": ["cargo", "nextest", "run", "--no-tests=pass", *arguments],
             "rustdoc": ["cargo", "doc", "--no-deps", *arguments],
         }[name]
         if kill:
@@ -5557,18 +5571,25 @@ class StageSequenceTestCase(unittest.TestCase):
             command = [
                 sys.executable, "-c",
                 "import subprocess, sys; subprocess.run(sys.argv[1:]); sys.exit(137)",
-                "cargo", "test", "--no-run", *arguments,
+                "cargo", "nextest", "run", "--no-run", *arguments,
             ]
         run_checked = identity._run_checked
+        prune_units = identity.prune_units
 
         def recording(argv, cwd, environment):
             if (names := cleaned_names(argv)) is not None:
                 self.cleans.append(names)
             run_checked(argv, cwd, environment)
 
+        def pruning(doomed):
+            self.pruned.update({path: path.stat().st_mtime_ns for path in doomed if path.is_file()})
+            prune_units(doomed)
+
+        environment = {**self.environment, **({"RUSTDOCFLAGS": "-D warnings"} if name == "rustdoc" else {})}
         with (
-            patch.dict(os.environ, self.environment, clear=True),
+            patch.dict(os.environ, environment, clear=True),
             patch.object(identity, "_run_checked", side_effect=recording),
+            patch.object(identity, "prune_units", side_effect=pruning),
         ):
             try:
                 identity.run_build(
@@ -5596,7 +5617,7 @@ class StageSequenceTestCase(unittest.TestCase):
         debug = self.base / "target" / "debug"
         return {
             path.relative_to(debug).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
-            for part in (".fingerprint", "deps")
+            for part in (".fingerprint", "deps", "build")
             for path in (debug / part).rglob("*")
             if path.is_file()
         }
@@ -5615,6 +5636,15 @@ class StageSequenceTestCase(unittest.TestCase):
             for path in (debug / part).rglob("*"):
                 if path.is_file() and path.relative_to(debug).as_posix() not in kept:
                     os.utime(path, (then, then))
+
+    def assert_rebuilt(self) -> None:
+        """The run pruned something, and every pruned file was rewritten by a later stage."""
+        self.assertTrue(self.pruned)
+        stale = sorted(
+            path.name for path, before in self.pruned.items()
+            if not path.exists() or path.stat().st_mtime_ns <= before
+        )
+        self.assertEqual(stale, [])
 
     def assert_kept(self, kept: dict[str, tuple[bytes, int]]) -> None:
         """No file of `kept` was removed, rewritten or touched since."""
@@ -5639,33 +5669,40 @@ class StageSequenceTestCase(unittest.TestCase):
         self.stage("tests", kill=True)
         self.settle(kept)
         self.cleans.clear()
+        self.pruned.clear()
         self.push()
         self.assertEqual(self.cleans, [])
         self.assertEqual(self.probe(), "7")
         self.assert_kept(kept)
+        self.assertEqual(self.pruned, {}, "the killed stage's output is resumed under another stage's key")
 
-    def test_outputs_without_a_unit_hash_follow_the_units_a_peer_rebuilt(self) -> None:
-        self.push()
+    def test_a_peer_rebuilt_unit_is_pruned_though_cargo_calls_it_fresh(self) -> None:
+        """A peer at the first revision rebuilds the test and documentation units in place.
+
+        Its source is newer than the units only while it builds; the build
+        script reruns on its own file, and the edit back to the second
+        revision is dated old, so Cargo calls the peer's units fresh. Only the
+        prune makes the stage compile the current source (probe 7), and
+        `target/doc`, which carries no unit hash, follow its documentation
+        unit.
+        """
+        self.stage("tests")
+        self.stage("rustdoc")
         self.set_value(2)
-        kept = self.written_by("clippy")
-        self.stage("tests", kill=True)
-        self.settle(kept)
-        self.push()
-        # A peer at the first revision builds the test and documentation
-        # units in place; its source is newer than the units, so Cargo rebuilds.
-        # `target/doc` carries no unit hash: it is current only because the
-        # peer's documentation unit is pruned and rebuilt.
+        self.stage("tests")
+        self.stage("rustdoc")
         self.set_value(1, aged=False)
-        self.cargo("test", "--no-run")
+        self.cargo("nextest", "run", "--no-run")
         self.cargo("doc", "--no-deps")
         self.set_value(2)
         self.cleans.clear()
+        self.pruned.clear()
         self.stage("tests")
         self.assertEqual(self.probe(), "7", "the peer's test units are rebuilt, not trusted")
         self.stage("rustdoc")
-        self.assertIn("The value is 2", self.documented(), "documentation output follows its pruned unit")
+        self.assertIn("The value is 2", self.documented())
         self.assertEqual(self.cleans, [])
-        self.assert_kept(kept)
+        self.assert_rebuilt()
 
     def test_clippy_recovering_through_a_sibling_keeps_its_units_after_a_tests_kill(self) -> None:
         self.set_value(2)
@@ -5677,11 +5714,13 @@ class StageSequenceTestCase(unittest.TestCase):
         self.stage("tests", kill=True)
         self.settle(kept)
         self.cleans.clear()
+        self.pruned.clear()
         self.stage("clippy")
         self.assertEqual(self.cleans, [])
         self.assert_kept(kept)
         self.stage("tests")
         self.assertEqual(self.probe(), "8")
+        self.assertEqual(self.pruned, {}, "the killed stage's output is resumed under another stage's key")
 
 
 @pytest.mark.slow
@@ -6455,9 +6494,15 @@ class MultiPackageRunTestCase(unittest.TestCase):
                 '[package]\nname = "a"\nversion = "0.1.0"\nedition = "2021"\n'
                 "[dependencies]\nb = { path = \"../b\" }\n"
             ),
-            "a/src/lib.rs": "//! a\n/// a\npub fn a() -> u32 { b::b() + 1 }\n",
+            "a/src/lib.rs": "//! a\n/// a\npub fn a() -> u32 { b::b() + 1 }\n#[test]\nfn probe() {\n"
+            '    std::fs::write(std::env::var("PROBE_OUT").unwrap(), a().to_string()).unwrap();\n}\n',
             "b/Cargo.toml": '[package]\nname = "b"\nversion = "0.1.0"\nedition = "2021"\n',
-            "b/src/lib.rs": "//! b\n/// b\npub fn b() -> u32 { 1 }\n",
+            "b/data.txt": "1\n",
+            "b/build.rs": 'fn main() {\n    println!("cargo:rerun-if-changed=data.txt");\n'
+            '    let value = std::fs::read_to_string("data.txt").unwrap();\n'
+            '    let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("gen.rs");\n'
+            '    std::fs::write(out, format!("pub const GEN: u32 = {};", value.trim())).unwrap();\n}\n',
+            "b/src/lib.rs": '//! b\ninclude!(concat!(env!("OUT_DIR"), "/gen.rs"));\n/// b\npub fn b() -> u32 { GEN }\n',
             "c/Cargo.toml": '[package]\nname = "c"\nversion = "0.1.0"\nedition = "2021"\n',
             "c/src/lib.rs": "//! c\n/// c\npub fn c() -> u32 { 3 }\n",
         }.items():
@@ -6583,6 +6628,41 @@ class MultiPackageRunTestCase(unittest.TestCase):
             push()
         return removed
 
+    def test_a_peer_rerunning_a_build_script_is_not_trusted(self) -> None:
+        """A peer at the first revision rewrites `out/gen.rs`; every listed file keeps its bytes."""
+        peer = self.base / "peer" / "ws"
+        peer.parent.mkdir()
+        subprocess.run(["git", "clone", "-q", str(self.source), str(peer)], check=True)
+        self.environment["PROBE_OUT"] = str(self.base / "probe.txt")
+        export = self.base / "gate1" / "nested" / "ws"
+        flags = ["--locked", "--offline", "-p", "a"]
+        command = ["cargo", "test", "-q", "--manifest-path", str(export / "Cargo.toml"), *flags]
+
+        def probe() -> str:
+            return (self.base / "probe.txt").read_text(encoding="utf-8")
+
+        def generated() -> set[str]:
+            outs = (self.base / "target" / "debug" / "build").glob("b-*/out/gen.rs")
+            return {path.read_text(encoding="utf-8") for path in outs}
+
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        self.assertEqual(probe(), "2")
+        (export / "b" / "data.txt").write_text("2\n", encoding="utf-8")
+        self.push(self.base / "gate1", command=command, packages=("a", "b"))
+        self.assertEqual(probe(), "3")
+        for edit in ("", "// only a changes\n"):
+            (peer / "b" / "data.txt").write_text("1" + chr(10), encoding="utf-8")
+            subprocess.run(
+                ["cargo", "test", "-q", "--manifest-path", str(peer / "Cargo.toml"), *flags],
+                env={**self.environment, "CARGO_TARGET_DIR": str(self.base / "target")},
+                check=True, timeout=300, cwd=peer,
+            )
+            self.assertEqual((probe(), generated()), ("2", {"pub const GEN: u32 = 1;"}), "the peer built the first revision")
+            with (export / "a" / "src" / "lib.rs").open("a", encoding="utf-8") as stream:
+                stream.write(edit)
+            self.push(self.base / "gate1", command=command, packages=("a", "b"))
+            self.assertEqual((probe(), generated()), ("3", {"pub const GEN: u32 = 2;"}), repr(edit))
+
     def test_a_matched_record_lists_again_only_the_files_it_listed(self) -> None:
         first = self.push(self.base / "gate1")
         peer = self.base / "target" / "debug" / "deps" / "libc-0123456789abcdef.rmeta"
@@ -6596,7 +6676,7 @@ class MultiPackageRunTestCase(unittest.TestCase):
         self.assertNotIn("debug/deps/" + peer.name, listed)
 
     def test_files_still_present_vouch_for_their_units_when_a_listed_file_is_missing(self) -> None:
-        """The second stage lists test units the first never built. Of `c`'s two, one has a
+        """The second stage lists test units the first never built. Of `c`'s two, the `t` target's has a
         listed file gone and another replaced, so it is removed; the other is intact and stays."""
         (self.source / "c" / "tests").mkdir()
         (self.source / "c" / "tests" / "t.rs").write_text("#[test]\nfn t() {}\n", encoding="utf-8")
@@ -6608,15 +6688,43 @@ class MultiPackageRunTestCase(unittest.TestCase):
         self.push(self.base / "gate1", key="first")
         lib_units = {path.name for path in deps.glob("lib*.rmeta")}
         self.push(self.base / "gate1", command=every, key="second")
-        broken, healthy = (next(path for path in deps.glob(f"lib{name}-*.rmeta") if path.name not in lib_units) for name in "ct")
-        next((deps.parent / ".fingerprint" / broken.stem.removeprefix("lib")).glob("dep-*")).unlink()
-        broken.write_bytes(b"a stand-in for c")
-        kept = {path: path.read_bytes() for path in deps.glob(f"*{healthy.stem.removeprefix('lib')}.*")}
+        broken, healthy = (
+            next(path for path in deps.glob(f"lib{name}-*.rmeta") if path.name not in lib_units).stem.rsplit("-", 1)[1]
+            for name in "tc"
+        )
+        debug = deps.parent
+
+        def unit(hash_: str) -> list[Path]:
+            return sorted([*deps.glob(f"*-{hash_}.*"), *(debug / ".fingerprint").glob(f"*-{hash_}/*")])
+
+        (deps / f"t-{broken}.d").unlink()
+        (deps / f"libt-{broken}.rmeta").write_bytes(b"a stand-in for t")
+        kept = {path: path.read_bytes() for path in unit(healthy)}
+        self.assertGreater(len(kept), 3)
         removed = self.pruned(lambda: self.push(self.base / "gate1", command=every, key="second"))
-        self.assertEqual(removed.count("debug/deps/" + broken.name), 1, removed)
-        self.assertFalse([name for name in removed if healthy.stem.removeprefix("lib") in name], removed)
-        self.assertEqual({path: path.read_bytes() for path in kept}, kept)
-        self.assertNotIn(b"a stand-in for c", broken.read_bytes())
+        # The unit of a target named `t` in package `c`: its fingerprint directory and its
+        # `deps` files go together, and none of the other unit's.
+        self.assertIn(f"debug/.fingerprint/c-{broken}", removed)
+        self.assertIn(f"debug/deps/libt-{broken}.rmeta", removed)
+        self.assertFalse([name for name in removed if healthy in name], removed)
+        self.assertEqual({path: path.read_bytes() for path in unit(healthy)}, kept)
+        self.assertNotIn(b"a stand-in for t", (deps / f"libt-{broken}.rmeta").read_bytes())
+
+    def test_units_only_another_stage_lists_are_not_pruned(self) -> None:
+        """Documentation units are listed by the documentation record alone."""
+        manifest = str(self.base / "gate1" / "nested" / "ws" / "Cargo.toml")
+        flags = ["-q", "--manifest-path", manifest, "--locked", "--offline", "-p", "a", "-p", "c"]
+        every = ["cargo", "clippy", "--all-targets", *flags]
+        debug = self.base / "target" / "debug"
+        self.push(self.base / "gate1", key="plain")
+        plain = {path.name for path in debug.glob("deps/libc-*.rmeta")}
+        self.push(self.base / "gate1", command=every, key="every")
+        self.push(self.base / "gate1", command=["cargo", "doc", "--no-deps", *flags], key="docs")
+        docs = {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in debug.glob(".fingerprint/*/doc-*")}
+        self.assertTrue(docs)
+        next(path for path in debug.glob("deps/libc-*.rmeta") if path.name not in plain).write_bytes(b"a stand-in for c")
+        self.push(self.base / "gate1", command=every, key="every")
+        self.assertEqual({path: (path.read_bytes(), path.stat().st_mtime_ns) for path in docs if path.exists()}, docs)
 
     def test_a_matched_package_another_rule_cleaned_reports_rebuilt(self) -> None:
         first = self.push(self.base / "gate1", packages=("a", "b"))
