@@ -2,7 +2,6 @@
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
-<a id="atlas-apollo-lint-expect-rot-001"></a>- [ATLAS-APOLLO-LINT-EXPECT-ROT-001](backlog/atlas-apollo-lint-expect-rot-001.md) — Remove obsolete Windows Clippy expectations [patch] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — todo
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
@@ -90,7 +89,6 @@
 <a id="atlas-stale-checkout-findings-223"></a>- [ATLAS-STALE-CHECKOUT-FINDINGS-223](backlog/atlas-stale-checkout-findings-223.md) — Gates measure the checkout, and 8 of 25 members are behind [patch] — todo
 <a id="atlas-standalone-crates-build"></a>- [ATLAS-STANDALONE-CRATES-BUILD](backlog/atlas-standalone-crates-build.md) — Make the five unbuildable standalone crates compile [patch] — todo
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
-<a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — The contract is already satisfied; the guard is preventive [patch] — todo
 <a id="atlas-target-001"></a>- [ATLAS-TARGET-001](backlog/atlas-target-001.md) — One build cache, one debug budget [patch] — todo
 <a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
 <a id="atlas-trusted-publisher-bootstrap-001"></a>- [ATLAS-TRUSTED-PUBLISHER-BOOTSTRAP-001](backlog/atlas-trusted-publisher-bootstrap-001.md) — Register trusted publishing for the token-first-published crates [patch] — todo
