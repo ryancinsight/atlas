@@ -121,3 +121,4 @@
 <a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Kill the surviving writer-scan mutants [patch] — todo
+<a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo
