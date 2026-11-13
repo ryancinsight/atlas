@@ -50,7 +50,7 @@ from atlas_build_records import (
     _record_matches,
     _record_mismatch_reasons,
     _recorded_artifact,
-    _sibling_record,
+    _sibling_records,
     _write_atomic,
     read_record,
     record_path,
@@ -530,14 +530,21 @@ def _run_build(
                 exclusive.close()
                 exclusive = leases.enter_context(acquire(held))
                 states = locked_records()
-        siblings = {
-            package: None
+        # Every verifying sibling, since units one lists alone are not another's to prune.
+        found = {
+            package: []
             if state.matched
-            else _sibling_record(
-                inputs[package][1], inputs[package][0],
-                lambda record: current_inputs(record["inputs"], layout) == record["inputs"],
+            else list(
+                _sibling_records(
+                    inputs[package][1], inputs[package][0],
+                    lambda record: current_inputs(record["inputs"], layout) == record["inputs"],
+                )
             )
             for package, state in states.items()
+        }
+        siblings = {
+            package: next((record for record in records if record.verified), None)
+            for package, records in found.items()
         }
         # A sibling's record stands in for a package's path packages, never
         # for the target's stale Git packages, which are cleaned regardless.
@@ -611,6 +618,17 @@ def _run_build(
         # record vouches for in place of a clean: Cargo rebuilds a unit whose
         # files are gone, and dirties its dependents.
         hit: dict[str, frozenset[str]] = {}
+
+        def present(files: dict[str, str]) -> dict[str, str]:
+            # A listed file now missing leaves no record-wide identity, yet
+            # the files still present keep vouching for their units.
+            try:
+                return recorded_artifact_identity(
+                    target_dir, [name for name in files if (target_dir / name).is_file()]
+                )["files"]
+            except BuildIdentityError:
+                return {}
+
         pairs: list[tuple[dict[str, str], dict[str, str]]] = []
         if clean_command is None and not artifact_paths:
             for package, state in states.items():
@@ -627,17 +645,14 @@ def _run_build(
                         workspace_owners(),
                     )
                     hit[package] = asked[package] if changed is True else frozenset(changed or ()) & asked[package]
-                    pairs.append((siblings[package].artifact["files"],) * 2)
+                    pairs.extend(
+                        (record.record["artifact"]["files"], present(record.record["artifact"]["files"]))
+                        for record in found[package]
+                    )
                 # A listed file now missing leaves no current identity, yet
                 # the files still present keep vouching for their units.
                 files = state.existing["artifact"]["files"]
-                try:
-                    now = (state.current or recorded_artifact_identity(
-                        target_dir, [name for name in files if (target_dir / name).is_file()]
-                    ))["files"]
-                except BuildIdentityError:
-                    now = {}
-                pairs.append((files, now))
+                pairs.append((files, present(files)))
         pruned = frozenset(
             owner
             for owner in targets
