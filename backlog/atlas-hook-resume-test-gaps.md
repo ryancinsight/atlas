@@ -3,8 +3,5 @@
 - Outcome: the writer-mark scan in `scripts/atlas_build_writers.py` has tests that fail when any listing or stat error is swallowed or skipped, so the fail-closed rule from atlas#625 cannot regress silently.
 - Evidence (2026-11-10, judge of atlas#625 at 7ca908dec): four mutants that swallow or skip scan errors survive the committed tests; the two that skip artifact stat errors and walked-file stat errors are real gaps. `test_a_directory_removed_mid_scan_makes_the_scan_clean` also passes on the pre-fix head b62bf7e99, so it does not test the defect it names. The heartbeat docstring claims no beat is stamped after the command exits, but one can be stamped between `_run_checked` returning and `stopped.set()`.
 - Oracle: each surviving mutant (swallow artifact `os.stat` error; skip walked-file stat error; plus the two layered listing swallows) fails at least one test; a mid-scan test that removes `target/atlas-cache` between the target listing and its own listing fails on b62bf7e99 and passes on main; the docstring states the post-command window.
-- priority: verification
-- needs: none
-- scope: scripts/atlas_build_writers.py, scripts/tests/test_atlas_build_identity.py
+- basis: 672af6e57d3b3a6502e46bdfb95ea39a811e1ab0; priority: verification; needs: none; scope: scripts/atlas_build_writers.py, scripts/tests/test_atlas_build_identity.py
 - Next step: run a mutation pass over `written_after` and its helpers, then add one test per surviving mutant.
-- basis: 672af6e57d3b3a6502e46bdfb95ea39a811e1ab0
