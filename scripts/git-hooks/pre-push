@@ -1432,11 +1432,16 @@ excluded_manifests=""
 standalone_manifests=""
 while IFS= read -r changed_path; do
   [ -n "$changed_path" ] || continue
-  # Git hooks and CI definitions are input to no cargo invocation. Without
-  # this, a single-package repository mapped them to its root package and a
-  # hook-only push ran clippy, tests and rustdoc for the whole package.
+  # Git hooks, CI definitions and the repository-root board files are input to
+  # no cargo invocation. Without this, a single-package repository mapped them
+  # to its root package and a hook-only or board-only push ran clippy, tests
+  # and rustdoc for the whole package, queued behind every peer's build lease
+  # until the push deadline. No member's source includes, embeds or reads a
+  # root board file (`git grep` over every registered member's default branch);
+  # the paths are root-anchored, so a `docs/checklist.md` still gates.
   case "$changed_path" in
     .githooks/* | .github/*) continue ;;
+    backlog.md | backlog/* | gap_audit.md | checklist.md) continue ;;
   esac
   owner_dir="$(dirname "$changed_path")"
   package_dir=""
