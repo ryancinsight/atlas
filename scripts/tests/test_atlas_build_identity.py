@@ -5484,6 +5484,208 @@ class RepeatedExportPushTestCase(unittest.TestCase):
 
 @pytest.mark.slow
 @unittest.skipUnless(shutil.which("cargo"), "needs cargo")
+class StageSequenceTestCase(unittest.TestCase):
+    """The pre-push stages (clippy, tests, rustdoc) as three keyed runs on one target.
+
+    `kapp` depends on `kcore`, whose build script and library each stage
+    compiles in its own units, and on a Git crate `kgit`. The sources are
+    given old mtimes, as a fresh export gives them, so Cargo calls whatever
+    it finds on disk fresh.
+    """
+
+    def setUp(self) -> None:
+        temp = tempfile.TemporaryDirectory(prefix="atlas-stage-sequence-")
+        self.addCleanup(temp.cleanup)
+        self.base = Path(temp.name).resolve()
+        self.source = self.base / "ws"
+        kgit = self.base / "kgit"
+        (kgit / "src").mkdir(parents=True)
+        (kgit / "Cargo.toml").write_text(
+            '[package]\nname = "kgit"\nversion = "0.1.0"\nedition = "2021"\n', encoding="utf-8"
+        )
+        (kgit / "src" / "lib.rs").write_text("pub fn g() -> u32 { 5 }\n", encoding="utf-8")
+        init_git(kgit)
+        git(kgit, "add", ".")
+        git(kgit, "commit", "-q", "-m", "kgit")
+        for relative, text in {
+            "Cargo.toml": '[workspace]\nmembers = ["kcore", "kapp"]\nresolver = "2"\n',
+            "kcore/Cargo.toml": '[package]\nname = "kcore"\nversion = "0.1.0"\nedition = "2021"\n',
+            "kcore/build.rs": "fn main() {}\n",
+            "kapp/Cargo.toml": '[package]\nname = "kapp"\nversion = "0.1.0"\nedition = "2021"\n\n'
+            f'[dependencies]\nkcore = {{ path = "../kcore" }}\nkgit = {{ git = "{kgit.as_uri()}" }}\n',
+            "kapp/src/lib.rs": "pub fn v() -> u32 { kcore::value() + kgit::g() }\n#[cfg(test)]\nmod t {\n"
+            '    #[test]\n    fn probe() {\n        std::fs::write(std::env::var("PROBE_OUT").unwrap(), '
+            "super::v().to_string()).unwrap();\n    }\n}\n",
+            "kapp/tests/it.rs": "#[test]\nfn it() { assert!(kapp::v() > 0); }\n",
+        }.items():
+            (self.source / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / relative).write_text(text, encoding="utf-8")
+        self.set_value(1)
+        self.environment = {
+            key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
+        }
+        self.environment["PROBE_OUT"] = str(self.base / "probe.txt")
+        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+        subprocess.run(
+            ["cargo", "generate-lockfile"],
+            cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
+        )
+        init_git(self.source)
+        git(self.source, "add", ".")
+        git(self.source, "commit", "-q", "-m", "source")
+        self.cleans: list[list[str]] = []
+
+    def set_value(self, value: int, aged: bool = True) -> None:
+        library = self.source / "kcore" / "src" / "lib.rs"
+        library.parent.mkdir(exist_ok=True)
+        library.write_text(f"/// The value is {value}.\npub fn value() -> u32 {{ {value} }}\n", encoding="utf-8")
+        old = time.time() - 86400
+        for path in self.source.rglob("*.rs"):
+            if aged:
+                os.utime(path, (old, old))
+
+    def stage(self, name: str, kill: bool = False) -> None:
+        manifest = str(self.source / "Cargo.toml")
+        arguments = ["--locked", "--offline", "--manifest-path", manifest]
+        command = {
+            "clippy": ["cargo", "clippy", "--all-targets", *arguments],
+            "tests": ["cargo", "test", *arguments],
+            "rustdoc": ["cargo", "doc", "--no-deps", *arguments],
+        }[name]
+        if kill:
+            # The tests compile and the deadline kills the stage before it ends.
+            command = [
+                sys.executable, "-c",
+                "import subprocess, sys; subprocess.run(sys.argv[1:]); sys.exit(137)",
+                "cargo", "test", "--no-run", *arguments,
+            ]
+        run_checked = identity._run_checked
+
+        def recording(argv, cwd, environment):
+            if (names := cleaned_names(argv)) is not None:
+                self.cleans.append(names)
+            run_checked(argv, cwd, environment)
+
+        with (
+            patch.dict(os.environ, self.environment, clear=True),
+            patch.object(identity, "_run_checked", side_effect=recording),
+        ):
+            try:
+                identity.run_build(
+                    self.source,
+                    self.source / "Cargo.toml",
+                    ("kcore", "kapp"),
+                    self.base / "target",
+                    command,
+                    command_cwd=self.source,
+                    command_key=f"atlas-pre-push-{name}",
+                    selection=("kcore", "kapp"),
+                )
+            except identity.IdentityError:
+                self.assertTrue(kill)
+
+    def push(self) -> None:
+        for name in ("clippy", "tests", "rustdoc"):
+            self.stage(name)
+
+    def probe(self) -> str:
+        return (self.base / "probe.txt").read_text(encoding="utf-8")
+
+    def units(self) -> dict[str, tuple[bytes, int]]:
+        """Every fingerprint and `deps` file now on disk, with its bytes and mtime."""
+        debug = self.base / "target" / "debug"
+        return {
+            path.relative_to(debug).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
+            for part in (".fingerprint", "deps")
+            for path in (debug / part).rglob("*")
+            if path.is_file()
+        }
+
+    def written_by(self, name: str) -> dict[str, tuple[bytes, int]]:
+        """Run a stage; the files it wrote or rewrote."""
+        before = self.units()
+        self.stage(name)
+        return {key: value for key, value in self.units().items() if before.get(key) != value}
+
+    def settle(self, kept: dict[str, tuple[bytes, int]]) -> None:
+        """Date every file outside `kept` a minute back, as time passing before the rerun would."""
+        debug = self.base / "target" / "debug"
+        then = time.time() - 60
+        for part in (".fingerprint", "deps"):
+            for path in (debug / part).rglob("*"):
+                if path.is_file() and path.relative_to(debug).as_posix() not in kept:
+                    os.utime(path, (then, then))
+
+    def assert_kept(self, kept: dict[str, tuple[bytes, int]]) -> None:
+        """No file of `kept` was removed, rewritten or touched since."""
+        now = self.units()
+        self.assertEqual(sorted(name for name in kept if now.get(name) != kept[name]), [])
+
+    def cargo(self, *arguments: str) -> None:
+        """A peer's Cargo command in the same target."""
+        subprocess.run(
+            ["cargo", *arguments, "--locked", "--offline", "--manifest-path", str(self.source / "Cargo.toml")],
+            env={**self.environment, "CARGO_TARGET_DIR": str(self.base / "target")},
+            check=True, capture_output=True, timeout=300, cwd=self.source,
+        )
+
+    def documented(self) -> str:
+        return (self.base / "target" / "doc" / "kcore" / "fn.value.html").read_text(encoding="utf-8")
+
+    def test_a_tests_stage_killed_on_a_new_revision_leaves_clippy_recorded(self) -> None:
+        self.push()
+        self.set_value(2)
+        kept = self.written_by("clippy")
+        self.stage("tests", kill=True)
+        self.settle(kept)
+        self.cleans.clear()
+        self.push()
+        self.assertEqual(self.cleans, [])
+        self.assertEqual(self.probe(), "7")
+        self.assert_kept(kept)
+
+    def test_outputs_without_a_unit_hash_follow_the_units_a_peer_rebuilt(self) -> None:
+        self.push()
+        self.set_value(2)
+        kept = self.written_by("clippy")
+        self.stage("tests", kill=True)
+        self.settle(kept)
+        self.push()
+        # A peer at the first revision builds the test and documentation
+        # units in place; its source is newer than the units, so Cargo rebuilds.
+        # `target/doc` carries no unit hash: it is current only because the
+        # peer's documentation unit is pruned and rebuilt.
+        self.set_value(1, aged=False)
+        self.cargo("test", "--no-run")
+        self.cargo("doc", "--no-deps")
+        self.set_value(2)
+        self.cleans.clear()
+        self.stage("tests")
+        self.assertEqual(self.probe(), "7", "the peer's test units are rebuilt, not trusted")
+        self.stage("rustdoc")
+        self.assertIn("The value is 2", self.documented(), "documentation output follows its pruned unit")
+        self.assertEqual(self.cleans, [])
+        self.assert_kept(kept)
+
+    def test_clippy_recovering_through_a_sibling_keeps_its_units_after_a_tests_kill(self) -> None:
+        self.set_value(2)
+        self.push()
+        self.set_value(3)
+        self.stage("rustdoc")
+        self.settle({})
+        kept = self.written_by("clippy")
+        self.stage("tests", kill=True)
+        self.settle(kept)
+        self.cleans.clear()
+        self.stage("clippy")
+        self.assertEqual(self.cleans, [])
+        self.assert_kept(kept)
+        self.stage("tests")
+        self.assertEqual(self.probe(), "8")
+
+
+@pytest.mark.slow
+@unittest.skipUnless(shutil.which("cargo"), "needs cargo")
 class EffectiveCargoConfigurationTestCase(unittest.TestCase):
     """A `.cargo/config.toml` one directory *above* the export (exactly
     where the pre-push hook mirrors the stack's shared config, outside the
