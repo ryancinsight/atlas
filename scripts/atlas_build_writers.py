@@ -103,13 +103,14 @@ def run_identity(spec: BuildSpec, dependency_digests: dict[str, str]) -> str:
     """The digest of everything that decides what a run's command writes.
 
     The source content, build dimensions and dependency snapshots of every
-    package the command builds; the checkout path and the package a record
-    is kept for are excluded, as for records.
+    package the command builds; the checkout path, the package a record is
+    kept for and the command key are excluded, so a stage killed under one
+    key is resumed by a rerun of another stage on the same source.
     """
     build = _content(spec.as_dict())
     if not isinstance(build, dict):
         raise BuildIdentityError("build spec is not a mapping")
-    build = {key: value for key, value in build.items() if key not in ("package", "dependency_digest")}
+    build = {key: value for key, value in build.items() if key not in ("package", "dependency_digest", "command_key")}
     payload = json.dumps(
         {"build": build, "dependencies": dict(sorted(dependency_digests.items()))},
         sort_keys=True,

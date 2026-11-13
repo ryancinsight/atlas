@@ -252,18 +252,22 @@ def _listed_units(paths: set[Path], target_dir: Path, names: Iterable[str] | Non
     """The files of the units that hold one of the recorded `names`."""
     if names is None:
         return paths
-    units = set().union(*(_unit_names(name.split("/")) for name in names), set())
-    return {path for path in paths if _unit_names(path.relative_to(target_dir).parts) & units}
+    units = {_unit_hash(name.split("/")) for name in names}
+    return {path for path in paths if _unit_hash(path.relative_to(target_dir).parts) in units}
 
 
-def _unit_names(parts: Sequence[str]) -> set[str]:
-    """The names a file's unit is known by: its fingerprint or build directory, or its output stem."""
-    if ".fingerprint" in parts:
-        return {parts[parts.index(".fingerprint") + 1]}
-    if len(parts) >= 3 and parts[-3] == "build":
-        return {parts[-2]}
-    name = parts[-1].split(".", 1)[0]
-    return {name, name[3:]} if name.startswith("lib") else {name}
+def _unit_directory(parts: Sequence[str]) -> str | None:
+    """The `.fingerprint` or `build` directory a path lies in, or None for a `deps` file."""
+    for marker in (".fingerprint", "build"):
+        if marker in parts[:-1]:
+            return parts[parts.index(marker) + 1]
+    return None
+
+
+def _unit_hash(parts: Sequence[str]) -> str:
+    """The metadata hash a path's unit carries: its fingerprint or build directory, or its output name."""
+    name = _unit_directory(parts) or parts[-1].split(".", 1)[0]
+    return name.rsplit("-", 1)[-1]
 
 
 def prune_plan(
@@ -277,26 +281,25 @@ def prune_plan(
     """Per package, the unit paths whose bytes no record vouches for.
 
     A unit (the fingerprint directory, build directory and `deps` outputs
-    sharing a hash) is kept only when every file it holds is listed and
+    carrying one metadata hash) is kept only when every file it holds is listed and
     matches in some record, as `(recorded, current)` digests. Cargo rebuilds
     a unit whose files are gone and dirties its dependents.
     """
     target_dir = _canonical(target_dir)
     sound = {r for recorded, current in records for r, d in recorded.items() if current.get(r) == d}
     found = _discover_artifacts_by_owner(target_dir, profile, target, owners, packages)
-    removed = {n for recorded, _ in records for r in recorded if r not in sound for n in _unit_names(r.split("/"))}
+    removed = {_unit_hash(r.split("/")) for recorded, _ in records for r in recorded if r not in sound}
     for paths in found.values():
         for path in paths:
             if path.relative_to(target_dir).as_posix() not in sound:
-                removed |= _unit_names(path.relative_to(target_dir).parts)
+                removed.add(_unit_hash(path.relative_to(target_dir).parts))
     doomed: dict[str, set[Path]] = {owner: set() for owner in packages}
     for owner in packages:
         for path in found.get(owner, set()):
             parts = path.relative_to(target_dir).parts
-            if _unit_names(parts) & removed:
-                cut = parts.index(".fingerprint") + 2 if ".fingerprint" in parts else (
-                    len(parts) - 1 if len(parts) >= 3 and parts[-3] == "build" else len(parts)
-                )
+            if _unit_hash(parts) in removed:
+                marker = next((m for m in (".fingerprint", "build") if m in parts[:-1]), None)
+                cut = parts.index(marker) + 2 if marker else len(parts)
                 doomed[owner].add(target_dir.joinpath(*parts[:cut]))
     return {owner: sorted(values) for owner, values in doomed.items()}
 
@@ -324,12 +327,7 @@ def artifact_package(relative: str, owners: dict[str, frozenset[str]]) -> str | 
     # `<profile>/deps/<file>` names the file; `.../.fingerprint/<unit>/<file>`
     # and `<profile>/build/<unit>/<file>` the unit, since every build
     # script's files are `build_script_build-*`, whatever its package.
-    if ".fingerprint" in parts:
-        unit = parts[parts.index(".fingerprint") + 1]
-    elif len(parts) >= 3 and parts[-3] == "build":
-        unit = parts[-2]
-    else:
-        unit = parts[-1]
+    unit = _unit_directory(parts) or parts[-1]
     return _artifact_owner(unit, _artifact_owners_by_stem(owners))
 
 
@@ -563,9 +561,9 @@ def _discover_artifacts_by_owner(
             owner = _artifact_owner(path.name, owners_by_stem)
             if owner in requested and path.is_file():
                 selected.setdefault(owner, set()).add(path.resolve())
-    # A build script's dep-info and the paths it asked Cargo to watch
-    # (`output`), which `atlas_build_dep_info` reads; its binary and
-    # `out/` are rebuilt by Cargo and already covered by the fingerprint.
+    # A build script's dep-info, the paths it asked Cargo to watch (`output`),
+    # which `atlas_build_dep_info` reads, and everything it generated in
+    # `out/`: a peer's rerun rewrites those while the fingerprint stays equal.
     build_dirs = [target_dir / profile / "build"]
     if target != "host":
         build_dirs.append(target_dir / target / profile / "build")
@@ -577,8 +575,13 @@ def _discover_artifacts_by_owner(
             if owner in requested and directory.is_dir():
                 selected.setdefault(owner, set()).update(
                     path.resolve()
-                    for path in directory.iterdir()
-                    if (path.name == "output" or path.suffix == ".d") and path.is_file()
+                    for path in directory.rglob("*")
+                    if path.is_file()
+                    and (
+                        path.parent == directory
+                        and (path.name == "output" or path.suffix == ".d")
+                        or path.relative_to(directory).parts[0] == "out"
+                    )
                 )
 
     fingerprint_dirs = [
