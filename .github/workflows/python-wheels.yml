@@ -116,7 +116,11 @@ jobs:
       # macOS is universal2 and so covers both of its architectures in one file.
       matrix:
         include:
-          - os: ubuntu-latest
+          # Pinned: ubuntu-latest now resolves to Ubuntu 26.04, whose
+          # actions/setup-python manifest ships no CPython 3.9 (leto run
+          # 43483239188, job 132084893479), the abi3 floor and a default
+          # python-versions entry.
+          - os: ubuntu-24.04
             target: x86_64
             manylinux: "2_17"
             linux: true
@@ -126,7 +130,7 @@ jobs:
             manylinux: "2_17"
             linux: true
             smoke: native
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64
             manylinux: musllinux_1_2
             linux: true
@@ -252,7 +256,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) }}
         platform: [glibc-x86, glibc-arm, musl-x86, musl-arm, windows, macos]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: glibc-x86
             target: x86_64
             manylinux: "2_17"
@@ -264,7 +268,7 @@ jobs:
             manylinux: "2_17"
             linux: true
             smoke: native
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: musl-x86
             target: x86_64
             manylinux: musllinux_1_2
@@ -392,7 +396,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.free-threaded-versions) }}
         platform: [glibc-x86, glibc-arm, windows, macos]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: glibc-x86
             target: x86_64
             manylinux: "2_17"
@@ -500,7 +504,7 @@ jobs:
       matrix:
         platform: [glibc-x86, glibc-arm, windows, macos]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: glibc-x86
             target: x86_64
             manylinux: "2_17"
@@ -601,7 +605,7 @@ jobs:
     if: ${{ always() && !failure() && !cancelled() }}
     name: Validate distributions
     needs: [build-abi3, build-cpython, build-free-threaded, build-abi3t]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       artifact-metadata: write
