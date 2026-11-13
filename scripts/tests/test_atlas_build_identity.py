@@ -5498,14 +5498,18 @@ class StageSequenceTestCase(unittest.TestCase):
 
     `kapp` depends on `kcore`, whose build script and library each stage
     compiles in its own units, and on a Git crate `kgit`. The sources are
-    given old mtimes, as a fresh export gives them, so Cargo calls whatever
-    it finds on disk fresh.
+    given old mtimes, as a fresh export gives them, so Cargo calls the units
+    it finds on disk fresh. Each test asserts what the runs pruned: nothing when
+    a killed stage's output is resumed, and for a peer's rebuild every pruned
+    file rewritten afterwards, so a no-op prune cannot pass on Cargo's own
+    freshness check.
     """
 
     def setUp(self) -> None:
         temp = tempfile.TemporaryDirectory(prefix="atlas-stage-sequence-")
         self.addCleanup(temp.cleanup)
         self.base = Path(temp.name).resolve()
+        self.pruned: dict[Path, int] = {}
         self.source = self.base / "ws"
         kgit = self.base / "kgit"
         (kgit / "src").mkdir(parents=True)
@@ -5519,7 +5523,7 @@ class StageSequenceTestCase(unittest.TestCase):
         for relative, text in {
             "Cargo.toml": '[workspace]\nmembers = ["kcore", "kapp"]\nresolver = "2"\n',
             "kcore/Cargo.toml": '[package]\nname = "kcore"\nversion = "0.1.0"\nedition = "2021"\n',
-            "kcore/build.rs": "fn main() {}\n",
+            "kcore/build.rs": 'fn main() {\n    println!("cargo:rerun-if-changed=build.rs");\n}\n',
             "kapp/Cargo.toml": '[package]\nname = "kapp"\nversion = "0.1.0"\nedition = "2021"\n\n'
             f'[dependencies]\nkcore = {{ path = "../kcore" }}\nkgit = {{ git = "{kgit.as_uri()}" }}\n',
             "kapp/src/lib.rs": "pub fn v() -> u32 { kcore::value() + kgit::g() }\n#[cfg(test)]\nmod t {\n"
@@ -5534,7 +5538,8 @@ class StageSequenceTestCase(unittest.TestCase):
             key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"
         }
         self.environment["PROBE_OUT"] = str(self.base / "probe.txt")
-        self.environment["CARGO_HOME"] = str(self.base / "cargo-home")
+        # Not resolved: a subst drive keeps `CARGO_HOME` short enough for Cargo's Git checkout.
+        self.environment["CARGO_HOME"] = str(Path(temp.name) / "cargo-home")
         subprocess.run(
             ["cargo", "generate-lockfile"],
             cwd=self.source, env=self.environment, check=True, capture_output=True, timeout=120,
@@ -5558,7 +5563,7 @@ class StageSequenceTestCase(unittest.TestCase):
         arguments = ["--locked", "--offline", "--manifest-path", manifest]
         command = {
             "clippy": ["cargo", "clippy", "--all-targets", *arguments],
-            "tests": ["cargo", "test", *arguments],
+            "tests": ["cargo", "nextest", "run", "--no-tests=pass", *arguments],
             "rustdoc": ["cargo", "doc", "--no-deps", *arguments],
         }[name]
         if kill:
@@ -5566,18 +5571,25 @@ class StageSequenceTestCase(unittest.TestCase):
             command = [
                 sys.executable, "-c",
                 "import subprocess, sys; subprocess.run(sys.argv[1:]); sys.exit(137)",
-                "cargo", "test", "--no-run", *arguments,
+                "cargo", "nextest", "run", "--no-run", *arguments,
             ]
         run_checked = identity._run_checked
+        prune_units = identity.prune_units
 
         def recording(argv, cwd, environment):
             if (names := cleaned_names(argv)) is not None:
                 self.cleans.append(names)
             run_checked(argv, cwd, environment)
 
+        def pruning(doomed):
+            self.pruned.update({path: path.stat().st_mtime_ns for path in doomed if path.is_file()})
+            prune_units(doomed)
+
+        environment = {**self.environment, **({"RUSTDOCFLAGS": "-D warnings"} if name == "rustdoc" else {})}
         with (
-            patch.dict(os.environ, self.environment, clear=True),
+            patch.dict(os.environ, environment, clear=True),
             patch.object(identity, "_run_checked", side_effect=recording),
+            patch.object(identity, "prune_units", side_effect=pruning),
         ):
             try:
                 identity.run_build(
@@ -5605,7 +5617,7 @@ class StageSequenceTestCase(unittest.TestCase):
         debug = self.base / "target" / "debug"
         return {
             path.relative_to(debug).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
-            for part in (".fingerprint", "deps")
+            for part in (".fingerprint", "deps", "build")
             for path in (debug / part).rglob("*")
             if path.is_file()
         }
@@ -5624,6 +5636,15 @@ class StageSequenceTestCase(unittest.TestCase):
             for path in (debug / part).rglob("*"):
                 if path.is_file() and path.relative_to(debug).as_posix() not in kept:
                     os.utime(path, (then, then))
+
+    def assert_rebuilt(self) -> None:
+        """The run pruned something, and every pruned file was rewritten by a later stage."""
+        self.assertTrue(self.pruned)
+        stale = sorted(
+            path.name for path, before in self.pruned.items()
+            if not path.exists() or path.stat().st_mtime_ns <= before
+        )
+        self.assertEqual(stale, [])
 
     def assert_kept(self, kept: dict[str, tuple[bytes, int]]) -> None:
         """No file of `kept` was removed, rewritten or touched since."""
@@ -5648,33 +5669,40 @@ class StageSequenceTestCase(unittest.TestCase):
         self.stage("tests", kill=True)
         self.settle(kept)
         self.cleans.clear()
+        self.pruned.clear()
         self.push()
         self.assertEqual(self.cleans, [])
         self.assertEqual(self.probe(), "7")
         self.assert_kept(kept)
+        self.assertEqual(self.pruned, {}, "the killed stage's output is resumed under another stage's key")
 
-    def test_outputs_without_a_unit_hash_follow_the_units_a_peer_rebuilt(self) -> None:
-        self.push()
+    def test_a_peer_rebuilt_unit_is_pruned_though_cargo_calls_it_fresh(self) -> None:
+        """A peer at the first revision rebuilds the test and documentation units in place.
+
+        Its source is newer than the units only while it builds; the build
+        script reruns on its own file, and the edit back to the second
+        revision is dated old, so Cargo calls the peer's units fresh. Only the
+        prune makes the stage compile the current source (probe 7), and
+        `target/doc`, which carries no unit hash, follow its documentation
+        unit.
+        """
+        self.stage("tests")
+        self.stage("rustdoc")
         self.set_value(2)
-        kept = self.written_by("clippy")
-        self.stage("tests", kill=True)
-        self.settle(kept)
-        self.push()
-        # A peer at the first revision builds the test and documentation
-        # units in place; its source is newer than the units, so Cargo rebuilds.
-        # `target/doc` carries no unit hash: it is current only because the
-        # peer's documentation unit is pruned and rebuilt.
+        self.stage("tests")
+        self.stage("rustdoc")
         self.set_value(1, aged=False)
-        self.cargo("test", "--no-run")
+        self.cargo("nextest", "run", "--no-run")
         self.cargo("doc", "--no-deps")
         self.set_value(2)
         self.cleans.clear()
+        self.pruned.clear()
         self.stage("tests")
         self.assertEqual(self.probe(), "7", "the peer's test units are rebuilt, not trusted")
         self.stage("rustdoc")
-        self.assertIn("The value is 2", self.documented(), "documentation output follows its pruned unit")
+        self.assertIn("The value is 2", self.documented())
         self.assertEqual(self.cleans, [])
-        self.assert_kept(kept)
+        self.assert_rebuilt()
 
     def test_clippy_recovering_through_a_sibling_keeps_its_units_after_a_tests_kill(self) -> None:
         self.set_value(2)
@@ -5686,11 +5714,13 @@ class StageSequenceTestCase(unittest.TestCase):
         self.stage("tests", kill=True)
         self.settle(kept)
         self.cleans.clear()
+        self.pruned.clear()
         self.stage("clippy")
         self.assertEqual(self.cleans, [])
         self.assert_kept(kept)
         self.stage("tests")
         self.assertEqual(self.probe(), "8")
+        self.assertEqual(self.pruned, {}, "the killed stage's output is resumed under another stage's key")
 
 
 @pytest.mark.slow
