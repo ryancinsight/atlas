@@ -95,15 +95,6 @@
 # malformed input and registry failures still fail. A release checks every
 # named package at HEAD and blocks drift before SemVer, regardless of its diff.
 # This asks whether a published artifact changed, not the API change class.
-#
-# Inputs:
-#   package         - crate name(s), comma-separated (required)
-#   manifest-path   - path to Cargo.toml (default "Cargo.toml")
-#   rust-toolchain  - toolchain for semver-checks (default "stable")
-#   baseline-source - release baseline: "registry" (default; the latest
-#                     published version) or "tag" (the previous release tag)
-#   atlas-ref       - Atlas revision whose scripts the artifact guard runs
-#                     (default: Atlas's default branch)
 
 name: SemVer gate (shared)
 
@@ -124,6 +115,11 @@ on:
         required: false
         type: string
         default: stable
+      rustdoc-toolchain:
+        description: Pinned nightly that builds both locked rustdoc JSON files on pull requests (ADR 0069)
+        required: false
+        type: string
+        default: nightly-2026-08-01
       baseline-source:
         description: Release baseline — "registry" (latest published version) or "tag" (previous release tag)
         required: false
@@ -131,17 +127,13 @@ on:
         default: registry
       apt-packages:
         description: >-
-          System packages the crates' build scripts need, space separated.
-          cargo-semver-checks builds rustdoc for both revisions, so a crate
-          whose build script links a system library (CFDrs reaches
-          yeslogic-fontconfig-sys through its plotting stack) fails here
-          exactly as `cargo doc` would, with the C library's name in the
-          error rather than anything about semver.
+          System packages the crates' build scripts need, space separated; the
+          rustdoc builds fail like `cargo doc` would, naming the C library.
         required: false
         type: string
         default: ""
       atlas-ref:
-        description: Atlas revision whose scripts/atlas-bump-guard.py the artifact guard runs; empty means Atlas's default branch
+        description: Atlas revision whose scripts the artifact guard and the pull-request comparison run; empty means Atlas's default branch
         required: false
         type: string
         default: ""
@@ -159,15 +151,13 @@ jobs:
     name: SemVer (informational)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      # cargo-semver-checks builds rustdoc for both revisions, several minutes
-      # per call. A pull request that changes no Rust source, manifest, lock,
-      # or toolchain pin cannot change the public API, so the comparison has
-      # nothing to find there. The release gate below always runs.
+      # Rustdoc for both revisions takes minutes; a pull request that changes no
+      # Rust source, manifest, lock, or toolchain pin cannot change the public API.
       - name: Detect a change that can move the public API
         id: scope
         env:
@@ -222,41 +212,51 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ${{ inputs.apt-packages }}
-      - id: semver
+      - id: tool
         if: steps.scope.outputs.rust == 'true' && steps.checkable.outputs.packages != ''
         continue-on-error: true
-        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
-          package: ${{ steps.checkable.outputs.packages }}
-          manifest-path: ${{ inputs.manifest-path }}
-          rust-toolchain: ${{ inputs.rust-toolchain }}
-          baseline-rev: ${{ github.event.pull_request.base.sha }}
-          verbose: true
-      - name: Report the detected change class
+          tool: cargo-semver-checks@0.51.0
+      - id: atlas
+        if: steps.scope.outputs.rust == 'true' && steps.checkable.outputs.packages != ''
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          ref: ${{ inputs.atlas-ref }}
+          path: _atlas
+          persist-credentials: false
+      # cargo-semver-checks re-resolves a --baseline-rev in a placeholder, so a moved git dependency
+      # fails it (hephaestus#537); the script builds each side under its own lock. 25 min is
+      # 5x the derived cold build (98 s x 10/7 builds x 2 target directories).
+      - id: semver
+        if: steps.tool.outcome == 'success' && steps.atlas.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 25
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          MANIFEST_PATH: ${{ inputs.manifest-path }}
+          PACKAGES: ${{ steps.checkable.outputs.packages }}
+          RUSTUP_TOOLCHAIN: ${{ inputs.rust-toolchain }}
+          RUSTDOC_TOOLCHAIN: ${{ inputs.rustdoc-toolchain }}
         run: |
-          if [ "${{ steps.checkable.outputs.packages }}" = "" ]; then
-            : # The library-target selection already reported why nothing was compared.
-          elif [ "${{ steps.scope.outputs.rust }}" != "true" ]; then
-            {
-              echo "### SemVer: not compared"
-              echo ""
-              echo "The pull request changes no Rust source, manifest, lock, or toolchain pin, so the public API cannot differ from the base."
-            } >> "$GITHUB_STEP_SUMMARY"
-          elif [ "${{ steps.semver.outcome }}" = "success" ]; then
-            {
-              echo "### SemVer: no update required"
-              echo ""
-              echo "No breaking or additive change detected against the PR base."
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            {
-              echo "### SemVer: a version bump is required"
-              echo ""
-              echo "\`cargo-semver-checks\` detected a change the current manifest version does not cover. Open the step log above for the failing checks."
-              echo ""
-              echo "This job stays green on purpose: on a pull request the gate is informational, and members accumulate accepted breaking changes under CHANGELOG \`[Unreleased]\`. Record the break there. The blocking comparison runs at release."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+          for t in "$RUSTUP_TOOLCHAIN" "$RUSTDOC_TOOLCHAIN"; do rustup toolchain install "$t" --profile minimal; done
+          status=0
+          python3 _atlas/scripts/atlas_semver_pr.py --repo . --base "$BASE" \
+            --manifest-path "$MANIFEST_PATH" --package "$PACKAGES" \
+            --rustdoc-toolchain "$RUSTDOC_TOOLCHAIN" --summary "$GITHUB_STEP_SUMMARY" || status=$?
+          echo "exit=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+      - name: Report a comparison that did not complete
+        if: >-
+          steps.tool.outcome == 'failure' || steps.atlas.outcome == 'failure' || (steps.semver.outcome == 'failure'
+          && steps.semver.outputs.exit != '100' && steps.semver.outputs.exit != '101')
+        run: 'echo "### SemVer: tool failure, no complete verdict" >> "$GITHUB_STEP_SUMMARY"'
+      - name: Report why nothing was compared
+        if: steps.checkable.outputs.packages != '' && steps.scope.outputs.rust != 'true'
+        run: |
+          printf '%s\n' "### SemVer: not compared" "" "The pull request changes no Rust source, manifest, lock, or toolchain pin, so the public API cannot differ from the base." >> "$GITHUB_STEP_SUMMARY"
 
   bump-guard:
     name: Version bump guard
