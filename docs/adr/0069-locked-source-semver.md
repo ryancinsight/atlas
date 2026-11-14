@@ -6,6 +6,8 @@
 - Revision: 2026-11-10 — Separate completed-major admission from reviewed
   disposition of recognized unsupported historical reconstruction.
 - Revision: 2026-11-11 — Bind separate locked registry reconstruction for development.
+- Revision: 2026-11-14 — The informational pull-request job runs the
+  separate locked comparison directly, with no native run or lock digests.
 
 ## Context
 
@@ -28,7 +30,8 @@ Manifest release admissibility is a separate question from whether an API breaks
 
 ## Decision
 
-Every Git comparison first invokes the pinned native tool with
+Every Git comparison, except the informational pull-request job (see the
+revision note), first invokes the pinned native tool with
 `--baseline-rev` and patch-level discovery. Patch exit 0 requires patch impact.
 Patch exit 100 means only that patch impact is insufficient, so the same inputs
 run again at minor level: minor exit 0 requires minor impact and remains
