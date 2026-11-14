@@ -495,5 +495,18 @@ class ReleaseVerdictTests(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
 
 
+class PullRequestLockedBaselineWiringTests(unittest.TestCase):
+    def test_the_job_runs_the_locked_comparison_script_without_the_action(self) -> None:
+        steps = job_steps("semver-pr")
+        self.assertFalse([s for s in steps if "cargo-semver-checks-action" in s.get("uses", "")])
+        semver = next(s for s in steps if s.get("id") == "semver")
+        self.assertIs(semver["continue-on-error"], True)
+        self.assertIn("atlas_semver_pr.py", semver["run"])
+        self.assertIn('--rustdoc-toolchain "$RUSTDOC_TOOLCHAIN"', semver["run"])
+        self.assertNotIn("baseline-rev", semver["run"])
+        atlas = next(s for s in steps if s.get("with", {}).get("path") == "_atlas")
+        self.assertLess(steps.index(atlas), steps.index(semver))
+
+
 if __name__ == "__main__":
     unittest.main()
