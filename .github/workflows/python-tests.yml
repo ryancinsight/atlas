@@ -144,11 +144,13 @@ jobs:
 
       - name: Install cargo-semver-checks for the locked SemVer comparison test
         # scripts/tests/test_atlas_semver_pr.py skips without both.
+        timeout-minutes: 3
         uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
           tool: cargo-semver-checks@0.51.0
 
       - name: Install the pinned rustdoc nightly
+        timeout-minutes: 3
         run: rustup toolchain install nightly-2026-08-01 --profile minimal
 
       - name: Cache Cargo
