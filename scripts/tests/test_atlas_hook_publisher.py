@@ -572,8 +572,9 @@ class PullRequestCommandTestCase(unittest.TestCase):
         candidate = "c" * 40
         merge = "a" * 40
         tree = "b" * 40
-        responses = [
+        responses = iter([
             subprocess.CompletedProcess([], 0, stdout=f"{url}\tfalse\n", stderr=""),
+            subprocess.CompletedProcess([], 0, stdout="", stderr=""),
             subprocess.CompletedProcess(
                 [],
                 0,
@@ -588,9 +589,18 @@ class PullRequestCommandTestCase(unittest.TestCase):
                 stderr="",
             ),
             subprocess.CompletedProcess([], 0, stdout="", stderr=""),
-        ]
+        ])
+        body_sent: list[bytes] = []
+
+        def gh(command: list[str], **_kwargs):
+            # The body file is removed once `pull_request_for` returns.
+            if command[1:3] == ["pr", "edit"]:
+                body_file = Path(command[command.index("--body-file") + 1])
+                body_sent.append(body_file.read_bytes())
+            return next(responses)
+
         with (
-            patch.object(_lock_form.subprocess, "run", side_effect=responses) as run,
+            patch.object(_lock_form.subprocess, "run", side_effect=gh) as run,
             patch.object(
                 _lock_form,
                 "git_in",
@@ -598,13 +608,16 @@ class PullRequestCommandTestCase(unittest.TestCase):
             ),
         ):
             found, created = _lock_form.pull_request_for(
-                repo, "ci/sync-stack-hooks", "main", "subject", "body"
+                repo, "ci/sync-stack-hooks", "main", "subject", "current message\n"
             )
             _lock_form.enqueue_pull_request(
                 repo, found, default, candidate, tree
             )
 
         self.assertEqual((found, created), (url, False))
+        self.assertEqual(body_sent, [b"current message\n"])
+        edit = run.call_args_list[1].args[0]
+        self.assertEqual(edit[:5], ["gh", "pr", "edit", url, "--body-file"])
         self.assertEqual(
             run.call_args_list[0].args[0],
             [
@@ -614,12 +627,12 @@ class PullRequestCommandTestCase(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            run.call_args_list[2].args[0],
+            run.call_args_list[3].args[0],
             ["gh", "pr", "merge", url, "--merge", "--auto",
              "--match-head-commit", candidate],
         )
         self.assertEqual(
-            run.call_args_list[2].kwargs["timeout"],
+            run.call_args_list[3].kwargs["timeout"],
             _lock_form.HOSTING_DEADLINE_SECONDS,
         )
 
@@ -1331,7 +1344,16 @@ class RetiredPathTestCase(unittest.TestCase):
                 retire=["scripts/lockfile.py"],
             )
             git_results = iter(
-                ["", "refs/remotes/origin/main", "a" * 40, "aaaaaaaa", "", "origin/main", "b" * 40]
+                [
+                    "",
+                    "refs/remotes/origin/main",
+                    "a" * 40,
+                    "",
+                    "aaaaaaaa",
+                    "",
+                    "origin/main",
+                    "b" * 40,
+                ]
             )
             with (
                 patch.object(_lock_form, "ROOT", root),
@@ -1415,6 +1437,22 @@ class PublisherScopeTestCase(unittest.TestCase):
                 git_in.assert_not_called()
                 self.assertIn("invalid item", error_output.getvalue())
 
+    def test_invalid_agent_and_integrator_are_rejected_before_external_commands(
+        self,
+    ) -> None:
+        for flag in ("agent", "integrator"):
+            with self.subTest(flag=flag):
+                args = Namespace(
+                    members=["alpha"], push=True, source_ref=None, **{flag: "codex"}
+                )
+                with (
+                    patch.object(_lock_form, "git_in") as git_in,
+                    redirect_stderr(io.StringIO()) as error_output,
+                ):
+                    self.assertEqual(_lock_form.cmd_publish_hooks(args), 2)
+                git_in.assert_not_called()
+                self.assertIn(f"invalid {flag}", error_output.getvalue())
+
     def test_unknown_member_is_rejected_before_external_commands(self) -> None:
         args = Namespace(members=["../other"], push=True, source_ref=None)
         with (
@@ -1445,6 +1483,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                     "",  # fetch Atlas
                     "refs/remotes/origin/main",  # Atlas default
                     source_commit,  # resolve the requested source ref
+                    "",  # source reachable from the Atlas default
                     "aaaaaaaa",  # source abbreviation for the PR message
                     "",  # fetch member
                     "origin/main",  # member default
@@ -1558,6 +1597,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                     "",
                     "refs/remotes/origin/main",
                     source_commit,
+                    "",
                     "aaaaaaaa",
                     "",
                     "origin/main",
@@ -1617,6 +1657,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                     "",
                     "refs/remotes/origin/main",
                     source_commit,
+                    "",
                     "aaaaaaaa",
                     "",
                     "origin/main",
@@ -1749,6 +1790,7 @@ class PublisherScopeTestCase(unittest.TestCase):
                             "",
                             "refs/remotes/origin/main",
                             "5" * 40,
+                            "",
                             "55555555",
                             "",
                             "origin/main",
@@ -1830,6 +1872,185 @@ class PublisherScopeTestCase(unittest.TestCase):
                     self.assertIn(f"FAILED: {failed_stage} refused", output.getvalue())
                     self.assertNotIn("published:", output.getvalue())
                     self.assertNotIn("reused:", output.getvalue())
+
+
+class HookSourceCitationTestCase(unittest.TestCase):
+    """Durable text cites only a revision the default branch reaches, or a PR."""
+
+    SOURCE = "d" * 40
+    PULLS = [
+        {"number": 5, "headRefOid": "e" * 40},
+        {"number": 7, "headRefOid": "d" * 40},
+    ]
+
+    def test_citation_is_a_reachable_hash_or_the_pull_request_heading_it(self) -> None:
+        def cite(landed: bool, pulls: list[dict]) -> str | None:
+            return _lock_form.hook_source_citation(
+                self.SOURCE, "dddddddd", landed, pulls, "example/atlas"
+            )
+
+        self.assertEqual(cite(True, self.PULLS), "dddddddd")
+        self.assertEqual(cite(False, self.PULLS), "example/atlas#7")
+        for pulls in (
+            [],
+            [{"number": 5, "headRefOid": "e" * 40}],
+            [{"number": True, "headRefOid": self.SOURCE}],
+            [{"headRefOid": self.SOURCE}],
+        ):
+            with self.subTest(pulls=pulls):
+                self.assertIsNone(cite(False, pulls))
+
+    def test_slug_comes_from_the_remote_url(self) -> None:
+        for url in (
+            "https://github.com/example/atlas.git",
+            "https://github.com/example/atlas/",
+            "git@github.com:example/atlas.git",
+        ):
+            self.assertEqual(_lock_form.github_slug(url), "example/atlas")
+        with self.assertRaisesRegex(RuntimeError, "not a GitHub remote"):
+            _lock_form.github_slug("https://example.org/example/atlas.git")
+
+    def _resolve(self, ancestry: str, pulls: str):
+        calls: list[tuple[str, ...]] = []
+
+        def git(repo: Path, *command: str, **_kwargs) -> str:
+            calls.append(command)
+            if command[0] == "rev-list":
+                return ancestry
+            if command[0] == "remote":
+                return "https://github.com/example/atlas.git"
+            return "dddddddd"
+
+        with (
+            patch.object(_lock_form, "git_in", side_effect=git),
+            patch.object(_lock_form, "hosting_in", return_value=pulls) as hosting,
+        ):
+            citation = _lock_form.resolve_hook_source_citation(
+                self.SOURCE, "refs/remotes/origin/main"
+            )
+        return citation, calls, hosting
+
+    def test_resolution_asks_hosting_only_for_an_unlanded_source(self) -> None:
+        citation, calls, hosting = self._resolve("", "[]")
+        self.assertEqual(citation, "dddddddd")
+        self.assertEqual(
+            calls[0],
+            ("rev-list", "--max-count=1", self.SOURCE, "^refs/remotes/origin/main"),
+        )
+        hosting.assert_not_called()
+        citation, _calls, hosting = self._resolve(self.SOURCE, json.dumps(self.PULLS))
+        self.assertEqual(citation, "example/atlas#7")
+        hosting.assert_called_once_with(
+            _lock_form.ROOT, "pr", "list", "--state", "open",
+            "--json", "number,headRefOid", "--limit", "200",
+        )
+
+        citation, _calls, _hosting = self._resolve(self.SOURCE, "[]")
+        self.assertIsNone(citation)
+        for listing in ("not json", '{"number": 7}'):
+            with self.assertRaisesRegex(RuntimeError, "open Atlas pull requests"):
+                self._resolve(self.SOURCE, listing)
+
+    def _publish(self, args: Namespace, *, ancestry: str, pulls: str, **patches):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="atlas-citation-")))
+        (root / "repos" / "alpha").mkdir(parents=True)
+
+        def git(repo: Path, *command: str, **_kwargs) -> str:
+            if command[0] == "symbolic-ref":
+                return "refs/remotes/origin/main" if repo == root else "origin/main"
+            if command[:2] == ("rev-list", "--max-count=1"):
+                return ancestry
+            if command[:3] == ("remote", "get-url", "origin"):
+                return "https://github.com/example/atlas.git"
+            if command[0] == "rev-parse":
+                if "--verify" in command:
+                    return self.SOURCE
+                return "dddddddd" if "--short" in command else "b" * 40
+            return ""
+
+        hook = [("pre-push", b"#!/bin/sh\nexit 0\n")]
+        publication_base = patches.pop("publication_base", None)
+        events: list[tuple] = []
+        errors = io.StringIO()
+        with (
+            patch.object(_lock_form, "ROOT", root),
+            patch.object(_lock_form, "REPOS", root / "repos"),
+            patch.object(_lock_form, "member_scope", return_value=("alpha",)),
+            patch.object(_lock_form, "git_in", side_effect=git),
+            patch.object(_lock_form, "hosting_in", return_value=pulls),
+            patch.object(_lock_form, "committed_hooks", return_value=hook),
+            patch.object(
+                _lock_form,
+                "hook_publication_base",
+                side_effect=lambda _repo, default, *_args: publication_base or default,
+            ),
+            patch.object(_lock_form, "hook_landing_tree", return_value="landing"),
+            patch.object(
+                _lock_form,
+                "push_hook_branch",
+                side_effect=lambda *_args: events.append(("push",)),
+            ),
+            patch.object(
+                _lock_form,
+                "update_pull_request_body",
+                side_effect=lambda *call: events.append(("body", *call)),
+            ),
+            patch.object(_lock_form, "require_hosted_merge"),
+            patch.object(_lock_form, "enqueue_pull_request"),
+            patch.object(
+                _lock_form, "open_pull_request", return_value=patches.pop("open_pr", None)
+            ),
+            patch.object(
+                _lock_form, "hook_commit", return_value=patches.pop("commit", "built")
+            ) as hook_commit,
+            patch.object(
+                _lock_form,
+                "refresh_hook_publication",
+                return_value=patches.pop("refreshed", None),
+            ),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(errors),
+        ):
+            status = _lock_form.cmd_publish_hooks(args)
+        return status, hook_commit, errors.getvalue(), events, root
+
+    def test_unlanded_source_is_cited_by_pull_request_in_the_message(self) -> None:
+        lead = "claude:cf2e0cbc-7c49-4f1d-a26e-574e22b052af"
+        args = Namespace(
+            members=["alpha"], push=False, source_ref=None,
+            agent=f"{lead}/469", integrator=lead,
+        )
+        status, hook_commit, _errors, _events, _root = self._publish(
+            args, ancestry=self.SOURCE, pulls=json.dumps(self.PULLS)
+        )
+        self.assertEqual(status, 0)
+        message = hook_commit.call_args.args[3]
+        self.assertTrue(message.endswith(f"\n\nIntegrator: {lead}\nAgent: {lead}/469\n"))
+        self.assertIn("scripts/git-hooks` at example/atlas#7, the single\n", message)
+        self.assertNotIn(self.SOURCE[:8], message)
+
+    def test_unlanded_source_without_a_pull_request_is_refused(self) -> None:
+        args = Namespace(members=["alpha"], push=True, source_ref=None)
+        status, hook_commit, errors, events, _root = self._publish(
+            args, ancestry=self.SOURCE, pulls="[]"
+        )
+        self.assertEqual(status, 2)
+        self.assertIn("neither reachable from refs/remotes/origin/main", errors)
+        hook_commit.assert_not_called()
+
+    def test_republishing_refreshes_the_reused_pull_request_body(self) -> None:
+        url = "https://github.com/example/alpha/pull/3"
+        args = Namespace(members=["alpha"], push=True, source_ref=None)
+        for refreshed, pushed in (("f" * 40, [("push",)]), (None, [])):
+            with self.subTest(refreshed=refreshed):
+                status, _hook_commit, _errors, events, root = self._publish(
+                    args, ancestry="", pulls="[]", commit=None,
+                    publication_base="a" * 40, open_pr=(url, False), refreshed=refreshed,
+                )
+                self.assertEqual(status, 0)
+                self.assertEqual(events[:-1], pushed)
+                self.assertEqual(events[-1][:3], ("body", root / "repos" / "alpha", url))
+                self.assertIn("at dddddddd, the single\n", events[-1][3])
 
 
 if __name__ == "__main__":
