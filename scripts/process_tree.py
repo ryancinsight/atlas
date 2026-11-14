@@ -23,7 +23,9 @@ Ownership is membership in a kernel container, not parentage:
   process of the caller); ``CrossProcessClockTests`` pins that a child reads
   the caller's clock. Before it kills the group at the deadline the supervisor
   writes a ``timeout`` status, so the caller classifies the end of the command by
-  what the supervisor reported and never by comparing clocks.
+  what the supervisor reported. The one clock comparison is an output collector's
+  recorded stop time against the deadline, which separates a stream that crossed
+  its bound first from a deadline that passed first, however late the wait notices.
   A descendant that calls ``setsid`` or ``setpgid`` leaves the group and escapes
   cleanup and the supervisor's kill alike; git's detached auto-gc is one such
   process, and the runner cannot reach it.
@@ -187,7 +189,7 @@ retired.wait()
 
 
 class ProcessTreeCleanupError(RuntimeError):
-    """A command ended, or a failed output reader stopped it, but cleanup failed."""
+    """A command ended, but retiring its process tree or draining its output failed."""
 
     def __init__(self, cleanup_error: str) -> None:
         super().__init__(f"process-tree cleanup failed: {cleanup_error}")
@@ -350,11 +352,8 @@ class _OutputCollector:
         self._bytes = bytearray()
         self._error: BaseException | None = None
         self.limit_reached = False
-        self._thread = threading.Thread(
-            target=self._read,
-            name="atlas-process-output",
-            daemon=True,
-        )
+        self.stopped_at = math.inf
+        self._thread = threading.Thread(target=self._read, name="atlas-process-output", daemon=True)
 
     def start(self) -> None:
         self._thread.start()
@@ -374,9 +373,7 @@ class _OutputCollector:
         try:
             while True:
                 remaining = self._limit - len(self._bytes)
-                size = OUTPUT_READ_BYTES if self.limit_reached else min(
-                    OUTPUT_READ_BYTES, max(1, remaining + 1)
-                )
+                size = OUTPUT_READ_BYTES if self.limit_reached else min(OUTPUT_READ_BYTES, remaining + 1)
                 block = self._stream.read(size)
                 if not block:
                     return
@@ -385,14 +382,19 @@ class _OutputCollector:
                 if len(block) > remaining:
                     self._bytes.extend(block[:remaining])
                     self.limit_reached = True
-                    self._exceeded.set()
+                    self._stop()
                 else:
                     self._bytes.extend(block)
         except BaseException as caught:
             self._error = caught
-            self._exceeded.set()
+            self._stop()
         finally:
             self._stream.close()
+
+    def _stop(self) -> None:
+        # The reading precedes the event, so a wait that sees the event sees the time.
+        self.stopped_at = min(self.stopped_at, time.monotonic())
+        self._exceeded.set()
 
 
 def _merge_errors(*errors: str | None) -> str | None:
@@ -790,12 +792,11 @@ def run(
                 finished = _wait_for_exit(process, deadline, *stop_on_output)
                 if finished:
                     command_returncode = process.returncode
-            # An early return on the event is an output stop; a wait that ran to the
-            # deadline is a timeout even if the event is set by then.
-            stopped_for_output = (
-                output_exceeded is not None
-                and output_exceeded.is_set()
-                and time.monotonic() < deadline
+            # An unfinished run is an output stop when a collector stopped it before
+            # the deadline, whenever the wait noticed; otherwise it is a timeout.
+            stopped_for_output = any(
+                collector is not None and collector.stopped_at < deadline
+                for collector in (stdout_collector, stderr_collector)
             )
             timed_out = not finished and not stopped_for_output
             cleanup_error = _terminate_process_tree(process, windows_job, cleanup_state)
@@ -870,13 +871,9 @@ def run(
             ) from (
                 None if cleanup_error is None else ProcessTreeCleanupError(cleanup_error)
             )
-        output_limit_hit = any(
-            collector is not None and collector.limit_reached
-            for collector in (stdout_collector, stderr_collector)
-        )
-        if output_limit_hit:
-            stream = "stdout" if (stdout_collector is not None
-                                    and stdout_collector.limit_reached) else "stderr"
+        stdout_over = stdout_collector is not None and stdout_collector.limit_reached
+        if stdout_over or (stderr_collector is not None and stderr_collector.limit_reached):
+            stream = "stdout" if stdout_over else "stderr"
             limit = stdout_limit if stream == "stdout" else stderr_limit
             raise ProcessTreeOutputLimit(
                 arguments,

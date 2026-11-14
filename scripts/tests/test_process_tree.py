@@ -405,17 +405,12 @@ class ProcessTreeTests(unittest.TestCase):
 
     def test_stdout_limit_terminates_the_tree_before_unbounded_capture(self):
         command = (
-            "import sys, threading; "
-            "sys.stdout.buffer.write(b'x' * 200000); sys.stdout.buffer.flush(); "
-            "threading.Event().wait()"
+            "import sys, threading; sys.stdout.buffer.write(b'x' * 200000); "
+            "sys.stdout.buffer.flush(); threading.Event().wait()"
         )
-
         with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
             process_tree.run(
-                [sys.executable, "-c", command],
-                timeout=HANG_GUARD_SECONDS,
-                stdout_limit=7,
-                stderr_limit=7,
+                [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7, stderr_limit=7
             )
 
         self.assertEqual(raised.exception.stream, "stdout")
@@ -424,10 +419,7 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(raised.exception.stderr, b"")
 
     def test_output_limit_preserves_a_failure_reported_after_real_cleanup(self):
-        command = (
-            "import os, threading; os.write(1, b'x' * 8); "
-            "threading.Event().wait()"
-        )
+        command = "import os, threading; os.write(1, b'x' * 8); threading.Event().wait()"
         original_cleanup = process_tree._terminate_process_tree
 
         def cleanup_then_report(*args, **kwargs):
@@ -438,11 +430,7 @@ class ProcessTreeTests(unittest.TestCase):
             patch.object(process_tree, "_terminate_process_tree", cleanup_then_report),
             self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised,
         ):
-            process_tree.run(
-                [sys.executable, "-c", command],
-                timeout=HANG_GUARD_SECONDS,
-                stdout_limit=7,
-            )
+            process_tree.run([sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7)
 
         self.assertEqual(raised.exception.stdout, b"x" * 7)
         self.assertEqual(raised.exception.cleanup_error, "injected cleanup failure")
@@ -453,13 +441,9 @@ class ProcessTreeTests(unittest.TestCase):
 
     def test_stderr_limit_is_independent_of_the_stdout_limit(self):
         command = "import sys; sys.stderr.buffer.write(b'abcdef')"
-
         with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
             process_tree.run(
-                [sys.executable, "-c", command],
-                timeout=HANG_GUARD_SECONDS,
-                stdout_limit=7,
-                stderr_limit=5,
+                [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7, stderr_limit=5
             )
 
         self.assertEqual(raised.exception.stream, "stderr")
@@ -518,28 +502,44 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertIsNone(process_tree._read_posix_status(status_read.fileno(), deadline, exceeded))
         self.assertLess(time.monotonic(), deadline)
 
-    def test_a_deadline_stop_is_not_reported_as_the_output_bound(self):
+    def _cross_the_bound(self, expected, *, after_the_deadline):
+        # The wait ends at the deadline whichever side the crossing fell on; the
+        # gate file orders the child's write against the test clock.
         waiting = "_wait_for_exit" if sys.platform == "win32" else "_read_posix_status"
         real_wait = getattr(process_tree, waiting)
         real_clock = time.monotonic
         elapsed = [0.0]
+        with tempfile.TemporaryDirectory() as directory:
+            gate = pathlib.Path(directory, "gate")
 
-        def wait_past_the_bound(first, deadline, exceeded):
-            exceeded.wait(HANG_GUARD_SECONDS)
-            elapsed[0] = HANG_GUARD_SECONDS
-            return real_wait(first, deadline)
+            def wait_across_the_deadline(first, deadline, exceeded):
+                if after_the_deadline:
+                    elapsed[0] = HANG_GUARD_SECONDS
+                gate.touch()
+                exceeded.wait(HANG_GUARD_SECONDS)
+                elapsed[0] = HANG_GUARD_SECONDS
+                return real_wait(first, deadline)
 
-        command = "import os, threading; os.write(1, b'x' * 8); threading.Event().wait()"
-        with (
-            patch.object(process_tree, waiting, wait_past_the_bound),
-            patch.object(process_tree.time, "monotonic", lambda: real_clock() + elapsed[0]),
-            self.assertRaises(process_tree.ProcessTreeTimeout) as raised,
-        ):
-            process_tree.run(
-                [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7
+            command = (
+                "import os, sys, threading\n"
+                "while not os.path.exists(sys.argv[1]): threading.Event().wait(0.001)\n"
+                "os.write(1, b'x' * 8); threading.Event().wait()"
             )
-
+            with (
+                patch.object(process_tree, waiting, wait_across_the_deadline),
+                patch.object(process_tree.time, "monotonic", lambda: real_clock() + elapsed[0]),
+                self.assertRaises(expected) as raised,
+            ):
+                process_tree.run(
+                    [sys.executable, "-c", command, str(gate)], timeout=HANG_GUARD_SECONDS, stdout_limit=7
+                )
         self.assertEqual(raised.exception.stdout, b"x" * 7)
+
+    def test_a_bound_crossed_before_the_deadline_is_the_output_bound(self):
+        self._cross_the_bound(process_tree.ProcessTreeOutputLimit, after_the_deadline=False)
+
+    def test_a_deadline_stop_is_not_reported_as_the_output_bound(self):
+        self._cross_the_bound(process_tree.ProcessTreeTimeout, after_the_deadline=True)
 
     def test_a_failed_output_reader_is_noted_on_an_interrupted_run(self):
         waiting = "_wait_for_exit" if sys.platform == "win32" else "_read_posix_status"
@@ -549,9 +549,7 @@ class ProcessTreeTests(unittest.TestCase):
             self.assertRaises(KeyboardInterrupt) as raised,
         ):
             process_tree.run(
-                [sys.executable, "-c", NEVER_ENDS],
-                timeout=HANG_GUARD_SECONDS,
-                stdout_limit=1,
+                [sys.executable, "-c", NEVER_ENDS], timeout=HANG_GUARD_SECONDS, stdout_limit=1
             )
 
         self.assertRegex(
@@ -568,9 +566,7 @@ class ProcessTreeTests(unittest.TestCase):
                     self.assertRaisesRegex(error, "limit must be"),
                 ):
                     process_tree.run(
-                        [sys.executable, "-c", "pass"],
-                        timeout=HANG_GUARD_SECONDS,
-                        stdout_limit=limit,
+                        [sys.executable, "-c", "pass"], timeout=HANG_GUARD_SECONDS, stdout_limit=limit
                     )
                 launch.assert_not_called()
 
