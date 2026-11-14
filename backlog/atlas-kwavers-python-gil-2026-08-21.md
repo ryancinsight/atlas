@@ -1,5 +1,4 @@
 <a id="atlas-kwavers-python-gil-2026-08-21"></a>
 ## ATLAS-KWAVERS-PYTHON-GIL-2026-08-21 — Detach Simulation.run [minor] — todo
-- `Simulation::run` now accepts the hidden PyO3 `Python<'_>` token, clones the backend-neutral grid/medium/config inputs, and executes `SimulationRunner::run` inside `py.detach`. The detached closure captures no pyclass or Python handle.
-- Added `tests/test_simulation_gil.py`, an event-based Python-thread regression that requires concurrent Python progress and verifies the returned result's time-step count, sensor shape, and finite values.
-- Provider `cargo check -p kwavers-python --lib` passes. The full provider formatter remains blocked by pre-existing peer-owned formatting drift in `kwavers-medium/src/absorption/stokes.rs`; no unrelated formatting was applied. Native wheel/runtime execution remains pending until a built extension is available.
+- `Simulation::run` executes `SimulationRunner::run` inside `py.detach` (`crates/kwavers-python/src/simulation_py/run/execute.rs`; landed in 0ff20ac2f, an ancestor of kwavers origin/main). The detached closure captures no pyclass or Python handle.
+- Oracle: `test_simulation_run_releases_gil_with_returned_value_correctness` in `crates/kwavers-python/tests/test_bindings_surface.py` (spinner-thread overlap, bit-identical repeat, amplitude linearity). basis: 2b000c51b; only `python-release.yml` (`python-test-path: crates/kwavers-python/tests`) runs that file, and the PR wheel smoke job names other files. next: add it to the wheel smoke job.
