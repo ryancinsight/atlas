@@ -1,0 +1,7 @@
+<a id="atlas-registry-slice-003"></a>
+## ATLAS-REGISTRY-SLICE-003 — Bound captured process output [patch] — todo
+- outcome: `process_tree.run` accepts `stdout_limit` and `stderr_limit`, terminates the tree before unbounded capture, and rejects a limit under `OutputMode.INHERIT`; 277 changed lines (exact).
+- oracle: scripts/tests/test_process_tree.py::ProcessTreeTests::{test_stdout_limit_terminates_the_tree_before_unbounded_capture, test_output_limit_preserves_a_failure_reported_after_real_cleanup, test_stderr_limit_is_independent_and_default_behavior_is_unchanged, test_output_limits_are_validated_before_launch, test_output_limits_require_captured_output}, plus all of test_process_tree*.py. Run through the python-tests.yml invocations.
+- basis: 2b000c51b; priority: tightening; needs: none; pins: none (process_tree.py is in no closure on main); scope: `scripts/process_tree.py`, `scripts/tests/test_process_tree.py`, `scripts/tests/test_process_tree_cleanup.py`
+- next: port every process_tree.py hunk except the importlib.util/pathlib imports and `_load_sibling` (ATLAS-REGISTRY-SLICE-012 owns those): OUTPUT_READ_BYTES, ProcessTreeOutputLimit, _OutputCollector, the _wait_for_exit and _read_posix_status changes, and the limit path; lands before ATLAS-REGISTRY-SLICE-012.
+- links: slice 3 of the PR 587 verdict (https://github.com/ryancinsight/atlas/pull/587#issuecomment-6866306457); source tree `refs/pull/587/head`; cut from its net diff against main.

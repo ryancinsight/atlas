@@ -116,3 +116,17 @@
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — ADR 0055's substrate contract is enforced only for direct, unrenamed dependencies [patch] — todo
 <a id="atlas-athena-amg-vcycle-slices"></a>- [ATLAS-ATHENA-AMG-VCYCLE-SLICES](backlog/atlas-athena-amg-vcycle-slices.md) — AMG applies its V-cycle through two O(n) boundary copies [tightening] [patch] — todo
 <a id="atlas-board-lint-id-prefix-20261113"></a>- [ATLAS-BOARD-LINT-ID-PREFIX-20261113](backlog/atlas-board-lint-id-prefix-20261113.md) — Board lint's duplicate-id gate reads only ATLAS- headings [patch] — todo
+<a id="atlas-registry-slice-001"></a>- [ATLAS-REGISTRY-SLICE-001](backlog/atlas-registry-slice-001.md) — Compact the publication pipeline record (ADR 0035, part 1) [patch] — todo
+<a id="atlas-registry-slice-002"></a>- [ATLAS-REGISTRY-SLICE-002](backlog/atlas-registry-slice-002.md) — Compact the publication pipeline record (ADR 0035, part 2) [patch] — todo
+<a id="atlas-registry-slice-003"></a>- [ATLAS-REGISTRY-SLICE-003](backlog/atlas-registry-slice-003.md) — Bound captured process output [patch] — todo
+<a id="atlas-registry-slice-004"></a>- [ATLAS-REGISTRY-SLICE-004](backlog/atlas-registry-slice-004.md) — Share the registry reader and policy in release identity [patch] — todo
+<a id="atlas-registry-slice-005"></a>- [ATLAS-REGISTRY-SLICE-005](backlog/atlas-registry-slice-005.md) — Pend through the shared registry policy [patch] — todo
+<a id="atlas-registry-slice-006"></a>- [ATLAS-REGISTRY-SLICE-006](backlog/atlas-registry-slice-006.md) — Require a strict owner schema [patch] — todo
+<a id="atlas-registry-slice-007"></a>- [ATLAS-REGISTRY-SLICE-007](backlog/atlas-registry-slice-007.md) — Read drift through the shared registry policy [patch] — todo
+<a id="atlas-registry-slice-008"></a>- [ATLAS-REGISTRY-SLICE-008](backlog/atlas-registry-slice-008.md) — Add the registry HTTP line grammar [patch] — todo
+<a id="atlas-registry-slice-009"></a>- [ATLAS-REGISTRY-SLICE-009](backlog/atlas-registry-slice-009.md) — Parse registry status and headers strictly [patch] — todo
+<a id="atlas-registry-slice-010"></a>- [ATLAS-REGISTRY-SLICE-010](backlog/atlas-registry-slice-010.md) — Classify registry transport failures [patch] — todo
+<a id="atlas-registry-slice-011"></a>- [ATLAS-REGISTRY-SLICE-011](backlog/atlas-registry-slice-011.md) — Bound chunked registry framing [patch] — todo
+<a id="atlas-registry-slice-012"></a>- [ATLAS-REGISTRY-SLICE-012](backlog/atlas-registry-slice-012.md) — Bound the registry request lifetime [patch] — todo
+<a id="atlas-registry-slice-013"></a>- [ATLAS-REGISTRY-SLICE-013](backlog/atlas-registry-slice-013.md) — Bind expected crate artifacts [minor] — todo
+<a id="atlas-registry-slice-014"></a>- [ATLAS-REGISTRY-SLICE-014](backlog/atlas-registry-slice-014.md) — Gate tags on registry artifact identity [minor] — todo
