@@ -1258,7 +1258,6 @@ class PackageMapperTestCase(unittest.TestCase):
                 {
                     "backlog.md": "# board\n",
                     "backlog/item.md": "# item\n",
-                    "backlog/nested/item.md": "# nested\n",
                     "gap_audit.md": "# risks\n",
                     "checklist.md": "# checklist\n",
                 },
@@ -1286,6 +1285,44 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertIn("gating solo", stderr)
             calls = fixture.calls.read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
+
+    def test_only_top_level_board_markdown_skips_under_backlog(self) -> None:
+        """`backlog/x.rs` and `backlog/sub/x.md` are not board files, so they gate."""
+        cases = (
+            ("backlog/item.md", False),
+            ("backlog/x.rs", True),
+            ("backlog/deep/x.rs", True),
+            ("backlog/deep/item.md", True),
+        )
+        for path, gated in cases:
+            with self.subTest(path=path), tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+                fixture = _stacked_fixture(temp, layout="single")
+                self._commit_paths_on_a_branch(fixture, {path: "// board\n"})
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 0, stderr)
+                calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
+                if gated:
+                    self.assertIn("gating solo", stderr)
+                    self.assertIn("-p solo", calls)
+                else:
+                    self.assertIn("no package owns the changed files", stderr)
+                    self.assertNotIn("-p solo", calls)
+
+    def test_a_board_file_beside_code_under_a_non_board_path_still_gates(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = _stacked_fixture(temp, layout="single")
+            self._commit_paths_on_a_branch(
+                fixture,
+                {"backlog/item.md": "# item\n", "docs/x.rs": "pub fn x() {}\n"},
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating solo", stderr)
+            self.assertIn("-p solo", fixture.calls.read_text(encoding="utf-8"))
 
     def test_nested_board_names_still_gate_the_root_package(self) -> None:
         """Only repository-root board paths skip: a crate can `include_str!` a nested one."""
