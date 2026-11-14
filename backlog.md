@@ -135,3 +135,7 @@
 <a id="atlas-hook-rename-row-strength"></a>- [ATLAS-HOOK-RENAME-ROW-STRENGTH](backlog/atlas-hook-rename-row-strength.md) — The `src/lib.rs` to `backlog/lib.rs` rename row no longer tests rename handling [patch] — todo
 <a id="atlas-hook-virtual-lock-only"></a>- [ATLAS-HOOK-VIRTUAL-LOCK-ONLY](backlog/atlas-hook-virtual-lock-only.md) — A root `Cargo.lock`-only push in a virtual workspace gates no package [patch] — todo
 <a id="atlas-semver-pr-job-wiring-strength"></a>- [ATLAS-SEMVER-PR-JOB-WIRING-STRENGTH](backlog/atlas-semver-pr-job-wiring-strength.md) — The PR SemVer job's wiring test passes mutants that void the comparison [patch] — todo
+<a id="atlas-cast-gate-standalone-owners-caller"></a>- [ATLAS-CAST-GATE-STANDALONE-OWNERS-CALLER](backlog/atlas-cast-gate-standalone-owners-caller.md) — `new-standalone-owners` and `--zero-base-package` have no hook caller [patch] — todo
+<a id="atlas-semver-nightly-pin-sources"></a>- [ATLAS-SEMVER-NIGHTLY-PIN-SOURCES](backlog/atlas-semver-nightly-pin-sources.md) — The SemVer rustdoc nightly pin is written in four files [patch] — todo
+<a id="atlas-semver-pr-step-bounds"></a>- [ATLAS-SEMVER-PR-STEP-BOUNDS](backlog/atlas-semver-pr-step-bounds.md) — The `semver-pr` job's `tool` and `atlas` steps carry no bound and its job bound has no derivation [patch] — todo
+<a id="atlas-semver-pr-test-import-bound"></a>- [ATLAS-SEMVER-PR-TEST-IMPORT-BOUND](backlog/atlas-semver-pr-test-import-bound.md) — The SemVer PR test's `tool_ready()` runs two commands at import with no deadline [patch] — todo
