@@ -114,3 +114,4 @@
 <a id="atlas-hook-merge-range"></a>- [ATLAS-HOOK-MERGE-RANGE](backlog/atlas-hook-merge-range.md) — A pushed branch update gates and budgets against the wrong base [patch] — todo
 <a id="atlas-hook-nextest-config-owner"></a>- [ATLAS-HOOK-NEXTEST-CONFIG-OWNER](backlog/atlas-hook-nextest-config-owner.md) — A member's nextest config change selects no package in the pre-push gate [patch] — todo
 <a id="atlas-python-39-floor"></a>- [ATLAS-PYTHON-39-FLOOR](backlog/atlas-python-39-floor.md) — Decide the Python floor the wheel callers support [arch] — todo
+<a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — ADR 0055's substrate contract is enforced only for direct, unrenamed dependencies [patch] — todo
