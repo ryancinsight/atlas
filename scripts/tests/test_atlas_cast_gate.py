@@ -2075,3 +2075,132 @@ def test_resolved_changes_follow_a_feature_the_entry_enables_downstream(tmp_path
         # `q`'s build or dev edge to `z` is a host edge, so `q` reaches `z`.
         expected = ["m2", "p", "q", "x", "z"]
     assert (sorted(changed), reason) == (expected, "")
+
+
+LIB = "crates/prof/src/lib.rs"
+MODULE = "crates/prof/src/cast.rs"
+HOOK = ('pub fn hook(f: Option<unsafe extern "C" fn()>) -> *mut c_void {\n'
+        "    match f {\n        Some(f) => f as *mut c_void,\n"
+        "        None => core::ptr::null_mut(),\n    }\n}\n")
+CAST_MODULE = (
+    "//! The crate's one home for function-pointer casts.\n#![expect(\n"
+    "    clippy::as_conversions,\n"
+    '    reason = "a function pointer has no stable typed conversion to a data pointer"\n'
+    ")]\n\nuse core::ffi::c_void;\n\n" + HOOK.replace("pub fn hook", "pub(crate) fn address"))
+MOVED = site("prof", MODULE, 11, 20)  # `Some(f) => f as *mut c_void,` in CAST_MODULE
+
+
+def cast_module_push(tmp_path, module_text, lib_extra=""):
+    """A measured member moves its fn-pointer cast from `lib.rs` into its
+    cast module, registered beside an unchanged row; the gate's verdict."""
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates" / "prof" / "src").mkdir(parents=True)
+    (repo / LIB).write_text("use core::ffi::c_void;\n\n" + HOOK)
+    base = commit(repo, "base")
+    (repo / MODULE).write_text(module_text)
+    (repo / LIB).write_text("mod cast;\n\npub use cast::address as hook;\n" + lib_extra)
+    tip = commit(repo, "move the cast into the cast module")
+    rules = tmp_path / "baseline.json"
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {"prof": 9}},
+                                 "cast_modules": {"m": {"prof": MODULE}}}))
+
+    def judge(capsys, found, *, held=True):
+        tip_sites, base_sites = tmp_path / "tip.json", tmp_path / "base.json"
+        gate.write_sites(tip_sites, found)
+        gate.write_sites(base_sites, {site("prof", LIB, 5, 20)})
+        capsys.readouterr()
+        triggered = gate.main(["--baseline", str(rules), "base-triggers", "--repo", str(repo),
+                               "--base", base, "--tip", tip])
+        reasons = capsys.readouterr().out
+        status = gate.main(["--baseline", str(rules), "check", "--member", "m",
+                            "--repo", str(repo), "--base", base, "--tip", tip,
+                            "--package", "prof", "--sites", str(tip_sites),
+                            "--base-sites", str(base_sites),
+                            *(["--base-package", "prof"] if held else [])])
+        problems = [line.removeprefix("cast gate: ")
+                    for line in capsys.readouterr().err.splitlines()]
+        return (triggered, reasons), status, problems
+
+    return judge
+
+
+def test_a_measured_member_moves_a_fn_pointer_cast_into_its_cast_module(tmp_path, capsys):
+    judge = cast_module_push(tmp_path, CAST_MODULE)
+    assert judge(capsys, {MOVED}) == ((0, f"{MODULE} is a cast module\n"), 0, [])
+
+
+def test_a_cast_outside_the_cast_module_still_fails(tmp_path, capsys):
+    judge = cast_module_push(tmp_path, CAST_MODULE, "pub fn n(x: u8) -> u32 { x as u32 }\n")
+    _, status, problems = judge(capsys, {MOVED, site("prof", LIB, 4, 26)})
+    assert (status, problems) == (1, [
+        f"{LIB}:4:26: bare `as` cast on a line this push adds",
+        "prof: 2 bare `as` casts, up from 1 at the pushed base"])
+
+
+def test_a_cast_added_in_the_cast_module_is_held_to_the_base_count(tmp_path, capsys):
+    judge = cast_module_push(tmp_path, CAST_MODULE + "pub(crate) fn n(x: u8) -> u32 { x as u32 }\n")
+    # The row of 9 has room; the base count of 1 is what holds the module.
+    _, status, problems = judge(capsys, {MOVED, site("prof", MODULE, 15, 33)})
+    assert (status, problems) == (1, ["prof: 2 bare `as` casts, up from 1 at the pushed base"])
+
+
+def test_a_cast_module_without_a_base_count_fails_closed(tmp_path, capsys):
+    judge = cast_module_push(tmp_path, CAST_MODULE)
+    assert judge(capsys, {MOVED}, held=False)[1:] == (1, [
+        f"{MODULE}:11:20: `as` cast added to prof's cast module without a count at the "
+        "pushed base"])
+
+
+def test_a_cast_module_out_of_shape_exempts_nothing(tmp_path, capsys):
+    judge = cast_module_push(tmp_path, CAST_MODULE.replace("as_conversions", "unwrap_used"))
+    assert judge(capsys, {MOVED})[1:] == (1, [
+        f"{MODULE}:11:20: `as` cast added to prof's cast module, which names a lint other "
+        "than a cast lint, or none, in its `#![expect(...)]`"])
+
+
+def test_a_cast_module_exempts_only_its_own_package():
+    rules = Baseline({}, {"m": {"prof": 9, "other": 9}}, {"m": {"prof": MODULE}})
+    found = {site("other", MODULE, 11, 20)}
+    assert gate.violations("m", found, {MODULE: {11}}, ["other"], rules, set(), ["other"],
+                           {"prof": (MODULE, None)}) == [
+        f"{MODULE}:11:20: bare `as` cast on a line this push adds",
+        "other: 1 bare `as` casts, up from 0 at the pushed base"]
+
+
+@pytest.mark.parametrize(("text", "fault"), [
+    (CAST_MODULE, None),
+    (CAST_MODULE.replace("clippy::as_conversions", "clippy::cast_possible_truncation,\n"
+                         "    clippy::fn_to_numeric_cast_any"), None),
+    (CAST_MODULE.replace('"a function', '"see https://example.org/x; a function'), None),
+    (CAST_MODULE.replace("//! The", "//! Not `#![expect(clippy::as_conversions)]`. The"), None),
+    (None, "is absent at the pushed tip"),
+    (HOOK, "holds 0 inner `#![expect(...)]` attributes, not one"),
+    (CAST_MODULE + "#![expect(clippy::as_conversions, reason = \"x\")]\n",
+     "holds 2 inner `#![expect(...)]` attributes, not one"),
+    (CAST_MODULE.replace("    reason", "    // reason"), "gives its `#![expect(...)]` no reason"),
+    (CAST_MODULE.replace(")]\n", "\n"), "leaves its `#![expect(` unclosed"),
+    (CAST_MODULE.replace("clippy::as_conversions,\n", ""),
+     "names a lint other than a cast lint, or none, in its `#![expect(...)]`"),
+])
+def test_a_cast_module_is_one_file_under_one_inner_expect(text, fault):
+    assert gate.cast_module_fault(text) == fault
+
+
+def test_a_second_cast_module_for_one_crate_is_refused():
+    base = Baseline.parse(json.dumps({"counts": {"m": {"prof": 2}}, "cast_modules": {}}), "b")
+    added = Baseline.parse(json.dumps({"counts": {"m": {"prof": 2}},
+                                       "cast_modules": {"m": {"prof": "src/cast.rs"}}}), "t")
+    moved = Baseline.parse(json.dumps({"counts": {"m": {"prof": 2}},
+                                       "cast_modules": {"m": {"prof": "src/ptr.rs"}}}), "t")
+    assert gate.raised_rows(base, added) == []
+    assert gate.raised_rows(added, moved) == [
+        "m/prof names a second cast module, src/ptr.rs; its cast module is src/cast.rs"]
+    with pytest.raises(ValueError, match="repeats the key 'prof'"):
+        Baseline.parse('{"cast_modules": {"m": {"prof": "a.rs", "prof": "b.rs"}}}', "t")
+    for text in ('{"cast_modules": {"m": {"prof": "a.rs", "ops": "a.rs"}}}',
+                 '{"sanctioned": {"m": ["a.rs"]}, "cast_modules": {"m": {"prof": "a.rs"}}}'):
+        with pytest.raises(ValueError, match="names a.rs as more than one module"):
+            Baseline.parse(text, "t")
+    with pytest.raises(ValueError, match="one path per package"):
+        Baseline.parse('{"cast_modules": {"m": {"prof": ["a.rs", "b.rs"]}}}', "t")
