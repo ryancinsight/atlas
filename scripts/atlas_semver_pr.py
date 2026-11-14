@@ -130,13 +130,18 @@ def compare_package(name: str, manifests: tuple[Path, Path], packages: tuple[dic
         f" (exit {result.returncode})" if status == "failed" else ""))
 
 
+def cell(detail: str) -> str:
+    """Return a detail that stays inside one Markdown table cell."""
+    return " ".join(detail.split()).replace("|", "\\|")
+
+
 def render(outcomes: list[Outcome], base: str) -> str:
     """Render the per-crate summary; a tool failure is never a version-bump request."""
     labels = {"clean": "compared", "update-required": "compared",
               "failed": "FAILED to run", "skipped": "not compared"}
     lines = [f"### SemVer against base `{base[:12]}` (rustdoc built `--locked` on each side that has a committed lock)",
              "", "| crate | comparison | result |", "| --- | --- | --- |"]
-    lines += [f"| `{o.package}` | {labels[o.status]} | {o.detail} |" for o in outcomes]
+    lines += [f"| `{o.package}` | {labels[o.status]} | {cell(o.detail)} |" for o in outcomes]
     for status, note in (("failed", "**Tool failure** for {}: no verdict was rendered, which "
                           "says nothing about their API."),
                          ("update-required", "A version update is required for {}.")):

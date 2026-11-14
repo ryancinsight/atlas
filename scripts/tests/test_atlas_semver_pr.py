@@ -96,6 +96,10 @@ class ComparisonTests(unittest.TestCase):
 
 
 class SummaryTests(unittest.TestCase):
+    def test_a_failure_detail_stays_inside_its_table_cell(self) -> None:
+        text = gate.render([gate.Outcome("a", "failed", "cargo failed:\nerror: x | y")], "0" * 40)
+        self.assertIn("| `a` | FAILED to run | cargo failed: error: x \\| y |", text)
+
     def test_a_tool_failure_is_never_reported_as_a_version_bump(self) -> None:
         text = gate.render([gate.Outcome("a", "failed", "no verdict"),
                             gate.Outcome("b", "clean", "ok"), gate.Outcome("c", "skipped", "x")],
