@@ -15,7 +15,7 @@ import textwrap
 import threading
 import time
 import unittest
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, Mock, patch
 
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
@@ -400,6 +400,199 @@ class ProcessTreeTests(unittest.TestCase):
                         [sys.executable, "-c", "pass"],
                         timeout=HANG_GUARD_SECONDS,
                         output_mode=mode,
+                    )
+                launch.assert_not_called()
+
+    def test_stdout_limit_terminates_the_tree_before_unbounded_capture(self):
+        command = (
+            "import sys, threading; sys.stdout.buffer.write(b'x' * 200000); "
+            "sys.stdout.buffer.flush(); threading.Event().wait()"
+        )
+        with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
+            process_tree.run(
+                [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7, stderr_limit=7
+            )
+
+        self.assertEqual(raised.exception.stream, "stdout")
+        self.assertEqual(raised.exception.limit, 7)
+        self.assertEqual(raised.exception.stdout, b"x" * 7)
+        self.assertEqual(raised.exception.stderr, b"")
+
+    def test_output_limit_preserves_a_failure_reported_after_real_cleanup(self):
+        command = "import os, threading; os.write(1, b'x' * 8); threading.Event().wait()"
+        original_cleanup = process_tree._terminate_process_tree
+
+        def cleanup_then_report(*args, **kwargs):
+            self.assertIsNone(original_cleanup(*args, **kwargs))
+            return "injected cleanup failure"
+
+        with (
+            patch.object(process_tree, "_terminate_process_tree", cleanup_then_report),
+            self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised,
+        ):
+            process_tree.run([sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7)
+
+        self.assertEqual(raised.exception.stdout, b"x" * 7)
+        self.assertEqual(raised.exception.cleanup_error, "injected cleanup failure")
+        self.assertIn("process-tree cleanup failed: injected cleanup failure",
+                      str(raised.exception))
+        self.assertIsInstance(raised.exception.__cause__, process_tree.ProcessTreeCleanupError)
+        self.assertEqual(raised.exception.__cause__.cleanup_error, "injected cleanup failure")
+
+    def test_stderr_limit_is_independent_of_the_stdout_limit(self):
+        command = "import sys; sys.stderr.buffer.write(b'abcdef')"
+        with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
+            process_tree.run(
+                [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7, stderr_limit=5
+            )
+
+        self.assertEqual(raised.exception.stream, "stderr")
+        self.assertEqual(raised.exception.stdout, b"")
+        self.assertEqual(raised.exception.stderr, b"abcde")
+
+    def test_a_stream_without_a_limit_keeps_its_full_capture(self):
+        size = 2 * process_tree.OUTPUT_READ_BYTES
+        command = (
+            "import sys; sys.stdout.buffer.write(b'o' * 3); "
+            f"sys.stderr.buffer.write(b'e' * {size})"
+        )
+        for limits in ({}, {"stdout_limit": 3}):
+            with self.subTest(limits=limits):
+                done = process_tree.run(
+                    [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, **limits
+                )
+                self.assertEqual(done.returncode, 0)
+                self.assertEqual(done.stdout, b"ooo")
+                self.assertEqual(done.stderr, b"e" * size)
+
+    def test_output_at_the_bound_completes_and_one_byte_over_stops(self):
+        read = process_tree.OUTPUT_READ_BYTES
+        for name in ("stdout", "stderr"):
+            for limit in (0, 1, read, read + 1):
+                command = [
+                    sys.executable,
+                    "-c",
+                    f"import sys; sys.{name}.buffer.write(b'x' * int(sys.argv[1]))",
+                ]
+                options = {f"{name}_limit": limit, "timeout": HANG_GUARD_SECONDS}
+                with self.subTest(stream=name, limit=limit):
+                    done = process_tree.run([*command, str(limit)], **options)
+                    self.assertEqual(done.returncode, 0)
+                    self.assertEqual(getattr(done, name), b"x" * limit)
+                    with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
+                        process_tree.run([*command, str(limit + 1)], **options)
+                    self.assertEqual(raised.exception.stream, name)
+                    self.assertEqual(getattr(raised.exception, name), b"x" * limit)
+
+    def test_wait_ends_without_waiting_once_output_is_exceeded(self):
+        exceeded = threading.Event()
+        exceeded.set()
+        process = Mock(spec=subprocess.Popen)
+        process.wait.side_effect = AssertionError("waited for an exceeded command")
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        self.assertFalse(process_tree._wait_for_exit(process, deadline, exceeded))
+
+    def test_wait_ends_at_the_slice_in_which_output_is_exceeded(self):
+        exceeded = threading.Event()
+        slices = iter([subprocess.TimeoutExpired("c", 1), AssertionError("waited past the bound")])
+
+        def wait_one_slice(timeout):
+            exceeded.set()
+            raise next(slices)
+
+        process = Mock(spec=subprocess.Popen)
+        process.wait.side_effect = wait_one_slice
+        self.assertFalse(process_tree._wait_for_exit(process, time.monotonic() + HANG_GUARD_SECONDS, exceeded))
+
+    def test_status_read_ends_before_the_deadline_once_output_is_exceeded(self):
+        status_read, status_write = socket.socketpair()
+        self.addCleanup(status_read.close)
+        self.addCleanup(status_write.close)
+        exceeded = threading.Event()
+        exceeded.set()
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        self.assertIsNone(process_tree._read_posix_status(status_read.fileno(), deadline, exceeded))
+        self.assertLess(time.monotonic(), deadline)
+
+    def _cross_the_bound(self, expected, *, after_the_deadline):
+        # The wait ends at the deadline either way; the gate orders the write against the clock.
+        waiting = "_wait_for_exit" if sys.platform == "win32" else "_read_posix_status"
+        real_wait = getattr(process_tree, waiting)
+        real_clock = time.monotonic
+        elapsed = [0.0]
+        with tempfile.TemporaryDirectory() as directory:
+            gate = pathlib.Path(directory, "gate")
+
+            def wait_across_the_deadline(first, deadline, exceeded):
+                if after_the_deadline:
+                    elapsed[0] = HANG_GUARD_SECONDS
+                gate.touch()
+                exceeded.wait(HANG_GUARD_SECONDS)
+                elapsed[0] = HANG_GUARD_SECONDS
+                return real_wait(first, deadline)
+
+            command = (
+                "import os, sys, threading\n"
+                "while not os.path.exists(sys.argv[1]): threading.Event().wait(0.001)\n"
+                "os.write(1, b'x' * 8); threading.Event().wait()"
+            )
+            with (
+                patch.object(process_tree, waiting, wait_across_the_deadline),
+                patch.object(process_tree.time, "monotonic", lambda: real_clock() + elapsed[0]),
+                self.assertRaises(expected) as raised,
+            ):
+                process_tree.run(
+                    [sys.executable, "-c", command, str(gate)], timeout=HANG_GUARD_SECONDS, stdout_limit=7
+                )
+        self.assertEqual(raised.exception.stdout, b"x" * 7)
+
+    def test_a_bound_crossed_before_the_deadline_is_the_output_bound(self):
+        self._cross_the_bound(process_tree.ProcessTreeOutputLimit, after_the_deadline=False)
+
+    def test_a_deadline_stop_is_not_reported_as_the_output_bound(self):
+        self._cross_the_bound(process_tree.ProcessTreeTimeout, after_the_deadline=True)
+
+    def test_a_failed_output_reader_is_noted_on_an_interrupted_run(self):
+        waiting = "_wait_for_exit" if sys.platform == "win32" else "_read_posix_status"
+        with (
+            patch.object(process_tree, "OUTPUT_READ_BYTES", -2),
+            patch.object(process_tree, waiting, side_effect=KeyboardInterrupt()),
+            self.assertRaises(KeyboardInterrupt) as raised,
+        ):
+            process_tree.run(
+                [sys.executable, "-c", NEVER_ENDS], timeout=HANG_GUARD_SECONDS, stdout_limit=1
+            )
+
+        self.assertRegex(
+            "\n".join(raised.exception.__notes__),
+            r"process-tree cleanup failed: captured-output reader failed: ",
+        )
+
+    def test_output_limits_are_validated_before_launch(self):
+        rejected = ((-1, ValueError), (True, TypeError), (1.5, TypeError), ("1", TypeError))
+        for limit, error in rejected:
+            with self.subTest(limit=limit):
+                with (
+                    patch.object(process_tree.subprocess, "Popen") as launch,
+                    self.assertRaisesRegex(error, "limit must be"),
+                ):
+                    process_tree.run(
+                        [sys.executable, "-c", "pass"], timeout=HANG_GUARD_SECONDS, stdout_limit=limit
+                    )
+                launch.assert_not_called()
+
+    def test_output_limits_require_captured_output(self):
+        for name in ("stdout_limit", "stderr_limit"):
+            with self.subTest(limit=name):
+                with (
+                    patch.object(process_tree.subprocess, "Popen") as launch,
+                    self.assertRaisesRegex(ValueError, "requires captured output"),
+                ):
+                    process_tree.run(
+                        [sys.executable, "-c", "pass"],
+                        timeout=HANG_GUARD_SECONDS,
+                        output_mode=process_tree.OutputMode.INHERIT,
+                        **{name: 1},
                     )
                 launch.assert_not_called()
 

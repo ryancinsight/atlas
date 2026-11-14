@@ -260,6 +260,7 @@ class CleanupPhaseStateTests(unittest.TestCase):
             patch.object(process_tree.time, "monotonic", side_effect=lambda: clock[0]),
             patch.object(process_tree.time, "sleep", side_effect=AssertionError("no sleep")),
             patch.object(process_tree.os, "killpg", side_effect=signal_group, create=True),
+            patch.object(process_tree.signal, "SIGKILL", 9, create=True),
             patch.object(process_tree, "_darwin_group_snapshot_before", side_effect=proof),
             patch.object(process_tree, "_posix_group_has_active_members", side_effect=membership),
             patch.object(process_tree.windows_process, "terminate_job", return_value="controlled job failure"),
