@@ -1,4 +1,5 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
+<a id="atlas-ritk-spatial-finite-inverse"></a>- [ATLAS-RITK-SPATIAL-FINITE-INVERSE](backlog/atlas-ritk-spatial-finite-inverse.md) — `Direction::try_inverse` accepts non-finite arithmetic [correctness] [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
@@ -44,7 +45,6 @@
 <a id="atlas-kwavers-ci-coverage-opt-2026-08-25"></a>- [ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25](backlog/atlas-kwavers-ci-coverage-opt-2026-08-25.md) — Bound full-workspace test topology [perf][patch] — todo
 <a id="atlas-kwavers-hephaestus-contract-2026-08-21"></a>- [ATLAS-KWAVERS-HEPHAESTUS-CONTRACT-2026-08-21](backlog/atlas-kwavers-hephaestus-contract-2026-08-21.md) — Define the neutral visualization handoff [major][arch] — todo
 <a id="atlas-kwavers-parameter-structs-20260928"></a>- [ATLAS-KWAVERS-PARAMETER-STRUCTS-20260928](backlog/atlas-kwavers-parameter-structs-20260928.md) — Collapse the `clippy::too_many_arguments` suppressions into parameter structs [minor] — todo
-<a id="atlas-kwavers-python-generator-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21](backlog/atlas-kwavers-python-generator-2026-08-21.md) — Add defaults and NumPy protocols [minor] — todo
 <a id="atlas-kwavers-python-gil-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-GIL-2026-08-21](backlog/atlas-kwavers-python-gil-2026-08-21.md) — Detach Simulation.run [minor] — todo
 <a id="atlas-kwavers-python-surface-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21](backlog/atlas-kwavers-python-surface-2026-08-21.md) — Complete typed and concurrent PyO3 surface [minor] — todo
 <a id="atlas-kwavers-real-compute-028"></a>- [ATLAS-KWAVERS-REAL-COMPUTE-028](backlog/atlas-kwavers-real-compute-028.md) — Remove Kwavers production identity paths [major] [arch] — todo
