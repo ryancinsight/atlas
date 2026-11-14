@@ -118,7 +118,6 @@
 <a id="atlas-board-lint-id-prefix-20261113"></a>- [ATLAS-BOARD-LINT-ID-PREFIX-20261113](backlog/atlas-board-lint-id-prefix-20261113.md) — Board lint's duplicate-id gate reads only ATLAS- headings [patch] — todo
 <a id="atlas-registry-slice-001"></a>- [ATLAS-REGISTRY-SLICE-001](backlog/atlas-registry-slice-001.md) — Compact the publication pipeline record (ADR 0035, part 1) [patch] — todo
 <a id="atlas-registry-slice-002"></a>- [ATLAS-REGISTRY-SLICE-002](backlog/atlas-registry-slice-002.md) — Compact the publication pipeline record (ADR 0035, part 2) [patch] — todo
-<a id="atlas-registry-slice-003"></a>- [ATLAS-REGISTRY-SLICE-003](backlog/atlas-registry-slice-003.md) — Bound captured process output [patch] — todo
 <a id="atlas-registry-slice-004"></a>- [ATLAS-REGISTRY-SLICE-004](backlog/atlas-registry-slice-004.md) — Share the registry reader and policy in release identity [patch] — todo
 <a id="atlas-registry-slice-005"></a>- [ATLAS-REGISTRY-SLICE-005](backlog/atlas-registry-slice-005.md) — Pend through the shared registry policy [patch] — todo
 <a id="atlas-registry-slice-006"></a>- [ATLAS-REGISTRY-SLICE-006](backlog/atlas-registry-slice-006.md) — Require a strict owner schema [patch] — todo
