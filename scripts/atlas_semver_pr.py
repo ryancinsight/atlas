@@ -9,6 +9,10 @@ both rustdoc JSON files under `cargo doc --locked` on a pinned nightly (no `RUST
 and passes them with `--baseline-rustdoc`/`--current-rustdoc`. Export and command running
 are shared with atlas_semver_locked.py.
 
+Limits: on this path cargo-semver-checks reads no `metadata.cargo-semver-checks` lint levels
+(`OverrideStack::new()` in 0.51.0), and a lock-only change can register as an API change
+because each side resolves its own lock (a hypothesis, not witnessed).
+
 Exit status: 0 no update required, 100 an update is required, 101 a comparison failed.
 """
 
@@ -155,10 +159,11 @@ def compare_all(args: argparse.Namespace, env: dict[str, str]) -> list[Outcome]:
     relative = Path(args.manifest_path)
     if relative.is_absolute() or ".." in relative.parts:
         raise ValueError("manifest path must stay inside the repository")
+    repo = args.repo.resolve()  # cargo runs in the manifest's directory, so a relative path breaks
     with tempfile.TemporaryDirectory(prefix="atlas-semver-pr-") as directory:
         scratch = Path(directory)
-        export(args.repo, args.base, scratch / "base", env)
-        manifests = (scratch / "base" / relative, args.repo / relative)
+        export(repo, args.base, scratch / "base", env)
+        manifests = (scratch / "base" / relative, repo / relative)
         packages = tuple(workspace_packages(m, env) for m in manifests)
         return [compare_package(name, manifests, packages, scratch / "target", env,
                                 args.rustdoc_toolchain) for name in args.packages]
