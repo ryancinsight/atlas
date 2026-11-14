@@ -466,6 +466,40 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertEqual(raised.exception.stdout, b"")
         self.assertEqual(raised.exception.stderr, b"abcde")
 
+    def test_a_stream_without_a_limit_keeps_its_full_capture(self):
+        size = 2 * process_tree.OUTPUT_READ_BYTES
+        command = (
+            "import sys; sys.stdout.buffer.write(b'o' * 3); "
+            f"sys.stderr.buffer.write(b'e' * {size})"
+        )
+        for limits in ({}, {"stdout_limit": 3}):
+            with self.subTest(limits=limits):
+                done = process_tree.run(
+                    [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, **limits
+                )
+                self.assertEqual(done.returncode, 0)
+                self.assertEqual(done.stdout, b"ooo")
+                self.assertEqual(done.stderr, b"e" * size)
+
+    def test_output_at_the_bound_completes_and_one_byte_over_stops(self):
+        read = process_tree.OUTPUT_READ_BYTES
+        for name in ("stdout", "stderr"):
+            for limit in (0, 1, read, read + 1):
+                command = [
+                    sys.executable,
+                    "-c",
+                    f"import sys; sys.{name}.buffer.write(b'x' * int(sys.argv[1]))",
+                ]
+                options = {f"{name}_limit": limit, "timeout": HANG_GUARD_SECONDS}
+                with self.subTest(stream=name, limit=limit):
+                    done = process_tree.run([*command, str(limit)], **options)
+                    self.assertEqual(done.returncode, 0)
+                    self.assertEqual(getattr(done, name), b"x" * limit)
+                    with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
+                        process_tree.run([*command, str(limit + 1)], **options)
+                    self.assertEqual(raised.exception.stream, name)
+                    self.assertEqual(getattr(raised.exception, name), b"x" * limit)
+
     def test_wait_ends_without_waiting_once_output_is_exceeded(self):
         exceeded = threading.Event()
         exceeded.set()
