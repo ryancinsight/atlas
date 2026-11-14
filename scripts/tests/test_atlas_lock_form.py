@@ -242,6 +242,36 @@ class HookCommitTestCase(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "invalid agent ID"):
                 _lock_form.hook_publish_message("a109abb8ac02", [], item, "codex")
 
+    def test_trailer_block_is_the_last_paragraph_in_every_combination(self) -> None:
+        item = "ATLAS-HOOK-PUBLISH-MESSAGE-20261114"
+        agent = "claude:cf2e0cbc-7c49-4f1d-a26e-574e22b052af/469"
+        lead = "claude:cf2e0cbc-7c49-4f1d-a26e-574e22b052af"
+        cases = [
+            (None, None, None, ""),
+            (item, None, None, f"Item: {item}"),
+            (None, agent, None, f"Integrator: {agent}\nAgent: {agent}"),
+            (None, agent, lead, f"Integrator: {lead}\nAgent: {agent}"),
+            (item, agent, lead, f"Item: {item}\nIntegrator: {lead}\nAgent: {agent}"),
+        ]
+        for retired in ([], ["scripts/lockfile.py"]):
+            for given_item, given_agent, given_lead, expected in cases:
+                with self.subTest(retired=retired, expected=expected):
+                    message = _lock_form.hook_publish_message(
+                        "example/atlas#7", retired, given_item, given_agent, given_lead
+                    )
+                    parsed = subprocess.run(
+                        ["git", "interpret-trailers", "--parse"],
+                        input=message, capture_output=True, text=True, check=True,
+                    ).stdout.strip()
+                    self.assertEqual(parsed, expected)
+                    self.assertTrue(message.endswith("\n") and not message.endswith("\n\n"))
+                    if expected:
+                        body, separator, trailers = message[:-1].rpartition("\n\n")
+                        self.assertEqual((separator, trailers), ("\n\n", expected))
+                        self.assertFalse(body.endswith("\n"))
+        with self.assertRaisesRegex(ValueError, "invalid agent ID"):
+            _lock_form.hook_publish_message("example/atlas#7", [], None, agent, "codex")
+
     def test_unique_remote_rollout_head_is_not_overwritten(self) -> None:
         with self._rollout_repositories("atlas-publish-lease-") as repositories:
             remote, seed, publisher = repositories

@@ -671,6 +671,7 @@ def pull_request_for(
             raise RuntimeError(
                 f"existing pull request {url} is ready; refusing --draft"
             )
+        update_pull_request_body(repo, url, message)
         return url, False
     create = [
         "pr",
@@ -687,6 +688,14 @@ def pull_request_for(
     if draft:
         create.append("--draft")
     return hosting_in(repo, *create), True
+
+
+def update_pull_request_body(repo: Path, url: str, message: str) -> None:
+    """Make a reused pull request's body the message its head now deploys."""
+    with tempfile.TemporaryDirectory(prefix="atlas-pr-body-") as temp:
+        body = Path(temp) / "body.md"
+        body.write_bytes(message.encode("utf-8"))
+        hosting_in(repo, "pr", "edit", url, "--body-file", body.as_posix())
 
 
 def open_pull_request(
@@ -867,20 +876,82 @@ AGENT_ID = re.compile(
 )
 
 
+def github_slug(remote_url: str) -> str:
+    """Return `<owner>/<repo>` of a GitHub remote URL (https or scp form)."""
+    match = re.search(
+        r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$", remote_url.strip()
+    )
+    if match is None:
+        raise RuntimeError(f"origin is not a GitHub remote: {remote_url!r}")
+    return match.group(1)
+
+
+def hook_source_citation(
+    source_commit: str,
+    short: str,
+    landed: bool,
+    open_pulls: list[dict],
+    slug: str,
+) -> str | None:
+    """Name a hook source by a durable reference, or `None` when it has none.
+
+    Durable text may cite only what the default branch reaches: a landed source
+    is cited by its abbreviated hash. An unlanded one is cited by the open pull
+    request whose head it is, `<owner>/<repo>#<number>`.
+    """
+    if landed:
+        return short
+    for pull in open_pulls:
+        number = pull.get("number")
+        if pull.get("headRefOid") == source_commit and type(number) is int:
+            return f"{slug}#{number}"
+    return None
+
+
+def resolve_hook_source_citation(source_commit: str, default_ref: str) -> str | None:
+    """Look up the durable citation of `source_commit` in the Atlas checkout."""
+    unlanded = git_in(
+        ROOT, "rev-list", "--max-count=1", source_commit, f"^{default_ref}"
+    )
+    if not unlanded:
+        short = git_in(ROOT, "rev-parse", "--short", source_commit)
+        return hook_source_citation(source_commit, short, True, [], "")
+    slug = github_slug(git_in(ROOT, "remote", "get-url", "origin"))
+    try:
+        open_pulls = json.loads(hosting_in(
+            ROOT, "pr", "list", "--state", "open",
+            "--json", "number,headRefOid", "--limit", "200",
+        ))
+    except json.JSONDecodeError as error:
+        raise RuntimeError("cannot read the open Atlas pull requests") from error
+    if not isinstance(open_pulls, list):
+        raise RuntimeError("cannot read the open Atlas pull requests")
+    return hook_source_citation(source_commit, "", False, open_pulls, slug)
+
+
 def hook_publish_message(
-    source: str,
+    citation: str,
     retired: list[str],
     item: str | None,
     agent: str | None = None,
+    integrator: str | None = None,
 ) -> str:
-    """Build the commit and pull-request message for one hook publication."""
+    """Build the commit and pull-request message for one hook publication.
+
+    `citation` is the already-resolved durable name of the hook source
+    (`hook_source_citation`). The trailers form the message's last paragraph,
+    so `git interpret-trailers --parse` reads every one of them. `Agent` names
+    the agent that ran the publisher and `Integrator` the one that integrates
+    the pull requests, which is `agent` when not given.
+    """
     if not valid_board_item(item):
         raise ValueError(f"invalid board item ID: {item!r}")
-    if agent is not None and AGENT_ID.fullmatch(agent) is None:
-        raise ValueError(f"invalid agent ID: {agent!r}")
+    for identity in (agent, integrator):
+        if identity is not None and AGENT_ID.fullmatch(identity) is None:
+            raise ValueError(f"invalid agent ID: {identity!r}")
     subject = "ci: Sync the stack-owned git hooks"
     message = (
-        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
+        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {citation}, the single\n"
         "source every member's `.githooks/` copies; a copy that differs is the\n"
         "gate-version drift the conformance scan counts.\n"
     )
@@ -890,11 +961,15 @@ def hook_publish_message(
             + ", ".join(f"`{path}`" for path in retired)
             + ", which the hooks no longer read.\n"
         )
+    trailers = []
     if item is not None:
-        message += f"\nItem: {item}\n"
+        trailers.append(f"Item: {item}")
+    if (integrator or agent) is not None:
+        trailers.append(f"Integrator: {integrator or agent}")
     if agent is not None:
-        message += f"Integrator: {agent}\n"
-        message += f"Agent: {agent}\n"
+        trailers.append(f"Agent: {agent}")
+    if trailers:
+        message += "\n" + "\n".join(trailers) + "\n"
     return message
 
 
@@ -912,6 +987,12 @@ def cmd_publish_hooks(args) -> int:
     `--retire PATH` also deletes a repository-relative file the owned hooks no
     longer read, in the same commit and pull request.
 
+    The message names the hook source by a revision the Atlas default branch
+    reaches, else by the open Atlas pull request whose head it is; a source
+    with neither is refused (exit 2). Member pull requests land before the
+    Atlas hook change, so an unlanded source is the usual case. A reused pull
+    request's body is rewritten to the current message.
+
     Without `--push` it reports what it would publish.
     """
     item = getattr(args, "item", None)
@@ -919,9 +1000,11 @@ def cmd_publish_hooks(args) -> int:
         print("invalid item: expected a board item ID", file=sys.stderr)
         return 2
     agent = getattr(args, "agent", None)
-    if agent is not None and AGENT_ID.fullmatch(agent) is None:
-        print("invalid agent: expected <harness>:<UUID>", file=sys.stderr)
-        return 2
+    integrator = getattr(args, "integrator", None)
+    for flag, identity in (("agent", agent), ("integrator", integrator)):
+        if identity is not None and AGENT_ID.fullmatch(identity) is None:
+            print(f"invalid {flag}: expected <harness>:<UUID>", file=sys.stderr)
+            return 2
     members = member_scope(args.members)
     if members is None:
         return 2
@@ -967,9 +1050,21 @@ def cmd_publish_hooks(args) -> int:
             file=sys.stderr,
         )
         return 2
-    source = git_in(ROOT, "rev-parse", "--short", source_commit)
+    try:
+        citation = resolve_hook_source_citation(source_commit, atlas_default)
+    except RuntimeError as error:
+        print(f"cannot name hook source {source_commit}: {error}", file=sys.stderr)
+        return 2
+    if citation is None:
+        print(
+            f"hook source {source_commit} is neither reachable from {atlas_default} "
+            "nor the head of an open Atlas pull request; open or land its pull "
+            "request first",
+            file=sys.stderr,
+        )
+        return 2
     subject = "ci: Sync the stack-owned git hooks"
-    message = hook_publish_message(source, retired, item, agent)
+    message = hook_publish_message(citation, retired, item, agent, integrator)
     failures = 0
     for member in members:
         repo = REPOS / member
@@ -1019,12 +1114,14 @@ def cmd_publish_hooks(args) -> int:
                     message,
                 )
                 if commit is None:
+                    update_pull_request_body(repo, url, message)
                     print(f"current: {member}")
                     continue
                 landing_tree = hook_landing_tree(
                     repo, default_commit, commit, hooks, tuple(retired)
                 )
                 push_hook_branch(repo, commit, branch, pre_push_hook, source_commit)
+                update_pull_request_body(repo, url, message)
                 require_hosted_merge(repo, url, default_commit, commit, landing_tree)
                 if draft:
                     print(f"reused: {member} {url} draft")
@@ -1511,6 +1608,12 @@ def main() -> int:
         "--agent",
         metavar="ID",
         help="append an Agent trailer to each generated member commit",
+    )
+    publish.add_argument(
+        "--integrator",
+        metavar="ID",
+        help="Integrator trailer naming the agent that lands the pull requests "
+        "(default: --agent)",
     )
     publish.add_argument(
         "--draft",
