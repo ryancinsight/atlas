@@ -1,4 +1,4 @@
-<a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Exact release cohorts [minor] — blocked
+<a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
@@ -58,7 +58,6 @@
 <a id="atlas-moirai-seqcst-002"></a>- [ATLAS-MOIRAI-SEQCST-002](backlog/atlas-moirai-seqcst-002.md) — Weakest-ordering audit for Moirai atomics [patch] — todo
 <a id="atlas-multiphysics-adoption-100"></a>- [ATLAS-MULTIPHYSICS-ADOPTION-100](backlog/atlas-multiphysics-adoption-100.md) — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — todo
 <a id="atlas-nightly-probe-consolidation"></a>- [ATLAS-NIGHTLY-PROBE-CONSOLIDATION](backlog/atlas-nightly-probe-consolidation.md) — One nightly-rustc probe for the stack [patch] — todo
-<a id="atlas-overlay-005"></a>- [ATLAS-OVERLAY-005](backlog/atlas-overlay-005.md) — Clear first-party rev pins across the stack [patch] — todo
 <a id="atlas-overlay-gen-stale-1"></a>- [ATLAS-OVERLAY-GEN-STALE-1](backlog/atlas-overlay-gen-stale-1.md) — Cross-repo path deps on member mainlines [arch] — todo
 <a id="atlas-pm-artifact-budgets"></a>- [ATLAS-PM-ARTIFACT-BUDGETS](backlog/atlas-pm-artifact-budgets.md) — Stack PM artifacts run eight to sixteen times their budget [patch] — todo
 <a id="atlas-privacy-naming-1"></a>- [ATLAS-PRIVACY-NAMING-1](backlog/atlas-privacy-naming-1.md) — Remove confidential consumer identity from stack artifacts [patch] — todo
