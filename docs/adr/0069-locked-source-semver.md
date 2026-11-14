@@ -6,11 +6,11 @@
 - Revision: 2026-11-10 — Separate completed-major admission from reviewed
   disposition of recognized unsupported historical reconstruction.
 - Revision: 2026-11-11 — Bind separate locked registry reconstruction for development.
-- Revision: 2026-11-14 — The informational pull-request job compares locked rustdoc
-  with no native run or disposition authority. Why: native `--baseline-rev` reruns
-  `cargo update` in a placeholder, so a git dependency past the base requirement
-  fails it. Evidence: hephaestus PR 537, job 132284946092, `MovedGitDependencyTests`;
-  rustdoc builds on `nightly-2026-08-01`, not the member toolchain.
+- Revision: 2026-11-14 (atlas PRs 708, 709) — The informational pull-request job
+  compares locked rustdoc with no native run or disposition authority. Why: native
+  `--baseline-rev` reruns `cargo update` in a placeholder, so a git dependency past
+  the base requirement fails it. Evidence: hephaestus PR 537, job 132284946092,
+  `MovedGitDependencyTests`; member rustdoc moves to `nightly-2026-08-01`.
 
 ## Context
 
