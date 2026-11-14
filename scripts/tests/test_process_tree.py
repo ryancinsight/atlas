@@ -15,7 +15,7 @@ import textwrap
 import threading
 import time
 import unittest
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, Mock, patch
 
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
@@ -451,7 +451,7 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertIsInstance(raised.exception.__cause__, process_tree.ProcessTreeCleanupError)
         self.assertEqual(raised.exception.__cause__.cleanup_error, "injected cleanup failure")
 
-    def test_stderr_limit_is_independent_and_default_behavior_is_unchanged(self):
+    def test_stderr_limit_is_independent_of_the_stdout_limit(self):
         command = "import sys; sys.stderr.buffer.write(b'abcdef')"
 
         with self.assertRaises(process_tree.ProcessTreeOutputLimit) as raised:
@@ -463,14 +463,75 @@ class ProcessTreeTests(unittest.TestCase):
             )
 
         self.assertEqual(raised.exception.stream, "stderr")
+        self.assertEqual(raised.exception.stdout, b"")
         self.assertEqual(raised.exception.stderr, b"abcde")
 
+    def test_wait_ends_without_waiting_once_output_is_exceeded(self):
+        exceeded = threading.Event()
+        exceeded.set()
+        process = Mock(spec=subprocess.Popen)
+        process.wait.side_effect = AssertionError("waited for an exceeded command")
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        self.assertFalse(process_tree._wait_for_exit(process, deadline, exceeded))
+
+    def test_status_read_ends_before_the_deadline_once_output_is_exceeded(self):
+        status_read, status_write = socket.socketpair()
+        self.addCleanup(status_read.close)
+        self.addCleanup(status_write.close)
+        exceeded = threading.Event()
+        exceeded.set()
+        deadline = time.monotonic() + HANG_GUARD_SECONDS
+        self.assertIsNone(process_tree._read_posix_status(status_read.fileno(), deadline, exceeded))
+        self.assertLess(time.monotonic(), deadline)
+
+    def test_a_deadline_stop_is_not_reported_as_the_output_bound(self):
+        waiting = "_wait_for_exit" if sys.platform == "win32" else "_read_posix_status"
+        real_wait = getattr(process_tree, waiting)
+        real_clock = time.monotonic
+        elapsed = [0.0]
+
+        def wait_past_the_bound(first, deadline, exceeded):
+            exceeded.wait(HANG_GUARD_SECONDS)
+            elapsed[0] = HANG_GUARD_SECONDS
+            return real_wait(first, deadline)
+
+        command = "import os, threading; os.write(1, b'x' * 8); threading.Event().wait()"
+        with (
+            patch.object(process_tree, waiting, wait_past_the_bound),
+            patch.object(process_tree.time, "monotonic", lambda: real_clock() + elapsed[0]),
+            self.assertRaises(process_tree.ProcessTreeTimeout) as raised,
+        ):
+            process_tree.run(
+                [sys.executable, "-c", command], timeout=HANG_GUARD_SECONDS, stdout_limit=7
+            )
+
+        self.assertEqual(raised.exception.stdout, b"x" * 7)
+
+    def test_a_failed_output_reader_is_noted_on_an_interrupted_run(self):
+        waiting = "_wait_for_exit" if sys.platform == "win32" else "_read_posix_status"
+        with (
+            patch.object(process_tree, "OUTPUT_READ_BYTES", -2),
+            patch.object(process_tree, waiting, side_effect=KeyboardInterrupt()),
+            self.assertRaises(KeyboardInterrupt) as raised,
+        ):
+            process_tree.run(
+                [sys.executable, "-c", NEVER_ENDS],
+                timeout=HANG_GUARD_SECONDS,
+                stdout_limit=1,
+            )
+
+        self.assertRegex(
+            "\n".join(raised.exception.__notes__),
+            r"process-tree cleanup failed: captured-output reader failed: ",
+        )
+
     def test_output_limits_are_validated_before_launch(self):
-        for limit in (-1, True, 1.5, "1"):
+        rejected = ((-1, ValueError), (True, TypeError), (1.5, TypeError), ("1", TypeError))
+        for limit, error in rejected:
             with self.subTest(limit=limit):
                 with (
                     patch.object(process_tree.subprocess, "Popen") as launch,
-                    self.assertRaisesRegex(ValueError, "nonnegative integer"),
+                    self.assertRaisesRegex(error, "limit must be"),
                 ):
                     process_tree.run(
                         [sys.executable, "-c", "pass"],
