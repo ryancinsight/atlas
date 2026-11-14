@@ -129,3 +129,9 @@
 <a id="atlas-registry-slice-012"></a>- [ATLAS-REGISTRY-SLICE-012](backlog/atlas-registry-slice-012.md) — Bound the registry request lifetime [patch] — todo
 <a id="atlas-registry-slice-013"></a>- [ATLAS-REGISTRY-SLICE-013](backlog/atlas-registry-slice-013.md) — Bind expected crate artifacts [minor] — todo
 <a id="atlas-registry-slice-014"></a>- [ATLAS-REGISTRY-SLICE-014](backlog/atlas-registry-slice-014.md) — Gate tags on registry artifact identity [minor] — todo
+<a id="atlas-board-lint-book-citations"></a>- [ATLAS-BOARD-LINT-BOOK-CITATIONS](backlog/atlas-board-lint-book-citations.md) — Hash citations in book chapters are never resolved [patch] — todo
+<a id="atlas-changelog-generator"></a>- [ATLAS-CHANGELOG-GENERATOR](backlog/atlas-changelog-generator.md) — No stack member generates its changelog and no decision selects a generator [patch] — todo
+<a id="atlas-hook-gate-land-order"></a>- [ATLAS-HOOK-GATE-LAND-ORDER](backlog/atlas-hook-gate-land-order.md) — The gate-version ratchet forces members to land a hook before atlas lands its source [patch] — todo
+<a id="atlas-hook-rename-row-strength"></a>- [ATLAS-HOOK-RENAME-ROW-STRENGTH](backlog/atlas-hook-rename-row-strength.md) — The `src/lib.rs` to `backlog/lib.rs` rename row no longer tests rename handling [patch] — todo
+<a id="atlas-hook-virtual-lock-only"></a>- [ATLAS-HOOK-VIRTUAL-LOCK-ONLY](backlog/atlas-hook-virtual-lock-only.md) — A root `Cargo.lock`-only push in a virtual workspace gates no package [patch] — todo
+<a id="atlas-semver-pr-job-wiring-strength"></a>- [ATLAS-SEMVER-PR-JOB-WIRING-STRENGTH](backlog/atlas-semver-pr-job-wiring-strength.md) — The PR SemVer job's wiring test passes mutants that void the comparison [patch] — todo
