@@ -73,6 +73,27 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual([gate.classify(c) for c in (0, 100, 101, 2)],
                          ["clean", "update-required", "failed", "failed"])
 
+    def test_a_timeout_fails_only_the_crate_that_hit_it(self) -> None:
+        def fake(argv, cwd, env):
+            package = argv[argv.index("--package") + 1]
+            if (argv[1], package) in (("doc", "alpha"), ("semver-checks", "beta")):
+                raise gate.process_tree.ProcessTreeTimeout(argv, 600, None, None, None)
+            if argv[1] == "doc":
+                out = Path(argv[argv.index("--target-dir") + 1]) / "doc"
+                out.mkdir(parents=True, exist_ok=True)
+                (out / f"{package}.json").write_text("{}", encoding="utf-8")
+            return types.SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(gate, "run", fake):
+            root = Path(directory)
+            names = ("gamma", "alpha", "beta")
+            packages = ({n: {"name": n, "features": {}, "workspace_root": directory,
+                             "targets": [{"kind": ["lib"], "name": n}]} for n in names},) * 2
+            outcomes = [gate.compare_package(n, (root / "b.toml", root / "h.toml"), packages,
+                                             root / "doc", {}, self.NIGHTLY) for n in names]
+        self.assertEqual([o.status for o in outcomes], ["clean", "failed", "failed"])
+        self.assertIn("base rustdoc unavailable", outcomes[1].detail)
+        self.assertIn("cargo-semver-checks did not finish", outcomes[2].detail)
+
 
 class SummaryTests(unittest.TestCase):
     def test_a_tool_failure_is_never_reported_as_a_version_bump(self) -> None:
