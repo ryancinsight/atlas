@@ -142,6 +142,15 @@ jobs:
         with:
           tool: nextest@0.9.140
 
+      - name: Install cargo-semver-checks for the locked SemVer comparison test
+        # scripts/tests/test_atlas_semver_pr.py skips without both.
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: cargo-semver-checks@0.51.0
+
+      - name: Install the pinned rustdoc nightly
+        run: rustup toolchain install nightly-2026-08-01 --profile minimal
+
       - name: Cache Cargo
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
