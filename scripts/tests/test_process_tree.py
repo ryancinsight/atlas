@@ -492,6 +492,18 @@ class ProcessTreeTests(unittest.TestCase):
         deadline = time.monotonic() + HANG_GUARD_SECONDS
         self.assertFalse(process_tree._wait_for_exit(process, deadline, exceeded))
 
+    def test_wait_ends_at_the_slice_in_which_output_is_exceeded(self):
+        exceeded = threading.Event()
+        slices = iter([subprocess.TimeoutExpired("c", 1), AssertionError("waited past the bound")])
+
+        def wait_one_slice(timeout):
+            exceeded.set()
+            raise next(slices)
+
+        process = Mock(spec=subprocess.Popen)
+        process.wait.side_effect = wait_one_slice
+        self.assertFalse(process_tree._wait_for_exit(process, time.monotonic() + HANG_GUARD_SECONDS, exceeded))
+
     def test_status_read_ends_before_the_deadline_once_output_is_exceeded(self):
         status_read, status_write = socket.socketpair()
         self.addCleanup(status_read.close)
@@ -503,8 +515,7 @@ class ProcessTreeTests(unittest.TestCase):
         self.assertLess(time.monotonic(), deadline)
 
     def _cross_the_bound(self, expected, *, after_the_deadline):
-        # The wait ends at the deadline whichever side the crossing fell on; the
-        # gate file orders the child's write against the test clock.
+        # The wait ends at the deadline either way; the gate orders the write against the clock.
         waiting = "_wait_for_exit" if sys.platform == "win32" else "_read_posix_status"
         real_wait = getattr(process_tree, waiting)
         real_clock = time.monotonic

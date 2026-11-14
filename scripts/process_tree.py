@@ -392,7 +392,7 @@ class _OutputCollector:
             self._stream.close()
 
     def _stop(self) -> None:
-        # The reading precedes the event, so a wait that sees the event sees the time.
+        # The time precedes the event, so a wait that sees the event sees the time.
         self.stopped_at = min(self.stopped_at, time.monotonic())
         self._exceeded.set()
 
@@ -753,16 +753,12 @@ def run(
                 if stdout_limit is not None:
                     if process.stdout is None:
                         raise RuntimeError("process-tree launcher has no stdout pipe")
-                    stdout_collector = _OutputCollector(
-                        process.stdout, stdout_limit, output_exceeded
-                    )
+                    stdout_collector = _OutputCollector(process.stdout, stdout_limit, output_exceeded)
                     stdout_collector.start()
                 if stderr_limit is not None:
                     if process.stderr is None:
                         raise RuntimeError("process-tree launcher has no stderr pipe")
-                    stderr_collector = _OutputCollector(
-                        process.stderr, stderr_limit, output_exceeded
-                    )
+                    stderr_collector = _OutputCollector(process.stderr, stderr_limit, output_exceeded)
                     stderr_collector.start()
                 if status_write is not None:
                     os.close(status_write)
