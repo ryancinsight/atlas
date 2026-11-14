@@ -1245,6 +1245,126 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertIn("gating solo", stderr)
 
+    def test_root_board_files_alone_gate_no_package(self) -> None:
+        """Board files are read by no cargo invocation, so a board push gates nothing.
+
+        Board-only pushes ran clippy, tests and rustdoc for the whole root
+        package and hit the push deadline on the build-directory lock.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = _stacked_fixture(temp, layout="single")
+            self._commit_paths_on_a_branch(
+                fixture,
+                {
+                    "backlog.md": "# board\n",
+                    "backlog/item.md": "# item\n",
+                    "gap_audit.md": "# risks\n",
+                    "checklist.md": "# checklist\n",
+                },
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no package owns the changed files", stderr)
+            self.assertNotIn("gating solo", stderr)
+            calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
+            self.assertNotIn("-p solo", calls)
+
+    def test_a_source_change_beside_board_files_still_gates_the_package(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = _stacked_fixture(temp, layout="single")
+            self._commit_paths_on_a_branch(
+                fixture,
+                {"backlog.md": "# board\n", "src/lib.rs": "pub fn solo() {}\n"},
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating solo", stderr)
+            calls = fixture.calls.read_text(encoding="utf-8")
+            self.assertIn("-p solo", calls)
+
+    def test_only_top_level_board_markdown_skips_under_backlog(self) -> None:
+        """`backlog/x.rs` and `backlog/sub/x.md` are not board files, so they gate."""
+        cases = (
+            ("backlog/item.md", False),
+            ("backlog/x.rs", True),
+            ("backlog/deep/x.rs", True),
+            ("backlog/deep/item.md", True),
+        )
+        for path, gated in cases:
+            with self.subTest(path=path), tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+                fixture = _stacked_fixture(temp, layout="single")
+                self._commit_paths_on_a_branch(fixture, {path: "// board\n"})
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 0, stderr)
+                calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.is_file() else ""
+                if gated:
+                    self.assertIn("gating solo", stderr)
+                    self.assertIn("-p solo", calls)
+                else:
+                    self.assertIn("no package owns the changed files", stderr)
+                    self.assertNotIn("-p solo", calls)
+
+    def test_a_board_file_beside_code_under_a_non_board_path_still_gates(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = _stacked_fixture(temp, layout="single")
+            self._commit_paths_on_a_branch(
+                fixture,
+                {"backlog/item.md": "# item\n", "docs/x.rs": "pub fn x() {}\n"},
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating solo", stderr)
+            self.assertIn("-p solo", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_nested_board_names_still_gate_the_root_package(self) -> None:
+        """Only repository-root board paths skip: a crate can `include_str!` a nested one."""
+        for path in ("docs/checklist.md", "docs/backlog.md", "docs/backlog/item.md", "docs/gap_audit.md"):
+            with self.subTest(path=path), tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+                fixture = _stacked_fixture(temp, layout="single")
+                self._commit_paths_on_a_branch(fixture, {path: "# nested\n"})
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 0, stderr)
+                self.assertIn("gating solo", stderr)
+
+    def test_a_source_renamed_onto_a_skipped_path_gates_its_package(self) -> None:
+        """Rename detection listed only the destination, so the removed source never gated."""
+        cases = (
+            ("src/lib.rs", "backlog/lib.rs", False),
+            ("src/extra.rs", "checklist.md", True),
+            ("src/extra.rs", ".github/extra.rs", True),
+        )
+        for source, destination, seed in cases:
+            with self.subTest(source=source, destination=destination), tempfile.TemporaryDirectory(
+                prefix="atlas-gate-"
+            ) as temp:
+                fixture = _stacked_fixture(temp, layout="single")
+                if seed:
+                    _write(fixture.root / source, "pub fn extra() {}\n")
+                    _git(fixture.root, "add", source)
+                    _git(fixture.root, "commit", "-q", "-m", "seed")
+                base = _git(fixture.root, "rev-parse", "HEAD")
+                _git(fixture.root, "checkout", "-q", "-b", "feat")
+                (fixture.root / destination).parent.mkdir(parents=True, exist_ok=True)
+                _git(fixture.root, "mv", source, destination)
+                _git(fixture.root, "commit", "-q", "-m", "rename")
+                tip = _git(fixture.root, "rev-parse", "feat")
+
+                code, stderr = fixture.run_hook(f"refs/heads/feat {tip} refs/heads/feat {base}\n")
+
+                self.assertEqual(code, 0, stderr)
+                self.assertIn("gating solo", stderr)
+                self.assertIn("-p solo", fixture.calls.read_text(encoding="utf-8"))
+
 
 class MetaRootCargoGateTestCase(unittest.TestCase):
     """The Atlas root owns independent Cargo workspaces below ``tools/``."""
@@ -1382,6 +1502,24 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
             self.assertEqual(len(content_log.read_text(encoding="utf-8").splitlines()), 3)
             self.assertFalse(identity_log.exists())
             self.assertFalse(fixture.calls.exists())
+
+    def test_board_names_inside_a_workspace_gate_that_workspace(self) -> None:
+        """The board skip reads the repository path, not the `tools/<ws>/`-relative one."""
+        for path in (
+            "tools/version-guard/backlog.md",
+            "tools/version-guard/backlog/item.md",
+            "tools/version-guard/gap_audit.md",
+            "tools/version-guard/checklist.md",
+        ):
+            with self.subTest(path=path), tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+                fixture, _, _ = self._fixture(temp)
+                _write(fixture.root / path, "# nested\n")
+                self._commit(fixture, path)
+
+                code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+                self.assertEqual(code, 0, stderr)
+                self.assertIn("gating tool", stderr)
 
     def test_skip_local_gate_still_checks_the_complete_meta_tree(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
