@@ -972,11 +972,11 @@ class Baseline:
                 isinstance(modules, dict) and all(isinstance(p, str) for p in modules.values())
                 for modules in cast_modules.values())):
             raise ValueError(f"{path}: `cast_modules` maps members to one path per package")
-        for member, modules in cast_modules.items():
-            named = [*modules.values(), *sanctioned.get(member, [])]
+        for member in sorted({*sanctioned, *cast_modules}):
+            named = [*cast_modules.get(member, {}).values(), *sanctioned.get(member, [])]
             for module in named:
                 if named.count(module) > 1:
-                    raise ValueError(f"{path}: {member} names {module} as more than one module")
+                    raise ValueError(f"{path}: {member} names {module} more than once")
         return cls(
             {m: frozenset(p) for m, p in sanctioned.items()},
             {m: dict(c) for m, c in counts.items()},
@@ -1257,10 +1257,12 @@ def raised_rows(base: Baseline, tip: Baseline) -> list[str]:
         for package, count in sorted(rows.items()):
             before = base.counts[member].get(package, 0)
             if count > before:
-                problems.append(f"{member}/{package} rises from {before} to {count}")
+                problems.append(f"{member}/{package} rises from {before} to {count}; "
+                                "rows only fall")
         for path in sorted(tip.sanctioned.get(member, frozenset())
                            - base.sanctioned.get(member, frozenset())):
-            problems.append(f"{member} sanctions {path}, which the base does not")
+            problems.append(f"{member} sanctions {path}, which the base does not; "
+                            "exclusion lowers a count without converting a cast")
         modules = base.cast_modules.get(member, {})
         for package, path in sorted(tip.cast_modules.get(member, {}).items()):
             if modules.get(package, path) != path:
@@ -1294,7 +1296,7 @@ def ratchet(args: argparse.Namespace) -> int:
         return 1
     problems = raised_rows(base, tip)
     for problem in problems:
-        print(f"cast gate: baseline {problem}; rows only fall", file=sys.stderr)
+        print(f"cast gate: baseline {problem}", file=sys.stderr)
     return 1 if problems else 0
 
 
