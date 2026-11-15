@@ -35,6 +35,13 @@ from pathlib import Path
 # specific prefix or a trailing numeral.
 ITEM_ID = re.compile(r"^##\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)")
 
+# A milestone ladder block (`## M-1.0 - title`, `## M-release - title`) is a
+# roadmap record, not a work item: the roadmap rule gives it the stable id
+# `M-<slug>` and exempts it from `priority:` and status. The slug is a
+# version or a word, so the uppercase item grammar above reads `M-1.0` as the
+# item `M-1`; a scanner that counts items tests this pattern first.
+LADDER_HEADING = re.compile(r"^#{2,3}\s+M-[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*")
+
 ANCHOR_OWN_LINE = re.compile(r'^<a id="([^"]+)"></a>\s*$')
 ANCHOR_INLINE = re.compile(r'\s*<a id="([^"]+)"></a>\s*$')
 
