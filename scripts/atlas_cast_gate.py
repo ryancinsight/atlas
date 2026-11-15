@@ -15,7 +15,8 @@ on a new cast. This gate is the enforcement:
   A conversion module is excluded from every count. A package's one cast
   module (`cast_modules`) is counted like any other file, so a cast moved
   into it neither raises nor lowers the package's count. Its added lines pass
-  only under `cast_module_fault` and `mount_fault` and the base count;
+  only under `cast_module_fault`, no file of its package mounted twice
+  (`clippy::duplicate_mod`, force-warned), and the base count;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -96,6 +97,7 @@ from dataclasses import dataclass, field
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
+DUPLICATE_MOD = "clippy::duplicate_mod"  # canonical paths, after macro expansion
 HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
 HISTORICAL_CAST_PROFILE = "cast-history"
 HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
@@ -154,7 +156,7 @@ def clippy_command(export: pathlib.Path, packages: Iterable[str],
         "--manifest-path", str(export / manifest),
         *selection, *(["--profile", profile] if profile is not None else []),
         "--all-targets", "--locked", "--message-format=json",
-        "--", "--force-warn", LINT,
+        "--", "--force-warn", LINT, "--force-warn", DUPLICATE_MOD,
     ]
 
 
@@ -289,10 +291,12 @@ def sites(messages: Iterable[str], export: pathlib.Path,
         if record.get("reason") != "compiler-message":
             continue
         message = record["message"]
-        if (message.get("code") or {}).get("code") != LINT:
-            continue
+        code = (message.get("code") or {}).get("code")
         package = names.get(record.get("package_id", ""))
-        if package is None:
+        if code not in (LINT, DUPLICATE_MOD) or package is None:
+            continue
+        if code == DUPLICATE_MOD:  # a file mounted twice: a line-0 marker, never counted
+            found.add(Site(package, "", 0, 0, 0, 0, 0))
             continue
         for span in message["spans"]:
             if not span["is_primary"]:
@@ -1113,51 +1117,6 @@ def cast_module_fault(text: str | None) -> str | None:
     return None
 
 
-def mount_fault(repo: pathlib.Path, tip: str, path: str) -> str | None:
-    """Why the cast module's package could mount its file twice: a `path`
-    attribute naming its file name, two `mod` items of its name, a symlink."""
-    module = pathlib.PurePosixPath(path)
-    root = next((d.as_posix() for d in module.parents
-                 if git_file(repo, tip, (d / "Cargo.toml").as_posix()) is not None), None)
-    if root is None:
-        return f"has no Cargo.toml above it{COPIES}"
-    listing = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "-z", tip, "--", root],
-                             capture_output=True, check=True).stdout.decode("utf-8")
-    files = []
-    for entry in filter(None, listing.split("\0")):
-        meta, file = entry.split("\t", 1)
-        if meta.startswith("120000"):
-            return f"shares its package with the symlink {file}{COPIES}"
-        if file.endswith(".rs"):
-            files.append((file, meta.split()[2]))
-    blobs = subprocess.run(["git", "-C", str(repo), "cat-file", "--batch"], check=True,
-                           input="".join(f"{sha}\n" for _, sha in files).encode(),
-                           capture_output=True).stdout
-    name = module.parent.name if module.name == "mod.rs" else module.stem
-    mounts, index = 0, 0
-    for file, _ in files:
-        header = blobs.index(b"\n", index)
-        size = int(blobs[index:header].split()[2])
-        text = blobs[header + 1:header + 1 + size].decode("utf-8", errors="replace")
-        index = header + 2 + size
-        try:
-            tokens = lex(text)
-            spans = attributes(tokens)
-        except ValueError as error:
-            return f"shares its package with {file}, which cannot be lexed ({error}){COPIES}"
-        mounts += sum(1 for token, after in zip(tokens, tokens[1:]) if token == ("word", "mod")
-                      and after[1].removeprefix("r#").lower() == name.lower())
-        for start, end, _, _ in spans:
-            for at in range(start, end - 2):
-                if tokens[at:at + 2] == [("word", "path"), ("punct", "=")] and (
-                        tokens[at + 2][0] != "string" or literal(tokens[at + 2][1])
-                        .replace("\\", "/").rsplit("/", 1)[-1].lower() == module.name.lower()):
-                    return f"has its file name in a `path` attribute in {file}{COPIES}"
-    if mounts > 1:
-        return f"is declared by {mounts} `mod {name}` items in its package{COPIES}"
-    return None
-
-
 def violations(member: str, found: set[Site], added: dict[str, set[int]],
                packages: Iterable[str], baseline: Baseline,
                base: set[Site] = frozenset(),
@@ -1213,7 +1172,7 @@ def counts(found: set[Site], sanctioned: frozenset[str]) -> dict[str, int]:
     """Bare sites per package, sanctioned modules excluded."""
     tally: dict[str, int] = {}
     for site in found:
-        if site.path not in sanctioned:
+        if site.line and site.path not in sanctioned:
             tally[site.package] = tally.get(site.package, 0) + 1
     return dict(sorted(tally.items()))
 
@@ -1266,11 +1225,13 @@ def check(args: argparse.Namespace) -> int:
     added = pushed_additions(repo, args.base or None, args.tip)
     held = held_to_base(repo, args.base, args.base_package, base)
     held |= frozenset(args.zero_base_package)
+    doubled = {s.package for s in found if not s.line}
+    found, base = {s for s in found if s.line}, {s for s in base if s.line}
     modules = {}
     for package, path in baseline.cast_modules.get(args.member, {}).items():
         fault = cast_module_fault(git_file(repo, args.tip, path))
-        if fault is None or not fault.endswith(COPIES):
-            fault = mount_fault(repo, args.tip, path) or fault
+        if package in doubled and (fault is None or not fault.endswith(COPIES)):
+            fault = f"shares its package with a file clippy finds mounted twice{COPIES}"
         modules[package] = (path, fault)
     problems = violations(args.member, found, added, args.package, baseline, base,
                           held, modules)

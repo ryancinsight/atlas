@@ -128,7 +128,7 @@ def test_clippy_lints_every_target_against_the_lock(tmp_path):
         os.environ.get("CARGO") or "cargo", "clippy",
         "--manifest-path", str(tmp_path / "Cargo.toml"), "-p", "core", "-p", "ops",
         "--all-targets", "--locked", "--message-format=json",
-        "--", "--force-warn", "clippy::as_conversions",
+        "--", "--force-warn", "clippy::as_conversions", "--force-warn", "clippy::duplicate_mod",
     ]
 
 
@@ -2170,7 +2170,7 @@ AFTER_ITEM = "places its `#![expect(...)]` after an item, so it does not scope t
 
 
 def cast_module_push(tmp_path, capsys, module, lib=MOUNT, found=(MOVED,), *, held=True,
-                     packages=("prof",), base_module=None, before=None, link=False):
+                     packages=("prof",), base_module=None, before=None):
     """The gate's verdict when a member moves its fn-pointer cast into its cast module."""
     repo = tmp_path / "repo"
     init(repo)
@@ -2183,12 +2183,6 @@ def cast_module_push(tmp_path, capsys, module, lib=MOUNT, found=(MOVED,), *, hel
     (repo / MODULE).write_text(module, encoding="utf-8")
     (repo / LIB).write_text(lib)
     tip = commit(repo, "tip")
-    if link:
-        (tmp_path / "target").write_text("cast.rs")
-        blob = git(repo, "hash-object", "-w", str(tmp_path / "target"))
-        git(repo, "update-index", "--add", "--cacheinfo", f"120000,{blob},crates/prof/src/again.rs")
-        git(repo, "commit", "-q", "-m", "link")
-        tip = git(repo, "rev-parse", "HEAD")
     rules, tip_sites, base_sites = (tmp_path / n for n in ("rules.json", "tip.json", "base.json"))
     rules.write_text(json.dumps({"counts": {"m": {"prof": 9, "other": 9}},
                                  "cast_modules": {"m": {"prof": MODULE}}}))
@@ -2283,36 +2277,40 @@ RAW_DOC = ('#![doc = r#"a"b"#]\n\nuse core::ffi::c_void;\n\n#[rustfmt::skip]\n'
            + "\npub fn widen(x: u32) -> u64 {\n    x as u64\n}\n")
 
 
-@pytest.mark.parametrize(("module", "lib", "lines", "fault", "link"), [
+MOUNTED = "shares its package with a file clippy finds mounted twice" + COPIES
+DUPLICATE = '#[expect(clippy::duplicate_mod, reason = "x")]\n'
+
+
+@pytest.mark.parametrize(("module", "lib", "lines", "fault"), [
     (CAST_MODULE + "\ndefine!(macro_rules widen {\n    ($e:expr) => {\n        $e as u64\n"
-     "    };\n});\n", HELPER, ("11:20", "18:9"), MACRO, False),
+     "    };\n});\n", HELPER, ("11:20", "18:9"), MACRO),
     (CAST_MODULE + "\n#[rustfmt::skip]\nmacro_rules /* c */ ! widen {\n    ($e:expr) => {\n"
-     "        $e as u64\n    };\n}\n", "#[macro_use]\n" + MOUNT + USES, ("11:20", "19:9"),
-     MACRO, False),
+     "        $e as u64\n    };\n}\n", "#[macro_use]\n" + MOUNT + USES, ("11:20", "19:9"), MACRO),
     (CAST_MODULE + "\neach!(x => x as u64; w8: u8, w16: u16, w32: u32);\n", TYPED,
-     ("11:20", "16:12"), MACRO, False),
+     ("11:20", "16:12"), MACRO),
     (CAST_MODULE + "\npub fn addr<T>(p: *const T) -> *const u8 {\n    p as *const u8\n}\n",
-     MOUNT, ("11:20", "17:5"), GENERIC, False),
+     MOUNT, ("11:20", "17:5"), GENERIC),
     (CAST_MODULE + "\npub fn w(x: impl Into<u32>) -> u64 {\n    x.into() as u64\n}\n",
-     MOUNT, ("11:20", "17:5"), GENERIC, False),
+     MOUNT, ("11:20", "17:5"), GENERIC),
     (CAST_MODULE + "\n#[duplicate_item(T; [u8]; [u16])]\npub fn w(x: T) -> u64 {\n"
      "    x as u64\n}\n", MOUNT, ("11:20", "18:5"),
-     "carries `#[duplicate_item]`, not a built-in attribute it may use" + COPIES, False),
-    (CAST_MODULE, MOUNT + '#[expect(clippy::duplicate_mod, reason = "x")]\n#[path = "cast.rs"]\n'
-     "mod again;\n", ("11:20",), f"has its file name in a `path` attribute in {LIB}{COPIES}", 0),
-    (CAST_MODULE, MOUNT + "mod Cast;\n", ("11:20",),
-     "is declared by 2 `mod cast` items in its package" + COPIES, False),
-    (CAST_MODULE, MOUNT, ("11:20",),
-     "shares its package with the symlink crates/prof/src/again.rs" + COPIES, True),
+     "carries `#[duplicate_item]`, not a built-in attribute it may use" + COPIES),
+    (CAST_MODULE, MOUNT + DUPLICATE + '#[path = "cast.rs"]\nmod again;\n', ("11:20",), MOUNTED),
+    (CAST_MODULE, "macro_rules! mount {\n    ($n:ident) => {\n        pub mod $n;\n    };\n}\n"
+     + MOUNT + DUPLICATE + '#[path = "."]\npub mod again {\n    mount!(cast);\n}\n', ("11:20",),
+     MOUNTED),
     (RAW_DOC, "mod cast;\n\npub use cast::{address as hook, widen};\n", ("9:20", "15:5"),
-     AFTER_ITEM, False),
+     AFTER_ITEM),
 ])
 def test_one_cast_in_a_cast_module_never_passes_as_many(tmp_path, capsys, module, lib, lines,
-                                                        fault, link):
+                                                        fault):
     found = {site("prof", MODULE, *map(int, line.split(":"))) for line in lines}
-    before = {site("prof", LIB, line) for line in range(len(lines))}  # the count holds
-    assert cast_module_push(tmp_path, capsys, module, lib, found, link=link,
-                            before=before)[1:] == (1, faults(fault, *lines))
+    if fault == MOUNTED:  # clippy's force-warned report of the second mount, as `sites` reads it
+        found |= gate.sites([message("id", LIB, 1, code="clippy::duplicate_mod")], tmp_path,
+                            {"id": "prof"})
+    before = {site("prof", LIB, line + 1) for line in range(len(lines))}  # the count holds
+    assert cast_module_push(tmp_path, capsys, module, lib, found, before=before)[1:] == (
+        1, faults(fault, *lines))
 
 
 def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tmp_path, capsys):
