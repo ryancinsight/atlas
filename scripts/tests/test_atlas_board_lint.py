@@ -618,6 +618,25 @@ class BoardLadderTestCase(unittest.TestCase):
             },
         )
 
+    def test_an_item_shaped_m_heading_stays_an_item(self) -> None:
+        for heading in ("M-ATLAS-001", "M-053"):
+            with self.subTest(heading=heading):
+                board = (
+                    f'<a id="{heading.lower()}"></a>\n'
+                    f"## {heading} — real item [patch] — done\n"
+                    "- priority: P1\n"
+                )
+                ids = [item["id"] for item in _lint._items_in(board.splitlines())]
+                self.assertEqual(ids, [heading])
+                with tempfile.TemporaryDirectory(prefix="board-lint-ladder-") as temp:
+                    repo = Path(temp)
+                    (repo / "backlog.md").write_text(board, encoding="utf-8")
+                    counts = _lint.board_schema_counts(repo)
+                    rc, out = _run_main(repo, repo / "backlog.md")
+                self.assertEqual(counts["board_items_outside_status_set"], 1)
+                self.assertEqual(rc, 1, out)
+                self.assertIn(heading, out)
+
     def test_a_ladder_in_the_linted_board_passes(self) -> None:
         with tempfile.TemporaryDirectory(prefix="board-lint-ladder-") as temp:
             repo = Path(temp)
