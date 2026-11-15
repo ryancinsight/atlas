@@ -2075,3 +2075,73 @@ def test_resolved_changes_follow_a_feature_the_entry_enables_downstream(tmp_path
         # `q`'s build or dev edge to `z` is a host edge, so `q` reaches `z`.
         expected = ["m2", "p", "q", "x", "z"]
     assert (sorted(changed), reason) == (expected, "")
+
+
+def test_base_triggers_report_every_members_cast_module(tmp_path, capsys):
+    """The hook names no member, so a change to any registered cast module
+    triggers the base count; an unregistered file does not."""
+    repo = tmp_path / "repo"
+    init(repo)
+    paths = ("crates/prof/src/cast.rs", "crates/other/src/ptr.rs", "crates/prof/src/lib.rs")
+    for path in paths:
+        (repo / path).parent.mkdir(parents=True, exist_ok=True)
+        (repo / path).write_text("pub fn a() {}\n")
+    base = commit(repo, "base")
+    for path in paths:
+        (repo / path).write_text("pub fn b() {}\n")
+    tip = commit(repo, "edit")
+    rules = tmp_path / "baseline.json"
+    rules.write_text(json.dumps({"counts": {}, "cast_modules": {
+        "m": {"prof": paths[0]}, "n": {"other": paths[1]}}}))
+    capsys.readouterr()
+    status = gate.main(["--baseline", str(rules), "base-triggers", "--repo", str(repo),
+                        "--base", base, "--tip", tip])
+    assert (status, capsys.readouterr().out) == (
+        0, f"{paths[1]} is a cast module\n{paths[0]} is a cast module\n")
+
+
+def test_the_ratchet_refuses_a_second_cast_module_on_a_git_range(tmp_path, capsys):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "scripts").mkdir()
+    target = repo / "scripts" / "cast-baseline.json"
+
+    def write(modules, sanctioned=None):
+        target.write_text(json.dumps({"sanctioned": sanctioned or {},
+                                      "counts": {"m": {"prof": 2}}, "cast_modules": modules}))
+        return commit(repo, "baseline")
+
+    def ratchet(base, tip):
+        capsys.readouterr()
+        status = gate.main(["ratchet", "--repo", str(repo), "--base", base, "--tip", tip])
+        return status, capsys.readouterr().err
+
+    none = write({})
+    added = write({"m": {"prof": "src/cast.rs"}})
+    moved = write({"m": {"prof": "src/ptr.rs"}})
+    shared = write({"m": {"prof": "src/ptr.rs"}}, {"m": ["src/ptr.rs"]})
+    assert ratchet(none, added) == (0, "")
+    assert ratchet(added, moved) == (1, "cast gate: baseline m/prof names a second cast module, "
+                                        "src/ptr.rs; its cast module is src/cast.rs; "
+                                        "rows only fall\n")
+    status, err = ratchet(moved, shared)
+    assert (status, "names src/ptr.rs as more than one module" in err) == (2, True)
+
+
+def test_a_second_cast_module_for_one_crate_is_refused():
+    base = Baseline.parse(json.dumps({"counts": {"m": {"prof": 2}}, "cast_modules": {}}), "b")
+    added = Baseline.parse(json.dumps({"counts": {"m": {"prof": 2}},
+                                       "cast_modules": {"m": {"prof": "src/cast.rs"}}}), "t")
+    moved = Baseline.parse(json.dumps({"counts": {"m": {"prof": 2}},
+                                       "cast_modules": {"m": {"prof": "src/ptr.rs"}}}), "t")
+    assert gate.raised_rows(base, added) == []
+    assert gate.raised_rows(added, moved) == [
+        "m/prof names a second cast module, src/ptr.rs; its cast module is src/cast.rs"]
+    with pytest.raises(ValueError, match="repeats the key 'prof'"):
+        Baseline.parse('{"cast_modules": {"m": {"prof": "a.rs", "prof": "b.rs"}}}', "t")
+    for text in ('{"cast_modules": {"m": {"prof": "a.rs", "ops": "a.rs"}}}',
+                 '{"sanctioned": {"m": ["a.rs"]}, "cast_modules": {"m": {"prof": "a.rs"}}}'):
+        with pytest.raises(ValueError, match="names a.rs as more than one module"):
+            Baseline.parse(text, "t")
+    with pytest.raises(ValueError, match="one path per package"):
+        Baseline.parse('{"cast_modules": {"m": {"prof": ["a.rs", "b.rs"]}}}', "t")

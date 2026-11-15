@@ -10,8 +10,11 @@ on a new cast. This gate is the enforcement:
 - clippy runs on the pushed packages with `--force-warn clippy::as_conversions`,
   which reports every `as` through allows and expects alike;
 - a reported site whose span covers a line the push adds fails, unless its
-  file is a sanctioned conversion or cast module (a span covers the whole
-  `expr as T`, so a cast ending a method chain starts lines above its `as`);
+  file is a sanctioned conversion module (a span covers the whole
+  `expr as T`, so a cast ending a method chain starts lines above its `as`).
+  A conversion module is excluded from every count. A package's one cast
+  module (`cast_modules`) is counted like any other file, so a cast moved
+  into it neither raises nor lowers the package's count;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -22,8 +25,9 @@ on a new cast. This gate is the enforcement:
   feature change that compiles existing casts in a pushed package fails this
   too, until those casts convert. The base builds only when the range can
   bring existing casts into a pushed package without adding their lines
-  (`base-triggers`): a renamed file, or a changed `Cargo.toml`, package-root
-  `build.rs`, cargo config or `rust-toolchain` file. A source-level `cfg`
+  (`base-triggers`): a renamed file, a changed cast module, or a changed
+  `Cargo.toml`, package-root `build.rs`, cargo config or `rust-toolchain`
+  file. A source-level `cfg`
   flip, `#[path]`, `include!`, a new `mod` line naming a file that was not
   compiled before, or a build script at a custom `package.build` path or in
   a helper module is not a trigger and is held to the row alone. Only pushed packages are counted:
@@ -69,7 +73,9 @@ A row may fall or be dropped; it may not rise, and a package of a member the
 base already measured may not gain a row (no row counts as zero). A member
 the base does not measure enters with its rows (onboarding). A sanctioned
 path may not be added to a member the base measures: exclusion lowers a
-count without converting a cast.
+count without converting a cast. A cast module may be added for a package
+that has none, since its casts stay counted; a package's cast module path
+does not change, which would make a second module.
 """
 
 from __future__ import annotations
@@ -85,7 +91,7 @@ import sys
 import time
 import tomllib
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
@@ -450,9 +456,13 @@ def changed_entries(repo: pathlib.Path, base: str, tip: str) -> list[tuple[str, 
     return entries
 
 
-def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
+def base_triggers(repo: pathlib.Path, base: str, tip: str,
+                  cast_modules: frozenset[str] = frozenset()) -> list[str]:
     """Why the range needs the base count: each change that can bring existing
-    casts into a pushed package without adding their lines."""
+    casts into a pushed package without adding their lines, and each change
+    to a path in `cast_modules`, whose added casts only the base count holds.
+    The hook names no member here, so `cast_modules` is every member's: a
+    path another member registers costs one extra compile, never a pass."""
     reasons: list[str] = []
     for paths in changed_entries(repo, base, tip):
         if len(paths) == 2:
@@ -462,6 +472,8 @@ def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
             if (name in BUILD_INPUTS or "/.cargo/" in f"/{path}"
                     or package_build_script(repo, tip, path)):
                 reasons.append(f"{path} changed")
+            if path in cast_modules:
+                reasons.append(f"{path} is a cast module")
     return list(dict.fromkeys(reasons))
 
 
@@ -913,10 +925,13 @@ def new_standalone_owners(repo: pathlib.Path, base: str, tip: str,
 
 @dataclass(frozen=True)
 class Baseline:
-    """Sanctioned conversion and cast modules, and per-package site counts."""
+    """Sanctioned conversion modules, per-package cast modules, and per-package
+    site counts. A JSON object repeating a key is refused: `json` would keep
+    the last value, and a second path for one package is a second module."""
 
     sanctioned: dict[str, frozenset[str]]
     counts: dict[str, dict[str, int]]
+    cast_modules: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: pathlib.Path) -> Baseline:
@@ -926,11 +941,19 @@ class Baseline:
     @classmethod
     def parse(cls, text: str, path: str) -> Baseline:
         """The baseline in `text`, read from `path`; a wrong shape is a ValueError."""
-        data = json.loads(text)
+        def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+            keys = [key for key, _ in pairs]
+            for key in keys:
+                if keys.count(key) > 1:
+                    raise ValueError(f"{path}: the baseline repeats the key {key!r}")
+            return dict(pairs)
+
+        data = json.loads(text, object_pairs_hook=unique)
         if not isinstance(data, dict):
             raise ValueError(f"{path}: the baseline is a JSON object")
         sanctioned = data.get("sanctioned", {})
         counts = data.get("counts", {})
+        cast_modules = data.get("cast_modules", {})
         if not (isinstance(sanctioned, dict) and all(
                 isinstance(paths, list) and all(isinstance(p, str) for p in paths)
                 for paths in sanctioned.values())):
@@ -940,9 +963,19 @@ class Baseline:
                     isinstance(k, str) and type(v) is int for k, v in rows.items())
                 for rows in counts.values())):
             raise ValueError(f"{path}: `counts` maps members to package counts")
+        if not (isinstance(cast_modules, dict) and all(
+                isinstance(modules, dict) and all(isinstance(p, str) for p in modules.values())
+                for modules in cast_modules.values())):
+            raise ValueError(f"{path}: `cast_modules` maps members to one path per package")
+        for member, modules in cast_modules.items():
+            named = [*modules.values(), *sanctioned.get(member, [])]
+            for module in named:
+                if named.count(module) > 1:
+                    raise ValueError(f"{path}: {member} names {module} as more than one module")
         return cls(
             {m: frozenset(p) for m, p in sanctioned.items()},
             {m: dict(c) for m, c in counts.items()},
+            {m: dict(p) for m, p in cast_modules.items()},
         )
 
 
@@ -1051,8 +1084,10 @@ def check(args: argparse.Namespace) -> int:
 
 def raised_rows(base: Baseline, tip: Baseline) -> list[str]:
     """Each way `tip` loosens `base`: a row above its base row, a row for a
-    package of a measured member that had none, or a sanctioned path added to
-    a measured member. A member `base` does not measure is onboarding."""
+    package of a measured member that had none, a sanctioned path added to a
+    measured member, or a package's cast module moved to another path. A
+    member `base` does not measure is onboarding. A cast module added for a
+    package that had none loosens nothing: its casts stay counted."""
     problems = []
     for member, rows in sorted(tip.counts.items()):
         if member not in base.counts:
@@ -1064,6 +1099,11 @@ def raised_rows(base: Baseline, tip: Baseline) -> list[str]:
         for path in sorted(tip.sanctioned.get(member, frozenset())
                            - base.sanctioned.get(member, frozenset())):
             problems.append(f"{member} sanctions {path}, which the base does not")
+        modules = base.cast_modules.get(member, {})
+        for package, path in sorted(tip.cast_modules.get(member, {}).items()):
+            if modules.get(package, path) != path:
+                problems.append(f"{member}/{package} names a second cast module, {path}; "
+                                f"its cast module is {modules[package]}")
     return problems
 
 
@@ -1100,7 +1140,9 @@ def triggers(args: argparse.Namespace) -> int:
     # UTF-8 whatever the console code page: a path outside it must not stop
     # the gate (a Windows pipe defaults to the ANSI code page).
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
-    for reason in base_triggers(pathlib.Path(args.repo), args.base, args.tip):
+    modules = Baseline.load(args.baseline).cast_modules
+    paths = frozenset(path for packages in modules.values() for path in packages.values())
+    for reason in base_triggers(pathlib.Path(args.repo), args.base, args.tip, paths):
         print(reason)
     return 0
 
