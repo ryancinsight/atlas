@@ -2159,7 +2159,7 @@ CAST_MODULE = (
     '    reason = "a function pointer has no stable typed conversion to a data pointer"\n'
     ")]\n\nuse core::ffi::c_void;\n\n" + HOOK.replace("hook", "address"))
 MOUNT = "mod cast;\n\npub use cast::address as hook;\n"
-MOVED = site("prof", MODULE, 11, 20)  # `Some(f) => f as *mut c_void,` in CAST_MODULE
+CAST_MODULE_SITE = site("prof", MODULE, 11, 20)  # `Some(f) => f as *mut c_void,` in CAST_MODULE
 EXPECT = '#![expect(clippy::as_conversions, reason = "x")]\n'
 WIDEN = "macro_rules! widen {\n    ($e:expr) => {\n        $e as u64\n    };\n}\n"
 USES = "".join(f"\npub fn w{n}(x: u32) -> u64 {{\n    widen!(x)\n}}\n" for n in range(4))
@@ -2171,7 +2171,7 @@ NOT_CAST = "names a lint other than a cast lint, or none, in its `#![expect(...)
 AFTER_ITEM = "places its `#![expect(...)]` after an item, so it does not scope the file"
 
 
-def cast_module_push(tmp_path, capsys, module, lib=MOUNT, found=(MOVED,), *, held=True,
+def cast_module_push(tmp_path, capsys, module, lib=MOUNT, found=(CAST_MODULE_SITE,), *, held=True,
                      packages=("prof",), base_module=None, before=None):
     """The gate's verdict when a member moves its fn-pointer cast into its cast module."""
     repo = tmp_path / "repo"
@@ -2217,9 +2217,9 @@ def test_a_cast_module_exempts_only_its_own_lines_under_a_base_count(tmp_path, c
     n = "pub fn n(x: u8) -> u32 { x as u32 }\n"
     rise = "prof: 2 bare `as` casts, up from 1 at the pushed base"
     assert cast_module_push(tmp_path / "o", capsys, CAST_MODULE, MOUNT + n, (
-        MOVED, site("prof", LIB, 4, 26)))[1:] == (
+        CAST_MODULE_SITE, site("prof", LIB, 4, 26)))[1:] == (
         1, [f"{LIB}:4:26: bare `as` cast on a line this push adds", rise])
-    found = (MOVED, site("prof", MODULE, 15, 26))
+    found = (CAST_MODULE_SITE, site("prof", MODULE, 15, 26))
     assert cast_module_push(tmp_path / "a", capsys, CAST_MODULE + n, found=found)[1:] == (1, [rise])
     assert cast_module_push(tmp_path / "b", capsys, CAST_MODULE, held=False)[1:] == (1, [
         f"{MODULE}:11:20: `as` cast added to prof's cast module without a count at the "
@@ -2318,7 +2318,7 @@ def test_one_cast_in_a_cast_module_never_passes_as_many(tmp_path, capsys, module
 def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tmp_path, capsys):
     # The module predates the push, which adds only uses: no module line is added.
     module = CAST_MODULE + WIDEN
-    found = (MOVED, site("prof", MODULE, 17, 9))
+    found = (CAST_MODULE_SITE, site("prof", MODULE, 17, 9))
     assert cast_module_push(tmp_path, capsys, module, "#[macro_use]\n" + MOUNT + USES, found,
-                            held=False, base_module=module, before={MOVED})[1:] == (
+                            held=False, base_module=module, before={CAST_MODULE_SITE})[1:] == (
         1, faults(MACRO, "11:20", "17:9"))
