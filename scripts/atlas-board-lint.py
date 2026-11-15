@@ -542,7 +542,7 @@ STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([
 # item uses); reading only the first form counted metis's prioritized items
 # as unprioritized.
 PRIORITY_LINE = re.compile(
-    r"(?i)^\s*[-*]?\s*(?:[^;\n]*;\s*)*[*_`]*priority[*_`]*\s*[:=]\s*[*_`]*\s*([a-z0-9-]*)"
+    r"(?i)^\s*[-*]?\s*(?:[^;\n]*;)*\s*[*_`]*priority[*_`]*\s*[:=]\s*[*_`]*\s*([a-z0-9-]*)"
 )
 # The roadmap's closed triage set (sprint: closed priority order).
 BOARD_PRIORITIES = frozenset(
