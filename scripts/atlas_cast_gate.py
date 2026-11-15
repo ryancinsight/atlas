@@ -15,10 +15,11 @@ on a new cast. This gate is the enforcement:
   above its `as`). A conversion module is excluded from every count. A
   package's one cast module (`cast_modules`) is counted like any other file,
   so a cast moved into it neither raises nor lowers the package's count. Its
-  added lines pass only when its file at the tip holds exactly one inner
-  `#![expect(...)]` naming cast lints and a reason, and the package is held
-  to its count at the pushed base, which a change to any registered cast
-  module path triggers;
+  added lines pass only when its file at the tip opens with exactly one inner
+  `#![expect(...)]` naming cast lints and a non-empty reason and defines no
+  `macro_rules!` (each expansion shares its definition's one site), and the
+  package is held to its count at the pushed base, which a change to any
+  registered cast module path triggers;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -985,28 +986,30 @@ class Baseline:
 
 # Only whole-line comments are dropped, so a `//` inside a reason string stays.
 LINE_COMMENT = re.compile(r"(?m)^[ \t]*//.*$")
+INNER_ATTRIBUTE = re.compile(r"\s*#!\s*\[")
 INNER_EXPECT = re.compile(r"#!\s*\[\s*expect\s*\(")
-REASON = re.compile(r'\breason\s*=\s*"(?:[^"\\]|\\[\s\S])*"')
-CAST_LINT = re.compile(r"clippy::(?:\w*cast\w*|as_\w+|\w+_as_\w+)")
+MACRO_RULES = re.compile(r"\bmacro_rules\s*!")
+REASON = re.compile(r'\breason\s*=\s*"((?:[^"\\]|\\[\s\S])*)"')
+# clippy 1.97.0's lints that concern an `as` or pointer cast, from
+# `clippy-driver -W help`. A name pattern also admits `match_as_ref`,
+# `string_lit_as_bytes` and nine more Option, str and XOR lints.
+CAST_LINTS = frozenset(f"clippy::{name}" for name in (
+    "as_conversions as_pointer_underscore as_ptr_cast_mut as_underscore borrow_as_ptr "
+    "cast_abs_to_unsigned cast_enum_constructor cast_enum_truncation cast_lossless "
+    "cast_nan_to_int cast_possible_truncation cast_possible_wrap cast_precision_loss "
+    "cast_ptr_alignment cast_sign_loss cast_slice_different_sizes "
+    "cast_slice_from_raw_parts char_lit_as_u8 confusing_method_to_numeric_cast "
+    "fn_to_numeric_cast fn_to_numeric_cast_any fn_to_numeric_cast_with_truncation "
+    "invalid_upcast_comparisons needless_type_cast ptr_as_ptr ptr_cast_constness "
+    "ptr_offset_with_cast ref_as_ptr transmutes_expressible_as_ptr_casts "
+    "unnecessary_cast").split())
 
 
-def cast_module_fault(text: str | None) -> str | None:
-    """Why `text` is not a cast module; None when it is one.
-
-    A cast module is one file under exactly one inner `#![expect(...)]` that
-    names only cast lints and gives a reason. Only the file is read: whether
-    its `mod` line compiles it and whether each named lint fires are rustc's
-    to judge (`unfulfilled_lint_expectations`), and an outer `#[expect]` on
-    the `mod` line is not seen here, so it does not qualify.
-    """
-    if text is None:
-        return "is absent at the pushed tip"
-    code = LINE_COMMENT.sub("", text)
-    starts = [match.end() for match in INNER_EXPECT.finditer(code)]
-    if len(starts) != 1:
-        return f"holds {len(starts)} inner `#![expect(...)]` attributes, not one"
-    depth, index, quoted = 1, starts[0], False
-    while depth and index < len(code):
+def group_end(code: str, index: int) -> int | None:
+    """The index after the bracket closing the group opened just before
+    `index`, or None when it never closes. Brackets inside a string are text."""
+    depth, quoted = 1, False
+    while index < len(code):
         char = code[index]
         if quoted:
             if char == "\\":
@@ -1015,17 +1018,60 @@ def cast_module_fault(text: str | None) -> str | None:
                 quoted = False
         elif char == '"':
             quoted = True
-        elif char in "()":
-            depth += 1 if char == "(" else -1
+        elif char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+            if not depth:
+                return index + 1
         index += 1
-    if depth:
+    return None
+
+
+def leading_attributes(code: str) -> list[tuple[int, int]]:
+    """The spans of the inner attributes that open the file, before any item."""
+    spans: list[tuple[int, int]] = []
+    index = 0
+    while match := INNER_ATTRIBUTE.match(code, index):
+        end = group_end(code, match.end())
+        if end is None:
+            break
+        spans.append((match.start(), end))
+        index = end
+    return spans
+
+
+def cast_module_fault(text: str | None) -> str | None:
+    """Why `text` is not a cast module; None when it is one.
+
+    A cast module is one file under exactly one inner `#![expect(...)]` that
+    opens the file before any item, names only cast lints and gives a reason,
+    and defines no `macro_rules!`: the gate counts a macro's `as` once at its
+    definition however many times it expands. Only the file is read: whether
+    its `mod` line compiles it and whether each named lint fires are rustc's
+    to judge (`unfulfilled_lint_expectations`), and an outer `#[expect]` on
+    the `mod` line is not seen here, so it does not qualify.
+    """
+    if text is None:
+        return "is absent at the pushed tip"
+    code = LINE_COMMENT.sub("", text)
+    found = list(INNER_EXPECT.finditer(code))
+    if len(found) != 1:
+        return f"holds {len(found)} inner `#![expect(...)]` attributes, not one"
+    end = group_end(code, found[0].end())
+    if end is None:
         return "leaves its `#![expect(` unclosed"
-    arguments = code[starts[0]:index - 1]
-    if not REASON.search(arguments):
+    if not any(start <= found[0].start() < stop for start, stop in leading_attributes(code)):
+        return "places its `#![expect(...)]` after an item, so it does not scope the file"
+    arguments = code[found[0].end():end - 1]
+    reason = REASON.search(arguments)
+    if reason is None or not reason.group(1).strip():
         return "gives its `#![expect(...)]` no reason"
     lints = [part.strip() for part in REASON.sub("", arguments).split(",") if part.strip()]
-    if not lints or not all(CAST_LINT.fullmatch(lint) for lint in lints):
+    if not lints or not all(lint in CAST_LINTS for lint in lints):
         return "names a lint other than a cast lint, or none, in its `#![expect(...)]`"
+    if MACRO_RULES.search(code):
+        return "defines a `macro_rules!`, whose casts the gate counts once however often it expands"
     return None
 
 

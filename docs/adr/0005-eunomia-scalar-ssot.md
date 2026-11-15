@@ -13,11 +13,12 @@
   The record was compacted to the current decision; the 2026-07-04 text,
   its delivery sequencing and its closure claims are in git history.
 - Revision 2026-11-14: the push gate for bare casts exists
-  (`scripts/atlas_cast_gate.py`, atlas#450). Its baseline excludes this
-  conversion module from every count, and now admits one cast module per
-  crate (`cast_modules`, atlas#711) for type-local casts with no stable
-  non-`as` form. Those casts stay counted, so a move is neither a rise
-  nor a reduction. Evidence: Mnemosyne#262's function-pointer casts had
+  (`scripts/atlas_cast_gate.py`, atlas#450). Its baseline excludes only
+  `crates/eunomia/src/convert/count.rs` from every count, and now admits
+  one cast module per crate (`cast_modules`, atlas#711) for type-local
+  casts with no stable non-`as` form. The module opens with one
+  `#![expect(...)]` naming cast lints and defines no `macro_rules!`.
+  Its casts stay counted, so a move is neither a rise nor a reduction. Evidence: Mnemosyne#262's function-pointer casts had
   no module the gate admitted.
 
 > Cite this document as `atlas:0005`; `eunomia:0005` is the unrelated
