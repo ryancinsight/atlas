@@ -19,7 +19,8 @@
   ATLAS-CAST-GATE-CRATE-MODULE) for type-local casts with no stable
   non-`as` form. A module's casts stay counted, so a move is neither a
   rise nor a reduction. Evidence: Mnemosyne#262's function-pointer casts
-  had no module the gate admitted.
+  had no module the gate admitted. Its added lines pass only under one
+  leading cast-lint `#![expect]`, when nothing can compile a cast twice.
 
 > Cite this document as `atlas:0005`; `eunomia:0005` is the unrelated
 > `min_scalar`/`max_scalar` special-value contract in
