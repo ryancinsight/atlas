@@ -17,7 +17,8 @@ on a new cast. This gate is the enforcement:
   so a cast moved into it neither raises nor lowers the package's count. Its
   added lines pass only when its file at the tip opens with exactly one inner
   `#![expect(...)]` naming cast lints and a non-empty reason and defines no
-  `macro_rules!` (each expansion shares its definition's one site), and the
+  `macro_rules!` (each expansion shares its definition's one site, so every site
+  of a module that defines one fails), and the
   package is held to its count at the pushed base, which a change to any
   registered cast module path triggers;
 - a package whose site count rises above its row in `cast-baseline.json`
@@ -986,9 +987,11 @@ class Baseline:
 
 # Only whole-line comments are dropped, so a `//` inside a reason string stays.
 LINE_COMMENT = re.compile(r"(?m)^[ \t]*//.*$")
-INNER_ATTRIBUTE = re.compile(r"\s*#!\s*\[")
+INNER_ATTRIBUTE = re.compile(r"(\s*)#!\s*\[")
 INNER_EXPECT = re.compile(r"#!\s*\[\s*expect\s*\(")
 MACRO_RULES = re.compile(r"\bmacro_rules\s*!")
+MACRO_FAULT = ("defines a `macro_rules!`, whose casts the gate counts once however "
+               "often it expands")
 REASON = re.compile(r'\breason\s*=\s*"((?:[^"\\]|\\[\s\S])*)"')
 # clippy 1.97.0's lints that concern an `as` or pointer cast, from
 # `clippy-driver -W help`. A name pattern also admits `match_as_ref`,
@@ -1001,8 +1004,7 @@ CAST_LINTS = frozenset(f"clippy::{name}" for name in (
     "cast_slice_from_raw_parts char_lit_as_u8 confusing_method_to_numeric_cast "
     "fn_to_numeric_cast fn_to_numeric_cast_any fn_to_numeric_cast_with_truncation "
     "invalid_upcast_comparisons needless_type_cast ptr_as_ptr ptr_cast_constness "
-    "ptr_offset_with_cast ref_as_ptr transmutes_expressible_as_ptr_casts "
-    "unnecessary_cast").split())
+    "ptr_offset_with_cast ref_as_ptr unnecessary_cast").split())
 
 
 def group_end(code: str, index: int) -> int | None:
@@ -1029,14 +1031,15 @@ def group_end(code: str, index: int) -> int | None:
 
 
 def leading_attributes(code: str) -> list[tuple[int, int]]:
-    """The spans of the inner attributes that open the file, before any item."""
+    """The spans, from its `#`, of the inner attributes that open the file,
+    before any item."""
     spans: list[tuple[int, int]] = []
     index = 0
     while match := INNER_ATTRIBUTE.match(code, index):
         end = group_end(code, match.end())
         if end is None:
             break
-        spans.append((match.start(), end))
+        spans.append((match.start() + len(match.group(1)), end))
         index = end
     return spans
 
@@ -1055,13 +1058,15 @@ def cast_module_fault(text: str | None) -> str | None:
     if text is None:
         return "is absent at the pushed tip"
     code = LINE_COMMENT.sub("", text)
+    if MACRO_RULES.search(code):
+        return MACRO_FAULT
     found = list(INNER_EXPECT.finditer(code))
     if len(found) != 1:
         return f"holds {len(found)} inner `#![expect(...)]` attributes, not one"
     end = group_end(code, found[0].end())
     if end is None:
         return "leaves its `#![expect(` unclosed"
-    if not any(start <= found[0].start() < stop for start, stop in leading_attributes(code)):
+    if found[0].start() not in {start for start, _ in leading_attributes(code)}:
         return "places its `#![expect(...)]` after an item, so it does not scope the file"
     arguments = code[found[0].end():end - 1]
     reason = REASON.search(arguments)
@@ -1070,8 +1075,6 @@ def cast_module_fault(text: str | None) -> str | None:
     lints = [part.strip() for part in REASON.sub("", arguments).split(",") if part.strip()]
     if not lints or not all(lint in CAST_LINTS for lint in lints):
         return "names a lint other than a cast lint, or none, in its `#![expect(...)]`"
-    if MACRO_RULES.search(code):
-        return "defines a `macro_rules!`, whose casts the gate counts once however often it expands"
     return None
 
 
@@ -1098,10 +1101,15 @@ def violations(member: str, found: set[Site], added: dict[str, set[int]],
     modules = cast_modules or {}
     problems = []
     for s in bare:
+        path, fault = modules.get(s.package, ("", None))
+        where = f"{s.path}:{s.line}:{s.column}"
+        if s.path == path and fault == MACRO_FAULT:
+            # A macro's expansions share its definition's one site, wherever
+            # the push adds lines, so no site of such a module is trusted.
+            problems.append(f"{where}: `as` cast in {s.package}'s cast module, which {fault}")
+            continue
         if added.get(s.path, set()).isdisjoint(range(s.line, s.line_end + 1)):
             continue
-        where = f"{s.path}:{s.line}:{s.column}"
-        path, fault = modules.get(s.package, ("", None))
         if s.path != path:
             problems.append(f"{where}: bare `as` cast on a line this push adds")
         elif fault:

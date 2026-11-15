@@ -2093,16 +2093,17 @@ WIDEN = "macro_rules! widen {\n    ($e:expr) => {\n        $e as u64\n    };\n}\
 EXPECT = '#![expect(clippy::as_conversions, reason = "x")]\n'
 
 
-def cast_module_push(tmp_path, module_text, lib_extra=""):
+def cast_module_push(tmp_path, module_text, lib_extra="", base_module=None):
     """A measured member moves its fn-pointer cast from `lib.rs` into its
     cast module, registered beside an unchanged row; the gate's verdict."""
     repo = tmp_path / "repo"
     init(repo)
     (repo / "crates" / "prof" / "src").mkdir(parents=True)
     (repo / LIB).write_text("use core::ffi::c_void;\n\n" + HOOK)
+    if base_module is not None:
+        (repo / MODULE).write_text(base_module)
     base = commit(repo, "base")
-    if module_text is not None:
-        (repo / MODULE).write_text(module_text)
+    (repo / MODULE).write_text(module_text)
     (repo / LIB).write_text("mod cast;\n\npub use cast::address as hook;\n" + lib_extra)
     tip = commit(repo, "move the cast into the cast module")
     rules = tmp_path / "baseline.json"
@@ -2198,22 +2199,20 @@ NOT_CAST_LINTS = (
     ("use core::ffi::c_void;\n" + EXPECT + HOOK, AFTER_ITEM),
     ("use core::ffi::c_void;\n\n" + SCOPED_TO_FN, AFTER_ITEM),
     ("use core::ptr; // " + EXPECT + HOOK, AFTER_ITEM),
+    ('#![doc = r#"' + EXPECT.strip() + '"#]\n' + HOOK, AFTER_ITEM),
     (CAST_MODULE + WIDEN, MACRO),
 ], ids=["valid", "two-cast-lints", "url-in-reason", "doc-comment-names-expect", "leading-allow",
         "no-expect", "two-expects", "reason-commented-out", "empty-reason",
         "blank-reason", "unclosed", "no-lint", "unwrap_used", "rustc-lint",
         *NOT_CAST_LINTS, "expect-after-use", "expect-in-fn-body", "expect-in-trailing-comment",
-        "macro_rules"])
+        "expect-in-doc-string", "macro_rules"])
 def test_a_cast_module_is_one_file_under_one_leading_expect(tmp_path, capsys, text, fault):
     judge = cast_module_push(tmp_path, text)
+    verb = "in" if fault == MACRO else "added to"
     problems = [] if fault is None else [
-        f"{MODULE}:1:1: `as` cast added to prof's cast module, which {fault}"]
+        f"{MODULE}:1:1: `as` cast {verb} prof's cast module, which {fault}"]
     # Line 1 is added in every shape, which holds fewer than 11 lines in some.
     assert judge(capsys, {site("prof", MODULE, 1, 1)})[1:] == (int(fault is not None), problems)
-
-
-def test_a_cast_module_absent_at_the_tip_is_a_fault():
-    assert gate.cast_module_fault(None) == "is absent at the pushed tip"
 
 
 def test_a_macro_in_the_cast_module_does_not_hide_its_expansions(tmp_path, capsys):
@@ -2223,8 +2222,21 @@ def test_a_macro_in_the_cast_module_does_not_hide_its_expansions(tmp_path, capsy
     judge = cast_module_push(tmp_path, CAST_MODULE + WIDEN, uses)
     before = {site("prof", LIB, 5, 20), site("prof", LIB, 9, 20)}
     assert judge(capsys, {MOVED, site("prof", MODULE, 17, 9)}, before=before)[1:] == (1, [
-        f"{MODULE}:11:20: `as` cast added to prof's cast module, which {MACRO}",
-        f"{MODULE}:17:9: `as` cast added to prof's cast module, which {MACRO}"])
+        f"{MODULE}:11:20: `as` cast in prof's cast module, which {MACRO}",
+        f"{MODULE}:17:9: `as` cast in prof's cast module, which {MACRO}"])
+
+
+def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tmp_path, capsys):
+    """The module and its unexpanded macro predate the push, which only adds uses in
+    `lib.rs`: no site of the module lies on an added line, and no base count is held."""
+    uses = "".join(f"pub fn w{n}(x: u32) -> u64 {{ widen!(x) }}\n" for n in range(4))
+    module = CAST_MODULE + WIDEN
+    judge = cast_module_push(tmp_path, module, uses, base_module=module)
+    verdict = judge(capsys, {MOVED, site("prof", MODULE, 17, 9)}, held=False,
+                    before={MOVED})[1:]
+    assert verdict == (1, [
+        f"{MODULE}:11:20: `as` cast in prof's cast module, which {MACRO}",
+        f"{MODULE}:17:9: `as` cast in prof's cast module, which {MACRO}"])
 
 
 def test_the_ratchet_refuses_a_second_cast_module_on_a_git_range(tmp_path, capsys):
