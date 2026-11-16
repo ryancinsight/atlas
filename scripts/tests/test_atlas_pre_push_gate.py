@@ -5121,6 +5121,82 @@ COMPILE_ERROR = ("error[E0433]: failed to resolve: use of undeclared crate or mo
                  "error: could not compile `foo` (lib) due to 1 previous error")
 
 
+class StepTimingTestCase(unittest.TestCase):
+    """A measured push records per-step wall-clock times on one clock.
+
+    The identity stages used to measure their own `$SECONDS`, which starts at
+    zero in the re-entered shell, so a stage time was not the hook's elapsed
+    time and the pre-identity work (about 139 s on kwavers) had no record.
+    """
+
+    def _fixture(self, temp: str) -> "GateFixture":
+        fixture = GateFixture.in_stack(pathlib.Path(temp))
+        root = fixture.root
+        _git(root, "checkout", "-q", "-b", "feat", "main")
+        (root / "crates" / "foo" / "src" / "lib.rs").write_text(
+            "pub fn f() {}\n// timed\n", encoding="utf-8"
+        )
+        _git(root, "commit", "-q", "-am", "timed")
+        return fixture
+
+    def test_the_hook_records_a_mark_at_each_section_boundary(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            progress = pathlib.Path(temp) / "progress"
+            progress.mkdir()
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"),
+                extra_env={"ATLAS_GATE_PROGRESS_DIR": str(progress)},
+            )
+            self.assertEqual(code, 0, stderr)
+            marks = [
+                (name, int(value))
+                for name, value in (
+                    line.split() for line in
+                    (progress / "steps.log").read_text(encoding="utf-8").splitlines()
+                )
+            ]
+            names = [name for name, _ in marks]
+            for required in ("lockfile", "budget", "secret-scan", "debt-ratchet",
+                             "gate-prep", "gate", "done"):
+                self.assertIn(required, names)
+            elapsed = [value for _, value in marks]
+            self.assertEqual(elapsed, sorted(elapsed), marks)
+
+    def test_a_stage_time_is_the_hook_clock_not_a_fresh_shell_clock(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            progress = pathlib.Path(temp) / "progress"
+            progress.mkdir()
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch("feat"),
+                extra_env={
+                    "ATLAS_GATE_PROGRESS_DIR": str(progress),
+                    "ATLAS_GATE_BOUNDED": "1",
+                },
+            )
+            self.assertEqual(code, 0, stderr)
+            marks = {
+                name: int(value)
+                for name, value in (
+                    line.split() for line in
+                    (progress / "steps.log").read_text(encoding="utf-8").splitlines()
+                )
+            }
+            stages = []
+            for line in (progress / "stages.log").read_text(encoding="utf-8").splitlines():
+                stage, event, value = line.split()
+                stages.append((f"{stage} {event}", int(value)))
+            self.assertTrue(stages, "no stage was recorded")
+            # A stage that began after `gate-prep` cannot report a time before
+            # the hook reached that mark: with the old per-shell clock it
+            # reported near zero.
+            for name, value in stages:
+                self.assertGreaterEqual(
+                    value, marks["gate-prep"], f"{name} is on a different clock"
+                )
+
+
 @unittest.skipUnless(shutil.which("cargo"), "real Cargo is required")
 class StandaloneOwnerClassifierTestCase(unittest.TestCase):
     def test_owner_classification_fails_closed_and_preserves_prior_ownership(self) -> None:

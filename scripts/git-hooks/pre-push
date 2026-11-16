@@ -366,6 +366,17 @@ trap remove_run_temps EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+# Per-step wall-clock marks for a measured push. `ATLAS_GATE_PROGRESS_DIR` is
+# the runner's directory for one bounded gate, and each mark is this outer
+# shell's elapsed seconds at a section boundary, so consecutive marks give the
+# hook's own per-step cost. The identity stages write into the same directory
+# under the same clock (`ATLAS_GATE_ELAPSED_BASE`), so a stage time and a mark
+# are comparable rather than two clocks that both start at zero.
+mark_step() {
+  [ -z "${ATLAS_GATE_PROGRESS_DIR:-}" ] && return 0
+  printf '%s %s\n' "$1" "$SECONDS" >>"$ATLAS_GATE_PROGRESS_DIR/steps.log" 2>/dev/null || true
+}
 # new_run_temp <variable> <prefix>: a fresh directory, registered and owned.
 new_run_temp() {
   local created
@@ -934,6 +945,7 @@ MESSAGE
 fi
 fi
 # End of the lockfile section; the code gate below runs unconditionally.
+mark_step lockfile
 
 # ---------------------------------------------------------------------------
 # Artifact budgets: PM boards under their line budget, tracked images under
@@ -974,6 +986,7 @@ if [ -f "$budget_checker" ] && [ -n "$python_bin" ]; then
 else
   echo "pre-push: artifact-budget checker not reachable from this clone; CI enforces it" >&2
 fi
+mark_step budget
 
 # Credentials: every commit the pushed range introduces, scanned before it
 # leaves the machine (scripts/atlas-secret-scan.py). A secret that reaches a
@@ -1014,6 +1027,8 @@ elif [ "$secret_status" -ne 0 ]; then
   echo "range was not scanned; the reason is the secret-scan line above." >&2
   exit 1
 fi
+
+mark_step secret-scan
 
 # Debt ratchet: the pushed revision's conformance classes may not rise above
 # the counts atlas records for this member. CI runs the same script through
@@ -1079,6 +1094,7 @@ if [ -n "$stack_baseline" ] && [ -n "$python_bin" ] \
 else
   echo "pre-push: no stack checker reachable from this clone; debt ratchet not run, CI enforces it" >&2
 fi
+mark_step debt-ratchet
 
 # ---------------------------------------------------------------------------
 # Fast local gate, scoped to the pushed range.
@@ -1821,6 +1837,7 @@ run_identity_sequence() {
   done
   local identity_command
   identity_command=(
+    env "ATLAS_GATE_ELAPSED_BASE=$SECONDS"
     "$python_bin" "$identity_checker" run
     --root "$root"
     "${package_arguments[@]}"
@@ -1848,10 +1865,12 @@ shift 11
 cargo_command="${CARGO:-cargo}"
 record_stage() {
   printf "%s\n" "$1" >"$stage_file"
-  [ -z "$progress" ] || printf "%s started %s\n" "$1" "$SECONDS" >>"$progress/stages.log"
+  [ -z "$progress" ] || printf "%s started %s\n" "$1" \
+    "$(( ${ATLAS_GATE_ELAPSED_BASE:-0} + SECONDS ))" >>"$progress/stages.log"
 }
 complete_stage() {
-  [ -z "$progress" ] || printf "%s completed %s\n" "$1" "$SECONDS" >>"$progress/stages.log"
+  [ -z "$progress" ] || printf "%s completed %s\n" "$1" \
+    "$(( ${ATLAS_GATE_ELAPSED_BASE:-0} + SECONDS ))" >>"$progress/stages.log"
 }
 if [ "$run_clippy" = 1 ]; then
   record_stage clippy
@@ -2192,6 +2211,7 @@ else
   run_temps+=("$gate_log")
 fi
 
+mark_step gate-prep
 if [ "$identity_enabled" -eq 1 ]; then
   run_clippy=0
   run_tests=0
@@ -2455,8 +2475,10 @@ if [ "$stack_member" = "<meta>" ]; then
 else
   run_cargo_workspace_gate "Cargo.toml" "$gate_changed"
 fi
+mark_step gate
 
 # The gate ran every workspace; the recorded cast sites are judged as one
 # range, once, whether the push carried workspace packages, standalone crates,
 # or both.
 run_cast_check
+mark_step done
