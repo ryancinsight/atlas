@@ -60,7 +60,6 @@
 <a id="prometheus-promotion"></a>- [ATLAS-PROMETHEUS-PROMOTION-2026-09-03](backlog/prometheus-promotion.md) — Create and register `prometheus` (species mass balance) [arch][minor] — blocked
 <a id="atlas-provider-chain-quality-2026-08-27"></a>- [ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27](backlog/atlas-provider-chain-quality-2026-08-27.md) — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — todo
 <a id="atlas-provider-closure-2026-08-20"></a>- [ATLAS-PROVIDER-CLOSURE-2026-08-20](backlog/atlas-provider-closure-2026-08-20.md) — Complete active provider slices [major][arch] — todo
-<a id="atlas-pub-002"></a>- [ATLAS-PUB-002](backlog/atlas-pub-002.md) — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
 <a id="atlas-pub-003"></a>- [ATLAS-PUB-003](backlog/atlas-pub-003.md) — Register trusted publishers and remove the unused PyPI token [chore] — todo
 <a id="atlas-pub-005"></a>- [ATLAS-PUB-005](backlog/atlas-pub-005.md) — Flip `mdbook-test` per book as samples become compilable [patch] — todo
 <a id="atlas-pub-006"></a>- [ATLAS-PUB-006](backlog/atlas-pub-006.md) — Stand up one facade crate per package [minor] — todo
