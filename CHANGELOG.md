@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+- Widen the board lint's duplicate-id gate to the item-id grammar instead of
+  the `ATLAS-` prefix. `scripts/atlas-board-lint.py` matched
+  `^#{2,3}\s+(ATLAS-[A-Z0-9-]+)`, so on a member board whose ids are named
+  after the member the hard gate reported "all item ids unique" over any
+  duplicated `ATHENA-*` or `KWAVERS-*` heading; a judge's negative control
+  reproduced it with two `ATHENA-GITCONFIG-20261113` headings and exit 0. One
+  `ID_BODY` grammar now feeds `HEADING_ID` (the duplicate gate and the
+  `--next` suggestions) and `ITEM_HEADING` (the schema scan), beside the
+  `ATLAS-`-only `HEADING_ANY` that the dangling-reference scan keeps by
+  design. Tests in `scripts/tests/test_atlas_board_lint.py`: a duplicated
+  member-family id is reported with both lines and `main` exits 1, distinct
+  member-family ids and prose headings are not flagged, a duplicate split
+  across two item files is caught, and `next_free` reads an `ATHENA-*`
+  family; 39 tests pass.
+
+- Regenerate the ARCH-008 pinned oracle after the gitlink advances:
+  `scripts/oracles/arch-008-production-sites.txt` now records 177 production
+  sites (158 test/bench, 335 total) and `make verify-scattered-oracle`
+  passes. Three lines differ from the previous generation and none of them is
+  code changed here: leto `bd349c5e` flattened `amd_order`'s adjacency into
+  one offset table plus one buffer, so the `Vec<Vec<usize>>` at
+  `leto-ops/src/application/sparse/amd.rs:126` is gone (the provider
+  converted it, count falls by one), and ritk `09c254e4` shifted
+  `ritk-mgh/src/reader/mod.rs` (69 to 83) and `ritk-mif/src/reader.rs` (282
+  to 300) without converting either `Vec<Vec<f32>>`.
+
+- Close ATLAS-V1-MILESTONE-LADDERS-001 and delete the item: all 28 members
+  hold a 1.0 ladder at their default branch — the 12 original
+  `backlog/milestones.md` ladders plus eunomia, aequitas, ritk, helios,
+  metis, CFDrs and gaia merged during the rollout wave, and hermes, apollo,
+  athena, ares, coeus and prometheus carrying member-native ladder shapes
+  with milestone-tagged boards. The recorded lesson rides the closure:
+  `## M-1.0` rung headings parse as board items because `M-1` matches the id
+  grammar, so rungs are written `## Milestone M-1.0` where a member runs the
+  board lint.
+
+- Close ATLAS-PUB-002 and delete the item: RITK's caller was the last
+  outstanding book workflow and Deploy mdBook run `43534192587` (2026-11-14)
+  succeeded on main at `e4bd3567` through the shared caller pinned at
+  `book-pages.yml@20c93980`, with CFDrs, helios and kwavers callers already
+  in place (`bb505e5e`, `6ed29a95`, `ddee9af1`). ATLAS-PUB-005's dependency
+  line now names the landed caller rather than the deleted id, and
+  ATLAS-PUB-012 returns to `todo` because the board's default-branch
+  statuses are `todo` and `blocked` only while its merge is outstanding.
+
 - One element-to-node map for CFDrs's spectral meshes and global assembly
   (CFDrs `d16dd1ef`, branch `refactor/spectral-element-nodes`), three more
   sites of `ATLAS-ARCH-008`. `SpectralMesh1D` and `SpectralMesh` each held a

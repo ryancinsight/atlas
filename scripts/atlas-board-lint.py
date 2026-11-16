@@ -106,7 +106,11 @@ def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
     mojibakeed separators), but this function once matched only the em-dash
     level-2 form, so a duplicate id defined via a hyphen or level-3 heading
     escaped the hard gate — the anchor ambiguity the gate exists to prevent.
-    Match the same broad heading surface as `_defined_ids`.
+    Read the item-id grammar itself (`HEADING_ID`), not the `ATLAS-` prefix:
+    a member board's items are named after the member
+    (`ATHENA-GITCONFIG-20261113`, `KWAVERS-CI-PIPELINE-001`), and an id that
+    heads two entries there is ambiguous in exactly the same way. A prose
+    heading cannot match, because the grammar is all-caps hyphenated segments.
 
     A heading carrying the `original specification` appendix suffix is the
     same item's archived spec, not a second item: it never collides.
@@ -114,7 +118,7 @@ def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
     seen: dict[str, list[tuple[int, str]]] = {}
     with path.open(encoding="utf-8", errors="replace") as fh:
         for lineno, line in enumerate(fh, 1):
-            m = HEADING_ANY.match(line.rstrip("\r\n"))
+            m = HEADING_ID.match(line.rstrip("\r\n"))
             if not m:
                 continue
             # Trailing separators vary by era (em dash, hyphen, U+FFFD);
@@ -142,7 +146,7 @@ def collisions_across(
     for path in paths:
         with path.open(encoding="utf-8", errors="replace") as fh:
             for lineno, line in enumerate(fh, 1):
-                m = HEADING_ANY.match(line.rstrip("\r\n"))
+                m = HEADING_ID.match(line.rstrip("\r\n"))
                 if not m:
                     continue
                 item_id = m.group(1).rstrip("-")
@@ -157,7 +161,7 @@ def next_free(path: pathlib.Path, prefix: str) -> str:
     used = set()
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            m = HEADING_ANY.match(line.rstrip("\r\n"))
+            m = HEADING_ID.match(line.rstrip("\r\n"))
             if m:
                 item_id = m.group(1).rstrip("-")
             else:
@@ -179,7 +183,7 @@ def next_free_across(paths: list[pathlib.Path], prefix: str) -> str:
     for path in paths:
         with path.open(encoding="utf-8", errors="replace") as fh:
             for line in fh:
-                m = HEADING_ANY.match(line.rstrip("\r\n"))
+                m = HEADING_ID.match(line.rstrip("\r\n"))
                 if not m:
                     continue
                 item_id = m.group(1).rstrip("-")
@@ -194,6 +198,15 @@ def next_free_across(paths: list[pathlib.Path], prefix: str) -> str:
 
 
 REF_PATTERN = re.compile(r"\bATLAS-[A-Z0-9]+(?:-[A-Z0-9]+)*\b")
+# The item-id grammar every board heading uses: a capitalized family prefix
+# followed by hyphen-separated all-caps segments (`ATLAS-ARCH-008`,
+# `ATHENA-GITCONFIG-20261113`). Member boards do not use the `ATLAS-` prefix,
+# so the duplicate-id gate and the `--next` suggestions read this grammar.
+ID_BODY = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+"
+HEADING_ID = re.compile(rf"^#{{2,3}}\s+({ID_BODY})")
+# `ATLAS-`-only heading match: the dangling-reference gate reads Atlas ids by
+# design (`REF_PATTERN`), so its definitions and its live-item boundaries keep
+# this narrower surface.
 HEADING_ANY = re.compile(r"^#{2,3}\s+(ATLAS-[A-Z0-9-]+)")
 
 
@@ -525,7 +538,7 @@ def count_unresolved(repo: pathlib.Path, stores: list[pathlib.Path]) -> int:
 # holds non-increasing per member, so boards convert at first touch instead
 # of blocking every push at once.
 BOARD_STATUSES = frozenset({"todo", "blocked"})
-ITEM_HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)(.*)$")
+ITEM_HEADING = re.compile(rf"^#{{2,3}}\s+({ID_BODY})(.*)$")
 STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([a-z][a-z-]*)")
 # A priority is a field of its own line or of a `;`-separated field line
 # (`- Status: todo; priority: tightening; needs: none`, the form every metis

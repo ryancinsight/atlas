@@ -65,7 +65,6 @@
 <a id="atlas-provider-chain-quality-2026-08-27"></a>- [ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27](backlog/atlas-provider-chain-quality-2026-08-27.md) — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — todo
 <a id="atlas-provider-closure-2026-08-20"></a>- [ATLAS-PROVIDER-CLOSURE-2026-08-20](backlog/atlas-provider-closure-2026-08-20.md) — Complete active provider slices [major][arch] — todo
 <a id="atlas-provider-versions-20261001"></a>- [ATLAS-PROVIDER-VERSIONS-20261001](backlog/atlas-provider-versions-20261001.md) — Adopt melinoe 0.10, themis-topology 0.11, ritk-spatial 0.3 across consumers [arch] [minor] — todo
-<a id="atlas-pub-002"></a>- [ATLAS-PUB-002](backlog/atlas-pub-002.md) — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
 <a id="atlas-pub-003"></a>- [ATLAS-PUB-003](backlog/atlas-pub-003.md) — Register trusted publishers and remove the unused PyPI token [chore] — todo
 <a id="atlas-pub-005"></a>- [ATLAS-PUB-005](backlog/atlas-pub-005.md) — Flip `mdbook-test` per book as samples become compilable [patch] — todo
 <a id="atlas-pub-006"></a>- [ATLAS-PUB-006](backlog/atlas-pub-006.md) — Stand up one facade crate per package [minor] — todo
@@ -93,7 +92,6 @@
 <a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
-<a id="atlas-v1-milestone-ladders-001"></a>- [ATLAS-V1-MILESTONE-LADDERS-001](backlog/atlas-v1-milestone-ladders-001.md) — Roll the 1.0 milestone ladder out to every member [arch] — todo
 <a id="atlas-version-coherence-sweep-2026-09-30"></a>- [ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30](backlog/atlas-version-coherence-sweep-2026-09-30.md) — Follow the current provider cohort into every consumer [correctness] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
@@ -115,7 +113,6 @@
 <a id="atlas-python-39-floor"></a>- [ATLAS-PYTHON-39-FLOOR](backlog/atlas-python-39-floor.md) — Decide the Python floor the wheel callers support [arch] — todo
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — ADR 0055's substrate contract is enforced only for direct, unrenamed dependencies [patch] — todo
 <a id="atlas-athena-amg-vcycle-slices"></a>- [ATLAS-ATHENA-AMG-VCYCLE-SLICES](backlog/atlas-athena-amg-vcycle-slices.md) — AMG applies its V-cycle through two O(n) boundary copies [tightening] [patch] — todo
-<a id="atlas-board-lint-id-prefix-20261113"></a>- [ATLAS-BOARD-LINT-ID-PREFIX-20261113](backlog/atlas-board-lint-id-prefix-20261113.md) — Board lint's duplicate-id gate reads only ATLAS- headings [patch] — todo
 <a id="atlas-registry-slice-001"></a>- [ATLAS-REGISTRY-SLICE-001](backlog/atlas-registry-slice-001.md) — Compact the publication pipeline record (ADR 0035, part 1) [patch] — todo
 <a id="atlas-registry-slice-002"></a>- [ATLAS-REGISTRY-SLICE-002](backlog/atlas-registry-slice-002.md) — Compact the publication pipeline record (ADR 0035, part 2) [patch] — todo
 <a id="atlas-registry-slice-004"></a>- [ATLAS-REGISTRY-SLICE-004](backlog/atlas-registry-slice-004.md) — Share the registry reader and policy in release identity [patch] — todo
