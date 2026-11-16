@@ -211,7 +211,7 @@ authoring and caller-integration item.
 Book code samples must be tested so chapters cannot rot. Every caller now
 runs `mdbook test` (read 2026-11-16): twenty-four through the literal shared
 input, kwavers on every event but pull requests, and Gaia through its custom
-workflow. Each flip rests on per-book evidence rather than a blind
+workflow. A flip requires per-book evidence rather than a blind
 stack-wide flip.
 
 The committed-gitlink inventory is mechanically classified by
