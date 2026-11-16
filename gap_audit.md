@@ -421,3 +421,7 @@ Risk: `script-tests / Run pytest (fast)` (`.github/workflows/python-tests.yml`, 
 Catching check: the job's duration against a committed budget in the scheduled CI report, and the suite's slowest tests moved to the slow job or sharded until the fast job holds the five-minute target; the bound itself does not rise.
 
 Re-open trigger: a second cancellation at the bound, or the fast job's median passing 480 s.
+
+## Finding 2026-11-15: the member hook fleet restores locks unsynchronized and follows the checked-out branch
+
+Risk: (1) the hook's `Cargo.lock` snapshot and restore is unsynchronized, so concurrent hooks can restore over each other; the selector and publisher fixes do not serialize it, and members whose stale hook refuses or times out the sync push are published through the git data API with the same bytes. (2) 25 members set `core.hooksPath=.githooks`, so the hook version follows the checked-out branch: `repos/CFDrs` on 2026-09-28 sat 80 commits behind and its pre-push failed on the `python3` Store stub until a peer switched the tree; only one member points at `D:/atlas/scripts/git-hooks`. Owner: [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog.md#hook-fleet-duplication). Re-open trigger: a lock restored over a peer's, or a refused push traced to a stale member checkout.
