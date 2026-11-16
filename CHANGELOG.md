@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- One element-to-node map for CFDrs's spectral meshes and global assembly
+  (CFDrs `d16dd1ef`, branch `refactor/spectral-element-nodes`), three more
+  sites of `ATLAS-ARCH-008`. `SpectralMesh1D` and `SpectralMesh` each held a
+  `Vec<Vec<usize>>` element→node map and `GlobalAssembly` held a third — `E + 1`
+  heap blocks for `E` elements, a pointer hop before any element's nodes, and
+  the same offset arithmetic three times. They now share one `ElementNodes`
+  leaf type (index buffer behind an ascending offset table), both meshes build
+  it through one `from_uniform` formula (`element * (nodes_per_element - 1) +
+  local_node`, the layout that shares boundary nodes), and the assembly
+  flattens its caller-supplied lists once. Both meshes also drop their separate
+  `num_elements` field in favour of the count the map owns. Public surface is
+  unchanged and 17 spectral tests, strict clippy and fmt pass. No wall-clock
+  claim.
+
 - Hold the ULM assignment problem in one row-major matrix (kwavers `dcd2a0904`,
   branch `refactor/ulm-flat-cost`), two more sites of `ATLAS-ARCH-008`. The
   multi-frame tracker built its cost matrix as `Vec<Vec<f64>>` (one heap block
