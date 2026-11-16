@@ -1,6 +1,5 @@
 <a id="atlas-check-figures-ci-verify-defer"></a>
 ## ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER — End-to-end CI verification of `prebook check-figures` [minor] — todo
-- **outcome:** the wired `prebook check-figures` SSOT drift lint is verified end-to-end in hosted CI, incl. a captured `DRIFT_DOCS_NOT_IN_SPECS: N` log line on a deliberate drift fixture.
-- priority: verification; needs: ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1
-- next: capture the `DRIFT_DOCS_NOT_IN_SPECS: N` line on a deliberate drift fixture, per ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1 step (c).
-- **evidence:** `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-RUN-30059559064.md`.
+- **outcome:** the wired `prebook check-figures` SSOT drift lint is verified end-to-end in hosted CI, incl. a captured `DRIFT_DOCS_NOT_IN_SPECS: N` log line on a deliberate drift fixture, on a CFDrs whose `ci.yml` reliably schedules on PRs (no silent drop from an unallowlisted private composite action) and whose `book-pages.yml` builds without missing the parent atlas's `parity_artefacts/INDEX.md`. Evidence so far: `verification/ATLAS-CHECK-FIGURES-CI-1-RUN-30059559064.md`.
+- priority: verification; needs: none; steps: (a), admin-gated, allow-list `checkout-path-dependencies` (atlas composite action) in CFDrs Settings or rewrite it to a non-private-org action, accepted by a visible `ci.yml` run in the branch's runs API; (b), `INDEX.md` materialization, is complete.
+- next (c), depends on (a): re-run and capture the verbatim `DRIFT_DOCS_NOT_IN_SPECS: N ...` line at `Check book figures` on a deliberate drift fixture.

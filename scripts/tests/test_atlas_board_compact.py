@@ -838,11 +838,31 @@ class DeliveredIdsTestCase(unittest.TestCase):
         )
         return done.stdout
 
+    @classmethod
+    def _without_maintenance(cls, repo: Path) -> None:
+        """Keep Git's detached auto maintenance out of a fixture repository.
+
+        A commit, or a push into a bare remote, can start `maintenance run
+        --auto --detach`, which writes into the object store while
+        `TemporaryDirectory` removes it. The setting lives in each
+        repository's own config: this helper's environment carries no
+        `HOME`, and a local push clears `GIT_CONFIG_PARAMETERS` before
+        starting `git-receive-pack`.
+        """
+        for key, value in (
+            ("gc.auto", "0"),
+            ("maintenance.auto", "false"),
+            ("receive.autogc", "false"),
+        ):
+            cls._git(repo, "config", key, value)
+
     def test_only_trailers_reachable_from_the_default_branch_count(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-delivered-") as tmp:
             origin, work = Path(tmp) / "origin.git", Path(tmp) / "work"
             self._git(Path(tmp), "init", "--bare", "--initial-branch=main", str(origin))
             self._git(Path(tmp), "clone", str(origin), str(work))
+            self._without_maintenance(origin)
+            self._without_maintenance(work)
             (work / "f.txt").write_text("landed\n", encoding="utf-8")
             self._git(work, "add", "f.txt")
             self._git(work, "commit", "-m", "feat: land it\n\nItem: KW-LANDED-2026-09-17")
@@ -860,6 +880,7 @@ class DeliveredIdsTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-delivered-none-") as tmp:
             root = Path(tmp) / "solo"
             self._git(Path(tmp), "init", "--initial-branch=main", str(root))
+            self._without_maintenance(root)
             (root / "f.txt").write_text("x\n", encoding="utf-8")
             self._git(root, "add", "f.txt")
             self._git(root, "commit", "-m", "feat: x\n\nItem: KW-LOCAL-ONLY")

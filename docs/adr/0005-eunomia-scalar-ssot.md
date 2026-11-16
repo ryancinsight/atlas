@@ -1,7 +1,7 @@
 # ADR 0005: `eunomia::NumericElement` as the single scalar-vocabulary SSOT (CR-4)
 
 - Status: Accepted
-- Date: 2026-07-04; revised 2026-10-02.
+- Date: 2026-07-04; revised 2026-10-02, 2026-11-15.
 - Index: docs/adr/README.md
 - Revision 2026-10-02: count conversion moved from the member `Scalar`
   traits into eunomia (`FloatElement::from_count`/`from_integer`,
@@ -12,6 +12,17 @@
   conversion std has no trait for to one module in the foundation crate.
   The record was compacted to the current decision; the 2026-07-04 text,
   its delivery sequencing and its closure claims are in git history.
+- Revision 2026-11-15: the push gate for bare casts exists
+  (`scripts/atlas_cast_gate.py`, atlas#450). Its baseline excludes only
+  `crates/eunomia/src/convert/count.rs` from every count, and registers
+  one cast module per crate (`cast_modules`, Item
+  ATLAS-CAST-GATE-CRATE-MODULE) for type-local casts with no stable
+  non-`as` form. A module's casts stay counted, so a move is neither a
+  rise nor a reduction. Evidence: Mnemosyne#262's function-pointer casts
+  had no module the gate admitted. A module's added casts pass only
+  when its file opens with one cast-lint `#![expect]`, holds no macro
+  or generic item, carries only single-word built-in attributes, and
+  clippy finds no file of its package mounted twice.
 
 > Cite this document as `atlas:0005`; `eunomia:0005` is the unrelated
 > `min_scalar`/`max_scalar` special-value contract in
@@ -82,8 +93,7 @@ kernels (`add_slice` .. `max_slice`, `axpy_rows`, `gemv_*`, `tiled_gemm`),
   the bound at the call site.
 - Open remainder: `coeus_core::Scalar` still declares `zero`, `one`, `to_f64`,
   `from_f64` at coeus `70e39493` (COEUS-SCALAR-VOCAB,
-  `repos/coeus/backlog.md#coeus-scalar-vocab`). The push gate for bare
-  casts is not yet built (gap_audit.md, 2026-10-02).
+  `repos/coeus/backlog.md#coeus-scalar-vocab`).
 
 ## Overturning evidence
 

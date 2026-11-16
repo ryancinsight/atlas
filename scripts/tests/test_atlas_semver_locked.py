@@ -215,37 +215,48 @@ class NativeContract(unittest.TestCase):
                 (0, 100, 0, "minor", "compatible", "minor", "pass"),
             )
 
+    def advance_provider(self, provider, consumer, candidate_body=None):
+        """Commit a consumer at provider 0.1, then a candidate after provider 0.2."""
+        provider_name = self.package(provider)
+        for repo in (provider, consumer):
+            (repo / "src").mkdir()
+            self.initialize(repo)
+        (provider / "Cargo.toml").write_text(
+            f'[package]\nname="{provider_name}"\nversion="0.1.0"\nedition="2024"\n',
+            encoding="utf-8")
+        (provider / "src/lib.rs").write_text(
+            "pub fn value() -> usize { 1 }\n", encoding="utf-8")
+        self.command(["cargo", "generate-lockfile"], provider)
+        old_provider = self.commit(provider, "provider 0.1")
+        (consumer / "Cargo.toml").write_text(
+            f'[package]\nname="{self.package(consumer)}"\nversion="0.1.0"\nedition="2024"\n'
+            f'[dependencies]\n{provider_name} = {{ git = "{provider.as_uri()}", version = "^0.1" }}\n',
+            encoding="utf-8")
+        (consumer / "src/lib.rs").write_text(
+            f"pub fn value() -> usize {{ {provider_name}::value() }}\n", encoding="utf-8")
+        self.command(["cargo", "generate-lockfile"], consumer)
+        base = self.commit(consumer, "consumer baseline")
+        if candidate_body is None:
+            self.command(["git", "commit", "--allow-empty", "-m", "consumer candidate"], consumer)
+        else:
+            (consumer / "src/lib.rs").write_text(
+                f"pub fn value() -> usize {{ {candidate_body} }}\n", encoding="utf-8")
+            self.commit(consumer, "consumer candidate")
+        head = self.command(["git", "rev-parse", "HEAD"], consumer).stdout.strip()
+        (provider / "Cargo.toml").write_text(
+            f'[package]\nname="{provider_name}"\nversion="0.2.0"\nedition="2024"\n',
+            encoding="utf-8")
+        self.command(["cargo", "generate-lockfile"], provider)
+        self.commit(provider, "provider 0.2")
+        return base, head, old_provider
+
     def test_provider_advance_records_locked_evidence_without_an_api_verdict(self):
         with (tempfile.TemporaryDirectory(prefix="semver-provider-") as provider_directory,
               tempfile.TemporaryDirectory(prefix="semver-consumer-") as consumer_directory):
             provider, consumer = Path(provider_directory), Path(consumer_directory)
             provider_name = self.package(provider)
-            for repo in (provider, consumer):
-                (repo / "src").mkdir()
-                self.initialize(repo)
-            (provider / "Cargo.toml").write_text(
-                f'[package]\nname="{provider_name}"\nversion="0.1.0"\nedition="2024"\n',
-                encoding="utf-8")
-            (provider / "src/lib.rs").write_text(
-                "pub fn value() -> usize { 1 }\n", encoding="utf-8")
-            self.command(["cargo", "generate-lockfile"], provider)
-            old_provider = self.commit(provider, "provider 0.1")
-            (consumer / "Cargo.toml").write_text(
-                f'[package]\nname="{self.package(consumer)}"\nversion="0.1.0"\nedition="2024"\n'
-                f'[dependencies]\n{provider_name} = {{ git = "{provider.as_uri()}", version = "^0.1" }}\n',
-                encoding="utf-8")
-            (consumer / "src/lib.rs").write_text(
-                f"pub fn value() -> usize {{ {provider_name}::value() }}\n", encoding="utf-8")
-            self.command(["cargo", "generate-lockfile"], consumer)
-            base = self.commit(consumer, "consumer baseline")
+            base, head, old_provider = self.advance_provider(provider, consumer)
             working_lock_hash = MODULE.digest(consumer / "Cargo.lock")
-            self.command(["git", "commit", "--allow-empty", "-m", "consumer candidate"], consumer)
-            head = self.command(["git", "rev-parse", "HEAD"], consumer).stdout.strip()
-            (provider / "Cargo.toml").write_text(
-                f'[package]\nname="{provider_name}"\nversion="0.2.0"\nedition="2024"\n',
-                encoding="utf-8")
-            self.command(["cargo", "generate-lockfile"], provider)
-            self.commit(provider, "provider 0.2")
             code, report = self.run_contract(
                 consumer, base, head, consumer / "provider-advance.json",
             )
@@ -280,6 +291,24 @@ class NativeContract(unittest.TestCase):
             )
             for fragment in MODULE.KNOWN_RESOLUTION_DIAGNOSTICS:
                 self.assertIn(fragment, native["diagnostics"])
+
+    def test_candidate_that_fails_to_compile_is_not_masked_by_the_baseline_build(self):
+        with (tempfile.TemporaryDirectory(prefix="semver-provider-") as provider_directory,
+              tempfile.TemporaryDirectory(prefix="semver-consumer-") as consumer_directory):
+            provider, consumer = Path(provider_directory), Path(consumer_directory)
+            base, head, _ = self.advance_provider(
+                provider, consumer, candidate_body='"not a usize"',
+            )
+            code, report = self.run_contract(
+                consumer, base, head, consumer / "type-error.json",
+            )
+            evidence = report["packages"][0]["supplemental"]
+            self.assertEqual(
+                [(item["status"], item["exit_code"])
+                 for item in evidence["consumer_contract"]["compilation"]],
+                [("pass", 0), ("execution_error", 101)],
+            )
+            self.assertEqual((code, evidence["disposition"]), (101, "failed"))
 
     def test_dependency_evidence_matches_features_and_target(self):
         with (tempfile.TemporaryDirectory(prefix="semver-features-") as consumer_directory,

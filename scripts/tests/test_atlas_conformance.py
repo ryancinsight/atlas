@@ -2541,6 +2541,11 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         # while passing on any developer box.
         ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
         subprocess.run(["git", "init", "-q", str(root)], check=True)
+        # Teardown must not race Git's detached auto maintenance, which the
+        # commit below can start and which writes `objects/maintenance.lock`
+        # while `clear_readonly_tree` walks the same tree.
+        for key, value in (("gc.auto", "0"), ("maintenance.auto", "false")):
+            subprocess.run(["git", "-C", str(root), "config", key, value], check=True)
         # Commit WITHOUT the policy in effect: with `text=auto eol=lf` already
         # present, git normalizes on the way into the index and a contradicting
         # blob cannot exist. The defect class is historical — blobs committed
