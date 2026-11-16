@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Hold the ULM assignment problem in one row-major matrix (kwavers `dcd2a0904`,
+  branch `refactor/ulm-flat-cost`), two more sites of `ATLAS-ARCH-008`. The
+  multi-frame tracker built its cost matrix as `Vec<Vec<f64>>` (one heap block
+  per track) and `hungarian` copied it into a second square `Vec<Vec<f64>>`
+  padded to `max(m, n)`; the solver touches that matrix `O(sz²)` per
+  augmentation round through two pointer hops per element. The cost matrix is
+  now one buffer with stride `n`, the padded square one buffer with stride
+  `sz` (row reduction walks `sz`-sized slices), and `hungarian` takes `&[f64]`
+  with the stride documented. Assignment results are unchanged — the identity,
+  minimum-cost, linear-motion, crossing-bubble and termination oracles pass —
+  and kwavers-analysis's 26 ULM tests, strict clippy and fmt pass. No
+  wall-clock claim: allocation/locality shape only, no paired benchmark.
+
 - Flatten the circle FFT's twiddle levels (apollo `02b23135`, branch
   `refactor/circle-flat-twiddles`), one site of `ATLAS-ARCH-008`. The circle
   domain carried its `x` twiddles as one `Vec<u64>` per level in each
