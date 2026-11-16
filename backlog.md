@@ -69,7 +69,7 @@
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
 <a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the locked bump guard and require it [patch] — todo
-<a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Close the publishable dependency graph: helios-planning on unpublishable asclepius-coeus [architecture] — todo
+<a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
 <a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — todo
 <a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
@@ -131,3 +131,4 @@
 <a id="atlas-cast-gate-cfg-clippy"></a>- [ATLAS-CAST-GATE-CFG-CLIPPY](backlog/atlas-cast-gate-cfg-clippy.md) — The cast gate exits 0 on code it cannot see: `cfg(not(clippy))` and a second crate target [patch] — todo
 <a id="atlas-artifact-budget-vacuous-root"></a>- [ATLAS-ARTIFACT-BUDGET-VACUOUS-ROOT](backlog/atlas-artifact-budget-vacuous-root.md) — `atlas-artifact-budget.py` reports "within budget" for a revision it cannot read [patch] — todo
 <a id="atlas-export-tree-freshness-residuals"></a>- [ATLAS-EXPORT-TREE-FRESHNESS-RESIDUALS](backlog/atlas-export-tree-freshness-residuals.md) — Four residuals of the fresh-export fix: a chance-passing test, an unstamped auditor export, a peel rule in two places, a peer build that still masks a failing SemVer side [verification] — todo
+<a id="atlas-overlay-satisfies-ranges-001"></a>- [ATLAS-OVERLAY-SATISFIES-RANGES-001](backlog/atlas-overlay-satisfies-ranges-001.md) — Overlay requirement-lag check passes every range requirement [patch] — todo
