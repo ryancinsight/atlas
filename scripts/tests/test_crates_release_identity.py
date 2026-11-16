@@ -411,10 +411,23 @@ def test_workflow_rejects_missing_or_unknown_decision(decision, code):
 
 
 def test_workflow_preserves_validation_interface_permissions_and_upload_command(history):
-    base = yaml.safe_load(run(["git", "show", "ff7bf4e8f56a55181ca343ae2a580c31b76471bf:.github/workflows/crates-publish.yml"], history))
+    base = yaml.safe_load(run(["git", "show", "b553c42da72dcdeb2bb2644c60759dc465fb329a:.github/workflows/crates-publish.yml"], history))
     current = yaml.safe_load(WORKFLOW.read_text())
-    assert {k: v for k, v in current.items() if k != "jobs"} == {k: v for k, v in base.items() if k != "jobs"}
-    assert current["jobs"]["validate"] == base["jobs"]["validate"]
+    base_iface = {k: v for k, v in base.items() if k != "jobs"}
+    current_iface = {k: v for k, v in current.items() if k != "jobs"}
+    # ATLAS-PUB-012 retired the `crate-` tag prefix: new tags are bare
+    # `<package>-v<version>` while the old form still resolves. The default is
+    # pinned by value in test_crates_publish_pending_workflow (EXPECTED_INPUTS).
+    assert current_iface[True]["workflow_call"]["inputs"]["tag-prefix"]["default"] == ""
+    base_iface = yaml.safe_load(yaml.safe_dump(base_iface))
+    base_iface[True]["workflow_call"]["inputs"]["tag-prefix"]["default"] = ""
+    assert current_iface == base_iface
+    # The resolve step's dual-form behavior is executed by value in
+    # test_crates_publish_pending_workflow.ReleaseTagResolutionTests, which
+    # runs the workflow's own script; every other validate step is preserved.
+    resolve = "Resolve and validate release identity"
+    assert ([s for s in current["jobs"]["validate"]["steps"] if s.get("name") != resolve]
+            == [s for s in base["jobs"]["validate"]["steps"] if s.get("name") != resolve])
     old, new = base["jobs"]["publish"], current["jobs"]["publish"]
     assert {k: v for k, v in new.items() if k != "steps"} == {k: v for k, v in old.items() if k != "steps"}
     added = {"Verify exact release publication identity", "Require a complete publication decision"}
