@@ -42,9 +42,14 @@ ITEM_ID = re.compile(r"^##\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)")
 # item `M-1`; a scanner that counts items tests this pattern first. The slug
 # must carry a `.` (a version) or a lowercase letter (a word): an all-caps or
 # all-digit slug (`M-ATLAS-001`, `M-053`) is item grammar, and reading it as a
-# ladder would drop a real item from every count without a trace.
+# ladder would drop a real item from every count without a trace. The
+# lookahead walks the slug grammar itself (a separator only when a letter or
+# digit follows it), so a `.` or lowercase letter after the slug's end -- as
+# in `M-053.` or `M-ATLAS-001--abc` -- cannot make an item a ladder.
 LADDER_HEADING = re.compile(
-    r"^#{2,3}\s+M-(?=[A-Za-z0-9._-]*[a-z.])[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*"
+    r"^#{2,3}\s+M-"
+    r"(?=(?:[A-Za-z0-9]|[._-](?=[A-Za-z0-9]))*(?:[a-z]|\.[A-Za-z0-9]))"
+    r"[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*"
 )
 
 ANCHOR_OWN_LINE = re.compile(r'^<a id="([^"]+)"></a>\s*$')

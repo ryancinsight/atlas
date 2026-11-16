@@ -619,7 +619,18 @@ class BoardLadderTestCase(unittest.TestCase):
         )
 
     def test_an_item_shaped_m_heading_stays_an_item(self) -> None:
-        for heading in ("M-ATLAS-001", "M-053"):
+        # A separator or `.` right after the slug is outside it, so it cannot
+        # lend an all-caps or all-digit slug the ladder grammar.
+        for heading, item_id in (
+            ("M-ATLAS-001", "M-ATLAS-001"),
+            ("M-053", "M-053"),
+            ("M-053.", "M-053"),
+            ("M-ATLAS-001.", "M-ATLAS-001"),
+            ("M-ATLAS-001--abc", "M-ATLAS-001"),
+            ("M-ATLAS-001__x", "M-ATLAS-001"),
+            ("M-ABC._x", "M-ABC"),
+            ("M-053-.", "M-053"),
+        ):
             with self.subTest(heading=heading):
                 board = (
                     f'<a id="{heading.lower()}"></a>\n'
@@ -627,7 +638,7 @@ class BoardLadderTestCase(unittest.TestCase):
                     "- priority: P1\n"
                 )
                 ids = [item["id"] for item in _lint._items_in(board.splitlines())]
-                self.assertEqual(ids, [heading])
+                self.assertEqual(ids, [item_id])
                 with tempfile.TemporaryDirectory(prefix="board-lint-ladder-") as temp:
                     repo = Path(temp)
                     (repo / "backlog.md").write_text(board, encoding="utf-8")
@@ -635,7 +646,7 @@ class BoardLadderTestCase(unittest.TestCase):
                     rc, out = _run_main(repo, repo / "backlog.md")
                 self.assertEqual(counts["board_items_outside_status_set"], 1)
                 self.assertEqual(rc, 1, out)
-                self.assertIn(heading, out)
+                self.assertIn(item_id, out)
 
     def test_a_ladder_in_the_linted_board_passes(self) -> None:
         with tempfile.TemporaryDirectory(prefix="board-lint-ladder-") as temp:
