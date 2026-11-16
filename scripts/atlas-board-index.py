@@ -10,7 +10,7 @@ that generator.
 Layout::
 
     backlog.md
-        <preamble: title and any policy/narrative text>
+        <preamble: title and policy, inline ladder, and narrative text>
 
         <a id="<anchor>"></a>- [<ID>](backlog/<anchor>.md) — <title> — <status>
         ...one line per item, in order...
@@ -19,6 +19,9 @@ Layout::
         <a id="<anchor>"></a>
         ## <ID> ... — <title> — <status>
         <body, verbatim>
+
+    backlog/milestones.md
+        <optional standalone milestone ladder>
 
 The anchor stays in `backlog.md` (on the same line as the index entry), so
 every existing inbound link of the form `backlog.md#<anchor>` keeps
@@ -49,6 +52,7 @@ from atlas_board_items import (  # noqa: E402
     ANCHOR_OWN_LINE,
     INDEX_LINE,
     ITEM_ID,
+    item_files,
     split_title_status,
     strip_inline_anchor,
 )
@@ -68,7 +72,7 @@ ANCHOR = re.compile(r'<a id="(?P<anchor>[^"]+)"></a>')
 
 
 class BoardIndexError(Exception):
-    """The board text cannot be indexed without losing or duplicating an anchor."""
+    """The board or an item file cannot be indexed."""
 
 
 def item_fields_from_file(path: Path) -> tuple[str, str, str, str]:
@@ -93,17 +97,17 @@ def item_fields_from_file(path: Path) -> tuple[str, str, str, str]:
                     anchor = m.group(1)
             break
     if heading_idx is None:
-        raise ValueError(f"{path}: no '## ' heading found")
+        raise BoardIndexError(f"{path}: no '## ' heading found")
     heading = lines[heading_idx]
     id_match = ITEM_ID.match(heading)
     if id_match is None:
-        raise ValueError(f"{path}: heading carries no item id: {heading!r}")
+        raise BoardIndexError(f"{path}: heading carries no item id: {heading!r}")
     item_id = id_match.group(1)
     # Not `.strip()`-ed: the tail's leading space is part of the id/title
     # separator (" — "/" - ") that `split_title_status` matches on.
     split = split_title_status(heading[id_match.end():])
     if split is None:
-        raise ValueError(f"{path}: heading has no title/status separator: {heading!r}")
+        raise BoardIndexError(f"{path}: heading has no title/status separator: {heading!r}")
     title, status = split
     title = strip_inline_anchor(title.strip()).strip()
     status = strip_inline_anchor(status.strip()).strip()
@@ -143,11 +147,10 @@ def generate_text(root: Path) -> str:
     lines = board.read_text(encoding="utf-8").split("\n") if board.is_file() else [""]
     preamble, existing_order = _split_preamble_and_index(lines)
 
-    files = sorted(item_dir.glob("*.md")) if item_dir.is_dir() else []
     fields_by_anchor: dict[str, tuple[str, str, str, str]] = {}
-    for f in files:
-        anchor, item_id, title, status = item_fields_from_file(f)
-        fields_by_anchor[anchor] = (item_id, f"backlog/{f.name}", title, status)
+    for path in item_files(item_dir):
+        anchor, item_id, title, status = item_fields_from_file(path)
+        fields_by_anchor[anchor] = (item_id, f"backlog/{path.name}", title, status)
 
     existing_set = set(existing_order)
     ordered_anchors = [a for a in existing_order if a in fields_by_anchor]

@@ -162,6 +162,16 @@ def expand_board_text(path: Path) -> str:
     return "\n".join(expand_board_lines(path)) + "\n"
 
 
+MILESTONE_LADDER_FILE = "milestones.md"
+
+
+def item_files(item_dir: Path) -> list[Path]:
+    """Discover item files in filename order, excluding the milestone ladder."""
+    return sorted(
+        path for path in item_dir.glob("*.md") if path != item_dir / MILESTONE_LADDER_FILE
+    )
+
+
 def item_file_paths(board: Path) -> list[Path]:
     """Every per-item file referenced by *board*'s index lines, in order."""
     lines = board.read_text(encoding="utf-8").splitlines()
