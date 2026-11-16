@@ -25,7 +25,7 @@ INDEX = '<a id="atlas-one"></a>- [ATLAS-ONE](backlog/atlas-one.md) — The first
 class BoardIndexTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="atlas-board-index-")
-        self.root = Path(self._tmp.name)
+        self.root = Path(self._tmp.name).resolve()
         (self.root / "backlog").mkdir()
         (self.root / "backlog" / "atlas-one.md").write_bytes(ITEM.encode("utf-8"))
 
@@ -48,6 +48,33 @@ class BoardIndexTestCase(unittest.TestCase):
         self.assertEqual(self.run_index("generate"), (0, ""))
         self.assertEqual(path.read_bytes().decode("utf-8"), PREAMBLE + "\n" + INDEX)
         self.assertEqual(self.run_index("check"), (0, ""))
+
+    def test_generate_and_check_leave_the_ladder_out_of_the_item_index(self) -> None:
+        inline = '<a id="M-release"></a>\n## M-release\n- exit: Run the release example.\n'
+        ladder = self.root / "backlog" / "milestones.md"
+        for contents in (
+            '# Milestone ladder\n<a id="M-1.0"></a> **M-1.0**\n- needs: none.\n',
+            '# Milestone ladder\n## M-1.0 — Assemble the release — ready\n',
+        ):
+            with self.subTest(contents=contents):
+                ladder.write_bytes(contents.encode("utf-8"))
+                path = self.board(PREAMBLE + "\n" + inline)
+                self.assertEqual(self.run_index("generate"), (0, ""))
+                self.assertEqual(
+                    path.read_text(encoding="utf-8"), PREAMBLE + "\n" + inline + "\n" + INDEX
+                )
+                self.assertEqual(self.run_index("check"), (0, ""))
+                self.assertEqual(ladder.read_bytes(), contents.encode("utf-8"))
+
+    def test_a_malformed_item_file_reports_its_path_without_writing(self) -> None:
+        malformed = self.root / "backlog" / "missing-heading.md"
+        malformed.write_text("# Missing item heading\n", encoding="utf-8")
+        path = self.board(PREAMBLE + "\n" + INDEX)
+        before = path.read_bytes()
+        for mode in ("check", "generate"):
+            with self.subTest(mode=mode):
+                self.assertEqual(self.run_index(mode), (1, f"{path}: {malformed}: no '## ' heading found\n"))
+                self.assertEqual(path.read_bytes(), before)
 
     def test_a_preamble_line_repeating_an_index_anchor_refuses_both_modes(self) -> None:
         # A separator re-encoded as cp1252 mojibake no longer matches the index

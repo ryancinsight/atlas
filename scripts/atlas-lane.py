@@ -225,7 +225,7 @@ def export(member: str, rev: str, directory: Path) -> Path:
     if target.exists() and any(target.iterdir()):
         raise Refusal(f"{target} is not empty")
     try:
-        payload = archive(repo, f"{rev}^{{tree}}", timeout=600)
+        payload = archive(repo, rev, timeout=600)
     except GitProcessError as exc:
         raise Refusal(str(exc)) from exc
     target.mkdir(parents=True, exist_ok=True)

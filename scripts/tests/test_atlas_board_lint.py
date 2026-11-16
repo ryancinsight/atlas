@@ -10,7 +10,9 @@ scanner does not escapes the hard gate.
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -512,9 +514,6 @@ class ControlCharacterTestCase(unittest.TestCase):
             self.assertEqual([lineno for lineno, _ in _lint.control_characters(board)], [1])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class BoardSchemaTestCase(unittest.TestCase):
     """Schema defects count per board; aging is reported, not counted."""
@@ -623,3 +622,210 @@ class BoardSchemaTestCase(unittest.TestCase):
         # 2026-03-02T00:00:00Z: 60 days after the commit.
         aged = _lint.aged_items(self.repo, now=1_772_409_600.0)
         self.assertEqual(aged, [("ATLAS-C-001", 60)])
+
+
+class BoardLadderTestCase(unittest.TestCase):
+    """A milestone ladder block is a roadmap record, never a board item."""
+
+    LADDER = (
+        '<a id="m-1-0"></a>\n'
+        "## M-1.0 — Release one point zero\n"
+        "- exit: `cargo nextest run -p x`\n"
+        "- Status: bogus\n"
+        '<a id="m-release"></a>\n'
+        "## M-release — Release\n"
+        "- exit: example\n"
+    )
+
+    def test_a_version_ladder_heading_is_not_an_item(self) -> None:
+        ids = [item["id"] for item in _lint._items_in(self.LADDER.splitlines())]
+        self.assertEqual(ids, [])
+
+    def test_a_ladder_body_is_not_read_as_the_item_above_it(self) -> None:
+        lines = (
+            '<a id="atlas-l-001"></a>\n'
+            "## ATLAS-L-001 — real item [patch] — todo\n"
+            "- priority: feature\n"
+            + self.LADDER
+        ).splitlines()
+        (item,) = _lint._items_in(lines)
+        self.assertEqual(
+            (item["id"], item["status"], item["priority_value"]),
+            ("ATLAS-L-001", "todo", "feature"),
+        )
+
+    def test_ladder_blocks_add_no_schema_defect(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="board-lint-ladder-") as temp:
+            repo = Path(temp)
+            (repo / "backlog.md").write_text(
+                self.LADDER
+                + '<a id="atlas-l-001"></a>\n'
+                "## ATLAS-L-001 — real item [patch] — todo\n"
+                "- priority: feature\n",
+                encoding="utf-8",
+            )
+            counts = _lint.board_schema_counts(repo)
+        self.assertEqual(
+            counts,
+            {
+                "board_items_outside_status_set": 0,
+                "board_items_without_anchor": 0,
+                "board_items_without_priority": 0,
+                "board_checklist_files": 0,
+            },
+        )
+
+    def test_an_item_shaped_m_heading_stays_an_item(self) -> None:
+        # A separator or `.` right after the slug is outside it, so it cannot
+        # lend an all-caps or all-digit slug the ladder grammar.
+        for heading, item_id in (
+            ("M-ATLAS-001", "M-ATLAS-001"),
+            ("M-053", "M-053"),
+            ("M-053.", "M-053"),
+            ("M-ATLAS-001.", "M-ATLAS-001"),
+            ("M-ATLAS-001--abc", "M-ATLAS-001"),
+            ("M-ATLAS-001__x", "M-ATLAS-001"),
+            ("M-ABC._x", "M-ABC"),
+            ("M-053-.", "M-053"),
+        ):
+            with self.subTest(heading=heading):
+                board = (
+                    f'<a id="{heading.lower()}"></a>\n'
+                    f"## {heading} — real item [patch] — done\n"
+                    "- priority: P1\n"
+                )
+                ids = [item["id"] for item in _lint._items_in(board.splitlines())]
+                self.assertEqual(ids, [item_id])
+                with tempfile.TemporaryDirectory(prefix="board-lint-ladder-") as temp:
+                    repo = Path(temp)
+                    (repo / "backlog.md").write_text(board, encoding="utf-8")
+                    counts = _lint.board_schema_counts(repo)
+                    rc, out = _run_main(repo, repo / "backlog.md")
+                self.assertEqual(counts["board_items_outside_status_set"], 1)
+                self.assertEqual(rc, 1, out)
+                self.assertIn(item_id, out)
+
+    def test_a_ladder_in_the_linted_board_passes(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="board-lint-ladder-") as temp:
+            repo = Path(temp)
+            (repo / "backlog.md").write_text(self.LADDER, encoding="utf-8")
+            rc, out = _run_main(repo, repo / "backlog.md")
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("schema violation", out)
+
+
+def _run_main(root: Path, board: Path) -> tuple[int, str]:
+    """`main()` on `--file board` with `root` as the stack root: (status, stdout)."""
+    old_argv, old_root = sys.argv, _lint.ROOT
+    sys.argv = ["atlas-board-lint.py", "--file", str(board)]
+    _lint.ROOT = root
+    captured = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured):
+            rc = _lint.main()
+    finally:
+        sys.argv, _lint.ROOT = old_argv, old_root
+    return rc, captured.getvalue()
+
+
+class BoardSchemaGateTestCase(unittest.TestCase):
+    """`--file` fails on wrong values and reads only the given board's repository."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="board-lint-gate-")
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name) / "root"
+        self.other = Path(self._tmp.name) / "other"
+        self.root.mkdir()
+        self.other.mkdir()
+
+    def _lint_other(self, text: str) -> tuple[int, str]:
+        (self.other / "backlog.md").write_text(text, encoding="utf-8")
+        return _run_main(self.root, self.other / "backlog.md")
+
+    def test_a_shared_anchor_fails_naming_both_items(self) -> None:
+        rc, out = self._lint_other(
+            '<a id="dup"></a>\n## ZED-001 — first [patch] — todo\n'
+            "- priority: feature\n"
+            '<a id="dup"></a>\n## ZED-002 — second [patch] — todo\n'
+            "- priority: feature\n"
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn('anchor "dup" is shared by ZED-001 (line 2), ZED-002 (line 5)', out)
+
+    def test_a_status_outside_the_set_fails(self) -> None:
+        rc, out = self._lint_other(
+            '<a id="zed-001"></a>\n## ZED-001 — item [patch] — bogus\n'
+            "- priority: feature\n"
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn('ZED-001 (line 2): status "bogus" is outside {blocked, todo}', out)
+
+    def test_a_priority_outside_the_set_fails(self) -> None:
+        rc, out = self._lint_other(
+            '<a id="zed-001"></a>\n## ZED-001 — item [patch] — todo\n'
+            "- Status: todo; priority: P9; needs: none\n"
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn(
+            'ZED-001 (line 2): priority "P9" is outside '
+            "{architecture, correctness, feature, tightening, verification}",
+            out,
+        )
+
+    def test_every_priority_in_the_closed_set_passes(self) -> None:
+        body = "".join(
+            f'<a id="zed-{n}"></a>\n## ZED-{n:03d} — item [patch] — todo\n'
+            f"- {field}\n"
+            for n, field in enumerate(
+                (
+                    "priority: correctness",
+                    "**priority:** architecture",
+                    "Status: todo; priority: verification; needs: none",
+                    "priority: feature",
+                    "priority: `tightening`",
+                ),
+                start=1,
+            )
+        )
+        rc, out = self._lint_other(body)
+        self.assertEqual(rc, 0, out)
+
+    def test_a_missing_status_or_priority_is_a_count_not_a_failure(self) -> None:
+        rc, out = self._lint_other("## ZED-001 — bare item\n")
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("schema violation", out)
+
+    def test_the_given_board_is_linted_not_the_stack_root(self) -> None:
+        """The root's own defects and citations stay out of an `--file` run."""
+        (self.root / "backlog.md").write_text(
+            '<a id="r"></a>\n## ROOT-001 — root item [patch] — bogus\n'
+            "- priority: P9\n"
+            "- cites deadbeef1234567 and cafebabe7654321\n",
+            encoding="utf-8",
+        )
+        rc, out = self._lint_other(
+            '<a id="zed-001"></a>\n## ZED-001 — item [patch] — todo\n'
+            "- priority: feature\n"
+            "- cites abcdef1234567\n"
+        )
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("ROOT-001", out)
+        self.assertNotIn("deadbeef1234567", out)
+        self.assertIn("[report] 1 citation(s) of 1 commit hash(es)", out)
+        self.assertIn("abcdef1234567  backlog.md:4", out)
+
+    def test_a_non_backlog_file_reports_only_itself(self) -> None:
+        (self.root / "backlog.md").write_text(
+            "- cites deadbeef1234567\n", encoding="utf-8"
+        )
+        board = self.other / "board.md"
+        board.write_text("- cites abcdef1234567\n", encoding="utf-8")
+        rc, out = _run_main(self.root, board)
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("deadbeef1234567", out)
+        self.assertIn("abcdef1234567  board.md:1", out)
+
+
+if __name__ == "__main__":
+    unittest.main()

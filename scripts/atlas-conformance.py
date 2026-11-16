@@ -92,6 +92,7 @@ from atlas_stack import (
     staleness_note,
 )
 from atlas_scattered_containers_classify import VEC_VEC
+from lockfile import GitUnavailable, read_blobs
 
 GIT_TIMEOUT_SECONDS = 60
 ARCHIVE_TIMEOUT_SECONDS = 120
@@ -360,18 +361,57 @@ TARGET_DIR_SETTING = re.compile(
 )
 
 
-def _hook_version(data: bytes) -> str:
-    """Content hash of a gate hook, insensitive to line endings.
+def _hook_contents(data: bytes) -> bytes:
+    """Keep line-ending hygiene separate from gate-version drift."""
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
-    A clean checkout on Windows reads CRLF from disk while an archived
-    snapshot of the same pin reads LF; hashing raw bytes would count one
-    logical version twice depending on which path materialized it, and the
-    count would wobble with checkout dirt instead of commits. Byte hygiene
-    stays with `crlf_stored_blobs`; this class counts forks.
-    """
-    return hashlib.sha256(
-        data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
-    ).hexdigest()
+
+def _gate_version_count(root: Path, content: Path, members: list[Path]) -> int:
+    """Count the owned gate and distinct member versions outside landed history."""
+    member_hooks = (member / ".githooks" / "pre-push" for member in members)
+    versions = {_hook_contents(hook.read_bytes()) if hook.is_file() else None for hook in member_hooks}
+    gate = "scripts/git-hooks/pre-push"
+    owned = content / gate
+    if not owned.is_file():
+        return len(versions)
+
+    versions.discard(_hook_contents(owned.read_bytes()))
+    if not versions or not (root / ".git").exists():
+        return 1 + len(versions)
+
+    default = "refs/remotes/origin/main"
+    ref = execute_git(root, ("show-ref", "--verify", "--quiet", default), timeout=GIT_TIMEOUT_SECONDS)
+    if ref.returncode == 1:
+        return 1 + len(versions)
+
+    if ref.returncode:
+        raise RuntimeError(ref.stderr.decode("utf-8", errors="replace").strip())
+
+    history = git_output(
+        "--no-replace-objects", "rev-list", "--objects", "--full-history", default,
+        "--", gate, cwd=root,
+    )
+    suffix = f" {gate}"
+    blobs = {line.removesuffix(suffix) for line in history.splitlines() if line.endswith(suffix)}
+    algorithm = git_output("rev-parse", "--show-object-format", cwd=root).strip()
+
+    def recorded(data: bytes) -> bool:
+        # Git hashes the object header with the contents; compare IDs without
+        # fetching historical blob payloads from blobless checkouts.
+        for candidate in (data, data.replace(b"\n", b"\r\n")):
+            header = f"blob {len(candidate)}\0".encode("ascii")
+            if hashlib.new(algorithm, header + candidate).hexdigest() in blobs:
+                return True
+        return False
+
+    unknown = {data for data in versions if data is not None and not recorded(data)}
+    if unknown:
+        try:
+            historical = read_blobs(root, sorted(blobs))
+        except GitUnavailable as error:
+            raise RuntimeError(str(error)) from error
+        unknown.difference_update(_hook_contents(raw) for raw in historical.values())
+    return 1 + (None in versions) + len(unknown)
 
 
 # Crate- and module-level `#![allow(...)]`, counted separately from the
@@ -2692,22 +2732,9 @@ def scan_stack(
                     )
                     for repo, counts in zip(targeted, counts_by_repo, strict=True):
                         out[repo.name] = counts
-                # One owned gate: distinct `.githooks/pre-push` contents
-                # across members plus the owned source. The rollout drives
-                # this to 1; anything above is fork drift. Read from the
-                # materialized content paths so a recorded-revision scan
-                # measures pinned state, never live dirt.
-                gate_hashes = set()
-                owned_gate = stack_content / "scripts" / "git-hooks" / "pre-push"
-                if owned_gate.is_file():
-                    gate_hashes.add(_hook_version(owned_gate.read_bytes()))
-                for target in targets:
-                    hook = target[0] / ".githooks" / "pre-push"
-                    if hook.is_file():
-                        gate_hashes.add(_hook_version(hook.read_bytes()))
-                    else:
-                        gate_hashes.add("<absent>")
-                meta["member_gate_versions"] = len(gate_hashes)
+                meta["member_gate_versions"] = _gate_version_count(
+                    stack_root, stack_content, [target[0] for target in targets],
+                )
     # The meta row measures the revision, as every member row does: a clean
     # checkout at that commit is its own snapshot and anything else is
     # archived (`materialize_member`). Reading the live tree let a checkout

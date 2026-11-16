@@ -2767,6 +2767,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         artifact = target / "debug" / "deps" / "libdemo-abcdef.rlib"
         artifact.write_text("progress", encoding="utf-8")
         writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
         real = os.stat
 
         def stat(path, *arguments, **options):
@@ -2784,6 +2785,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         generated.parent.mkdir(parents=True)
         generated.write_text("old", encoding="utf-8")
         writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
         real = os.stat
 
         def stat(path, *arguments, **options):
@@ -2799,6 +2801,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         directory = self.writer_directory()
         profile = target / "debug"
         writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
         real = os.scandir
 
         def scandir(path):
@@ -2815,6 +2818,7 @@ class BuildIdentityTestCase(unittest.TestCase):
         deps = target / "debug" / "deps"
         deps.mkdir(parents=True, exist_ok=True)
         writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
         real = os.scandir
 
         def scandir(path):

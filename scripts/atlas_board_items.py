@@ -35,6 +35,23 @@ from pathlib import Path
 # specific prefix or a trailing numeral.
 ITEM_ID = re.compile(r"^##\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)")
 
+# A milestone ladder block (`## M-1.0 - title`, `## M-release - title`) is a
+# roadmap record, not a work item: the roadmap rule gives it the stable id
+# `M-<slug>` and exempts it from `priority:` and status. The slug is a
+# version or a word, so the uppercase item grammar above reads `M-1.0` as the
+# item `M-1`; a scanner that counts items tests this pattern first. The slug
+# must carry a `.` (a version) or a lowercase letter (a word): an all-caps or
+# all-digit slug (`M-ATLAS-001`, `M-053`) is item grammar, and reading it as a
+# ladder would drop a real item from every count without a trace. The
+# lookahead walks the slug grammar itself (a separator only when a letter or
+# digit follows it), so a `.` or lowercase letter after the slug's end -- as
+# in `M-053.` or `M-ATLAS-001--abc` -- cannot make an item a ladder.
+LADDER_HEADING = re.compile(
+    r"^#{2,3}\s+M-"
+    r"(?=(?:[A-Za-z0-9]|[._-](?=[A-Za-z0-9]))*(?:[a-z]|\.[A-Za-z0-9]))"
+    r"[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*"
+)
+
 ANCHOR_OWN_LINE = re.compile(r'^<a id="([^"]+)"></a>\s*$')
 ANCHOR_INLINE = re.compile(r'\s*<a id="([^"]+)"></a>\s*$')
 
@@ -143,6 +160,16 @@ def expand_board_lines(path: Path) -> list[str]:
 
 def expand_board_text(path: Path) -> str:
     return "\n".join(expand_board_lines(path)) + "\n"
+
+
+MILESTONE_LADDER_FILE = "milestones.md"
+
+
+def item_files(item_dir: Path) -> list[Path]:
+    """Discover item files in filename order, excluding the milestone ladder."""
+    return sorted(
+        path for path in item_dir.glob("*.md") if path != item_dir / MILESTONE_LADDER_FILE
+    )
 
 
 def item_file_paths(board: Path) -> list[Path]:

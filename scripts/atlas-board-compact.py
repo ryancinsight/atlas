@@ -10,6 +10,9 @@ narratives, coordination and watchpoint logs) is the same kind of stale
 duplicate state and deletes with it: it duplicates what git history already
 holds and rots the moment nothing regenerates it.
 
+Milestone ladders stay in place in either layout, including inline anchors
+and the standalone `backlog/milestones.md` file.
+
 Closed items and non-item narrative sections delete outright: heading,
 its anchor (own-line or inline), and its body. The one exception is a
 narrative section whose body still carries live signal a plain `git log`
@@ -74,6 +77,10 @@ from atlas_board_items import (  # noqa: E402
     ANCHOR_OWN_LINE,
     INDEX_LINE,
     ITEM_ID,
+    LADDER_HEADING,
+    MILESTONE_LADDER_FILE,
+    item_files,
+    strip_inline_anchor,
     top_level_separators as _top_level_separators,
 )
 
@@ -250,6 +257,15 @@ def split_items(
     return preamble, items
 
 
+def is_ladder_section(heading: str) -> bool:
+    """Recognize inline ladder blocks and their optional section heading."""
+    if strip_inline_anchor(heading) == "## Milestone ladder":
+        return True
+    if heading.startswith("## Milestone "):
+        heading = "## " + heading.removeprefix("## Milestone ")
+    return LADDER_HEADING.match(heading) is not None
+
+
 def narrative_keep_reason(body: list[str], open_ids: set[str]) -> str | None:
     """Why a narrative (non-id) section survives deletion, or None to delete it.
 
@@ -312,13 +328,13 @@ def compact(
 
     # Pass 1: classify every id-bearing heading and collect which ids stay
     # open, so pass 2's narrative exception can check cross-references.
-    classified: list[tuple[str | None, list[str], str, list[str], bool, bool]] = []
+    classified = []
     open_ids: set[str] = set()
     for anchor_line, prefix_blanks, heading, body in kept_items:
-        m = ITEM_ID.match(heading)
-        is_item = m is not None
-        closed = is_item and is_closed(heading, delivered)
-        if body_status and is_item:
+        ladder = path.name == "backlog.md" and is_ladder_section(heading)
+        item_match = None if ladder else ITEM_ID.match(heading)
+        closed = item_match is not None and is_closed(heading, delivered)
+        if body_status and item_match is not None:
             # One law per board: a risk artifact's finding states its status
             # in prose whether or not its heading happens to carry an id, and
             # the prose outranks the heading. Two atlas findings headed as
@@ -326,48 +342,31 @@ def compact(
             # #132 remains open"); trusting the heading there would delete the
             # live residual the finding exists to carry.
             closed = body_is_closed(body, heading)
-        if is_item and not closed:
-            open_ids.add(m.group(1))
-        classified.append((anchor_line, prefix_blanks, heading, body, is_item, closed))
+        if item_match is not None and not closed:
+            open_ids.add(item_match.group(1))
+        classified.append((anchor_line, prefix_blanks, heading, body, ladder, item_match, closed))
 
     # Pass 2: assemble the surviving blocks in original order.
-    out_blocks: list[list[str]] = []
+    out = list(preamble)
     items_deleted = 0
     narrative_deleted = 0
-    kept_narrative: list[tuple[str, str]] = []
-    for anchor_line, prefix_blanks, heading, body, is_item, closed in classified:
-        if is_item:
+    for anchor_line, prefix_blanks, heading, body, ladder, item_match, closed in classified:
+        if ladder:
+            out.extend(_block(anchor_line, prefix_blanks, heading, body))
+            continue
+        if item_match is not None:
             if closed:
                 items_deleted += 1
                 continue
-            keep = True
         elif body_status:
-            # Risk artifact: a section IS a finding, so the report-genre
-            # default inverts -- delete only what its prose records as
-            # closed, keep everything else for a human at its next touch.
             if body_is_closed(body, heading):
                 narrative_deleted += 1
                 continue
-            keep = True
-        else:
-            reason = narrative_keep_reason(body, open_ids)
-            if reason is None:
-                narrative_deleted += 1
-                continue
-            kept_narrative.append((heading, reason))
-            keep = True
-        if keep:
-            block = []
-            if anchor_line is not None:
-                block.append(anchor_line)
-            block.extend(prefix_blanks)
-            block.append(heading)
-            block.extend(body)
-            out_blocks.append(block)
+        elif narrative_keep_reason(body, open_ids) is None:
+            narrative_deleted += 1
+            continue
+        out.extend(_block(anchor_line, prefix_blanks, heading, body))
 
-    out = list(preamble)
-    for block in out_blocks:
-        out.extend(block)
     # Trim trailing blanks the deleted tail may have left behind.
     while len(out) > 1 and not out[-1].strip() and not out[-2].strip():
         out.pop()
@@ -453,6 +452,8 @@ def _migrate_preamble_item(
     if anchor is None:
         anchor = ITEM_ID.match(heading).group(1).lower()
     target = item_dir / f"{anchor}.md"
+    if target == item_dir / MILESTONE_LADDER_FILE:
+        return None
     if _status_split(heading) is None and STATUS_TAIL.search(heading) is None:
         status = _status_from_body(body)
         if status is None:
@@ -488,7 +489,7 @@ def compact_indexed(
     # the preamble's narrative-section cross-reference exception below).
     items_deleted = 0
     open_ids: set[str] = set()
-    for item_path in sorted(item_dir.glob("*.md")):
+    for item_path in item_files(item_dir):
         text = item_path.read_text(encoding="utf-8")
         heading = next((ln for ln in text.splitlines() if ln.startswith("## ")), "")
         m = ITEM_ID.match(heading)
@@ -503,12 +504,15 @@ def compact_indexed(
     # Pass 2: narrative sections stay inline in the preamble under this
     # layout (the migration moved only id-bearing items to files) -- same
     # keep/delete rule as the inline board.
-    pre_preamble, narrative_items = split_items(preamble_lines)
-    kept_narrative_blocks: list[list[str]] = []
+    pre_preamble, sections = split_items(preamble_lines)
+    kept_blocks: list[list[str]] = []
     narrative_deleted = 0
     items_migrated: list[str] = []
     unmigrated: list[str] = []
-    for anchor_line, prefix_blanks, heading, body in narrative_items:
+    for anchor_line, prefix_blanks, heading, body in sections:
+        if is_ladder_section(heading):
+            kept_blocks.append(_block(anchor_line, prefix_blanks, heading, body))
+            continue
         if heading.startswith(archive_heading):
             narrative_deleted += 1
             continue
@@ -527,11 +531,10 @@ def compact_indexed(
             )
             open_ids.add(item_match.group(1))
             if migrated is None:
-                # No readable status: keep it inline rather than write an
-                # invented one into the board, and never fall through to the
-                # narrative rule, which would delete it.
+                # Keep the item inline when it lacks a status or its anchor
+                # maps to the reserved ladder file.
                 unmigrated.append(item_match.group(1))
-                kept_narrative_blocks.append(
+                kept_blocks.append(
                     _block(anchor_line, prefix_blanks, heading, body)
                 )
             else:
@@ -541,12 +544,12 @@ def compact_indexed(
         if reason is None:
             narrative_deleted += 1
             continue
-        kept_narrative_blocks.append(
+        kept_blocks.append(
             _block(anchor_line, prefix_blanks, heading, body)
         )
 
     new_preamble = list(pre_preamble)
-    for block in kept_narrative_blocks:
+    for block in kept_blocks:
         new_preamble.extend(block)
     while len(new_preamble) > 1 and not new_preamble[-1].strip() and not new_preamble[-2].strip():
         new_preamble.pop()
@@ -569,7 +572,8 @@ def _dry_run_indexed(
     before = _total_lines(path, item_dir)
     item_count = 0
     closed = 0
-    for item_path in sorted(item_dir.glob("*.md")):
+    files = item_files(item_dir)
+    for item_path in files:
         text = item_path.read_text(encoding="utf-8")
         heading = next((ln for ln in text.splitlines() if ln.startswith("## ")), "")
         if not ITEM_ID.match(heading):
@@ -580,9 +584,9 @@ def _dry_run_indexed(
     first_index_at = next(
         (i for i, ln in enumerate(lines) if INDEX_LINE.match(ln)), len(lines)
     )
-    _, narrative_items = split_items(lines[:first_index_at])
-    narrative = len(narrative_items)
-    print(f"{path.name}: {before} lines (index + {len(list(item_dir.glob('*.md')))} item "
+    _, sections = split_items(lines[:first_index_at])
+    narrative = sum(not is_ladder_section(heading) for _, _, heading, _ in sections)
+    print(f"{path.name}: {before} lines (index + {len(files)} item "
           f"files), {item_count} items ({closed} would delete), "
           f"{narrative} narrative sections")
 
@@ -628,6 +632,7 @@ def main(argv: list[str] | None = None) -> int:
                 kept = [
                     (a, p, h, b) for a, p, h, b in items
                     if not h.startswith(heading)
+                    and not (path.name == "backlog.md" and is_ladder_section(h))
                 ]
                 item_count = sum(1 for _, _, h, _ in kept if ITEM_ID.match(h))
                 closed = sum(

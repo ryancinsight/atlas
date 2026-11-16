@@ -1665,6 +1665,45 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertEqual(recorded["member_gate_versions"], 1)
             self.assertEqual(live["member_gate_versions"], 2)
 
+    def test_stack_scan_distinguishes_landed_gate_history_from_branch_only_hooks(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            member = root / "repos" / "alpha"
+            member.mkdir(parents=True)
+            gate = "scripts/git-hooks/pre-push"
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+
+            def git(repo, *arguments):
+                return subprocess.run(
+                    ["git", "-C", str(repo), *ident, *arguments],
+                    check=True, capture_output=True, text=True, timeout=10,
+                ).stdout.strip()
+
+            git(root, "init", "-q", "-b", "main")
+            git(member, "init", "-q", "-b", "main")
+            _write(root, ".gitmodules", '[submodule "alpha"]\n path = repos/alpha\n')
+            git(root, "config", "core.autocrlf", "false")
+            _write(root, gate, "landed\nsource\n")
+            (root / gate).write_bytes(b"landed\r\nsource\n")
+            git(root, "add", ".gitmodules", gate)
+            git(root, "commit", "-q", "-m", "landed source")
+            git(root, "update-ref", "refs/remotes/origin/main", "HEAD")
+            _write(root, gate, "branch-only\n")
+            git(root, "commit", "-qam", "intermediate branch source")
+            _write(root, gate, "current\n")
+            git(root, "commit", "-qam", "current branch source")
+
+            for copy, expected in (("landed\nsource", 1), ("branch-only", 2), ("current", 1)):
+                with self.subTest(copy=copy):
+                    _write(member, ".githooks/pre-push", copy + "\n")
+                    git(member, "add", ".githooks/pre-push")
+                    git(member, "commit", "-q", "-m", "member hook")
+                    pin = git(member, "rev-parse", "HEAD")
+                    git(root, "update-index", "--add", "--cacheinfo", f"160000,{pin},repos/alpha")
+                    git(root, "commit", "-q", "-m", "member pin")
+                    recorded = conformance.scan_stack(root, "HEAD")["<meta>"]
+                    self.assertEqual(recorded["member_gate_versions"], expected)
+
     def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
         """An empty gitlink directory cannot masquerade as a clean provider."""
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
@@ -2541,6 +2580,11 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         # while passing on any developer box.
         ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
         subprocess.run(["git", "init", "-q", str(root)], check=True)
+        # Teardown must not race Git's detached auto maintenance, which the
+        # commit below can start and which writes `objects/maintenance.lock`
+        # while `clear_readonly_tree` walks the same tree.
+        for key, value in (("gc.auto", "0"), ("maintenance.auto", "false")):
+            subprocess.run(["git", "-C", str(root), "config", key, value], check=True)
         # Commit WITHOUT the policy in effect: with `text=auto eol=lf` already
         # present, git normalizes on the way into the index and a contradicting
         # blob cannot exist. The defect class is historical — blobs committed

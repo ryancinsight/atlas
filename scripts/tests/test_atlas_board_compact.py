@@ -20,7 +20,9 @@ a trailing parenthetical.
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -527,6 +529,73 @@ class IndexedLayoutTestCase(unittest.TestCase):
         self.assertTrue((root / "backlog" / "done-ninety.md").exists())
 
 
+class MilestoneLadderTestCase(unittest.TestCase):
+    PREAMBLE = "# Member backlog\n\n"
+    LADDER = (
+        '<a id="milestone-ladder"></a>\n'
+        "## Milestone ladder\n\n"
+        "Release scope and non-goals.\n\n"
+        '<a id="M-1.0"></a>\n\n'
+        "## M-1.0 — Release migration — complete\n"
+        "- exit: Run the release example.\n\n"
+        '<a id="M-ecosystem"></a>\n'
+        "## M-ecosystem — Downstream adoption\n"
+        "- needs: M-1.0.\n\n"
+        "## Milestone M-2.0 — Extension release\n"
+        "- needs: M-ecosystem.\n\n"
+    )
+    CLOSED_ITEM = "## M-053 — A closed work item — done\n- Delivered.\n\n"
+    NARRATIVE = "## Session notes\n- See M-1 for the release.\n\n"
+
+    def test_inline_compaction_preserves_the_ladder_and_reports_only_work_items(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:
+            board = Path(root) / "backlog.md"
+            original = self.PREAMBLE + self.CLOSED_ITEM + self.LADDER + self.NARRATIVE
+            board.write_bytes(original.encode("utf-8"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(_compact.main(["--dry-run", root]), 0)
+            self.assertEqual(
+                output.getvalue().splitlines()[0],
+                f"backlog.md: {len(original.splitlines())} lines, 1 items (1 would delete), 1 narrative sections",
+            )
+            self.assertEqual(board.read_text(encoding="utf-8"), original)
+            _, _, items_deleted, narrative_deleted = _compact.compact(board, ARCHIVE_HEADING)
+            self.assertEqual((items_deleted, narrative_deleted), (1, 1))
+            self.assertEqual(board.read_text(encoding="utf-8"), self.PREAMBLE + self.LADDER)
+
+    def test_indexed_compaction_preserves_inline_and_split_ladders(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-indexed-") as tmp:
+            root = Path(tmp)
+            item_dir = root / "backlog"
+            item_dir.mkdir()
+            ladder = item_dir / "milestones.md"
+            contents = b"# Milestone ladder\n## M-3.0 - Release migration - complete\n- needs: none.\n"
+            ladder.write_bytes(contents)
+            closed = item_dir / "m-053.md"
+            closed.write_bytes(self.CLOSED_ITEM.encode("utf-8"))
+            live = item_dir / "m-054.md"
+            live.write_bytes(b"## M-054 - Retain downstream support - todo\n- Update the manual.\n")
+            live_index = '<a id="m-054"></a>- [M-054](backlog/m-054.md) — Retain downstream support — todo\n'
+            board = root / "backlog.md"
+            original = self.PREAMBLE + self.LADDER + live_index
+            board.write_bytes(original.encode("utf-8"))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(_compact.main(["--dry-run", str(root)]), 0)
+            lines = sum(len(path.read_bytes().splitlines()) for path in (board, ladder, live, closed))
+            self.assertEqual(
+                output.getvalue().splitlines()[0],
+                f"backlog.md: {lines} lines (index + 2 item files), 2 items (1 would delete), 0 narrative sections",
+            )
+            self.assertEqual(board.read_text(encoding="utf-8"), original)
+            _, _, items_deleted, narrative_deleted = _compact.compact_indexed(board, ARCHIVE_HEADING)
+            self.assertEqual((items_deleted, narrative_deleted), (1, 0))
+            self.assertEqual(board.read_text(encoding="utf-8"), original)
+            self.assertEqual(ladder.read_bytes(), contents)
+            self.assertEqual(sorted(path.name for path in item_dir.iterdir()), ["m-054.md", "milestones.md"])
+
+
 class RootArgumentTestCase(unittest.TestCase):
     def test_root_argument_selects_another_repository(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:
@@ -729,6 +798,20 @@ class IndexedBoardPreambleItemTests(unittest.TestCase):
         self.assertFalse((root / "backlog" / "ATLAS-DEMO-003.md").exists())
         self.assertNotIn("ATLAS-DEMO-003", index)
 
+    def test_an_inline_item_with_the_ladder_file_anchor_stays_inline(self) -> None:
+        item = (
+            '<a id="milestones"></a>\n'
+            "## ATLAS-DEMO-004 - Document milestone progress - todo\n"
+            "- Update the user's guide.\n"
+        )
+        ladder = "# Milestone ladder\n- **M-1.0** needs: none.\n"
+        root, index, counts = self.compact(
+            "# Board\n\n" + item, {**self.PEER, "milestones.md": ladder}
+        )
+        self.assertEqual(counts[2:], (0, 0))
+        self.assertIn(item, index)
+        self.assertEqual((root / "backlog" / "milestones.md").read_text(encoding="utf-8"), ladder)
+
     def test_an_inline_item_without_a_status_stays_inline(self) -> None:
         """Never invent a status: leave it where a human can read it."""
         _, index, _ = self.compact(
@@ -838,11 +921,31 @@ class DeliveredIdsTestCase(unittest.TestCase):
         )
         return done.stdout
 
+    @classmethod
+    def _without_maintenance(cls, repo: Path) -> None:
+        """Keep Git's detached auto maintenance out of a fixture repository.
+
+        A commit, or a push into a bare remote, can start `maintenance run
+        --auto --detach`, which writes into the object store while
+        `TemporaryDirectory` removes it. The setting lives in each
+        repository's own config: this helper's environment carries no
+        `HOME`, and a local push clears `GIT_CONFIG_PARAMETERS` before
+        starting `git-receive-pack`.
+        """
+        for key, value in (
+            ("gc.auto", "0"),
+            ("maintenance.auto", "false"),
+            ("receive.autogc", "false"),
+        ):
+            cls._git(repo, "config", key, value)
+
     def test_only_trailers_reachable_from_the_default_branch_count(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-delivered-") as tmp:
             origin, work = Path(tmp) / "origin.git", Path(tmp) / "work"
             self._git(Path(tmp), "init", "--bare", "--initial-branch=main", str(origin))
             self._git(Path(tmp), "clone", str(origin), str(work))
+            self._without_maintenance(origin)
+            self._without_maintenance(work)
             (work / "f.txt").write_text("landed\n", encoding="utf-8")
             self._git(work, "add", "f.txt")
             self._git(work, "commit", "-m", "feat: land it\n\nItem: KW-LANDED-2026-09-17")
@@ -860,6 +963,7 @@ class DeliveredIdsTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="atlas-delivered-none-") as tmp:
             root = Path(tmp) / "solo"
             self._git(Path(tmp), "init", "--initial-branch=main", str(root))
+            self._without_maintenance(root)
             (root / "f.txt").write_text("x\n", encoding="utf-8")
             self._git(root, "add", "f.txt")
             self._git(root, "commit", "-m", "feat: x\n\nItem: KW-LOCAL-ONLY")

@@ -64,13 +64,13 @@ Every other line — release-tag parsing, package-name validation, manifest-vers
 agreement, `publish = false` rejection, the `--dry-run` content gate, the OIDC
 token request, and the publish call — is identical logic duplicated eight times.
 
-**Book publishing.** Twenty-five book-bearing registered members carry
-`book-pages.yml` and `docs/book/book.toml`. Nineteen callers enable the shared `mdbook-test`
-input, and Gaia's custom caller runs `mdbook test` directly. Five callers still
-omit an executable sample gate: `apollo`, `coeus`, `consus`, `hephaestus`, and
-`ritk`. Atlas's cross-book workflow builds all 25 books through its repository
-glob. The remaining substantive gaps are executable sample coverage in the
-five callers above, not root-gate registration for the existing books.
+**Book publishing.** Twenty-six registered members carry `book-pages.yml`
+(read 2026-11-16). Twenty-four callers pass the literal shared `mdbook-test: true`,
+kwavers passes it on every event except pull requests, and Gaia's custom caller
+runs `mdbook test` directly. Atlas's cross-book workflow builds the books
+through its repository glob. No caller omits the sample gate; the remaining gap
+is per-book evidence that it fails on a broken sample (ATLAS-PUB-005), not
+root-gate registration for the existing books.
 
 **Wheel publishing.** Already consolidated: Atlas owns
 [`python-wheels.yml`](../../.github/workflows/python-wheels.yml) as a
@@ -200,19 +200,19 @@ fragment one field's theory across 173 crates and force every shared derivation
 to be restated, which is the duplication this stack exists to avoid; the
 consolidation rule applies to prose exactly as it does to code.
 
-All 25 book-bearing members join the Atlas cross-book dead-link and build gate
+All 26 book-bearing members join the Atlas cross-book dead-link and build gate
 ([`docs.yml`](../../.github/workflows/docs.yml)) through its repository glob.
-The remaining board work is to make the five non-executable callers pass
-`mdbook-test` with their pinned toolchains; Leto requires a separate book
-authoring and caller-integration item.
+The remaining board work is ATLAS-PUB-005's per-book failing-sample evidence
+(every caller already runs `mdbook test`, Leto's included: its default
+branch holds `docs/book` and a `book-pages.yml` caller, read 2026-11-16).
 
 ### 6. `mdbook test` is adopted per book, not flipped globally
 
-Book code samples must be tested so chapters cannot rot. Nineteen callers now
-run `mdbook test`: eighteen through the shared input and Gaia through its
-custom workflow. Five still omit it because their current samples are not yet
-proven compilable under the shared workflow. Enabling the remaining callers
-requires the same per-book evidence rather than a blind stack-wide flip.
+Book code samples must be tested so chapters cannot rot. Every caller now
+runs `mdbook test` (read 2026-11-16): twenty-four through the literal shared
+input, kwavers on every event but pull requests, and Gaia through its custom
+workflow. A flip requires per-book evidence rather than a blind
+stack-wide flip.
 
 The committed-gitlink inventory is mechanically classified by
 `scripts/atlas-book-gate-audit.py --check`; `--require-gates` is the explicit
@@ -254,8 +254,8 @@ namespace question only, and the classical-name mapping in the stack README
 stands regardless.
 
 The pipelines are unaffected — a caller passes a package name, so a rename is a
-manifest change, not a workflow change. Consequently ATLAS-PUB-001 and
-ATLAS-PUB-002 proceed independently of ATLAS-PUB-006.
+manifest change, not a workflow change. Consequently ATLAS-PUB-001
+(retired 2026-10-01) proceeded independently of ATLAS-PUB-006.
 
 ### 8. Pages action pins are a recorded gap, not an invented digest
 
@@ -295,17 +295,17 @@ book build has succeeded through the shared pipeline.
 | Package | Crate publish | Book | Wheel |
 | --- | --- | --- | --- |
 | `aequitas` | when first published | present; test enabled | no binding workflow |
-| `apollo` | migrate (toolchain 1.97.0) | present; test pending | shared |
+| `apollo` | migrate (toolchain 1.97.0) | present; test enabled | shared |
 | `asclepius` | when first published | present; test enabled | no binding workflow |
 | `athena` | when first published | present; test enabled | no binding workflow |
 | `CFDrs` | absent | present; test enabled | shared |
-| `coeus` | migrate (1.95.0) | present; test pending | shared |
-| `consus` | migrate (1.97.1) | present; test pending | shared |
+| `coeus` | migrate (1.95.0) | present; test enabled | shared |
+| `consus` | migrate (1.97.1) | present; test enabled | shared |
 | `eunomia` | when first published | present; test enabled | no release workflow |
 | `gaia` | when first published | present; direct test command | no binding workflow |
 | `harmonia` | when first published | present; test enabled | no binding workflow |
 | `helios` | absent | present; test enabled | shared |
-| `hephaestus` | migrate (1.95.0) | present; test pending | shared |
+| `hephaestus` | migrate (1.95.0) | present; test enabled | shared |
 | `hermes` | when first published | present; test enabled | no binding workflow |
 | `horae` | when first published | present; test enabled | no binding workflow |
 | `hyperion` | when first published | present; test enabled | no binding workflow |
@@ -315,7 +315,7 @@ book build has succeeded through the shared pipeline.
 | `mnemosyne` | when first published | present; test enabled | no binding workflow |
 | `moirai` | migrate (1.95.0) | present; test enabled | shared |
 | `proteus` | when first published | present; test enabled | no binding workflow |
-| `ritk` | migrate (from `release.yml`) | present; test pending | standalone `release.yml` |
+| `ritk` | shared (`rust-release.yml`) | present; test enabled | shared (`release.yml`) |
 | `themis` | when first published | present; test enabled | no binding workflow |
 | `tyche` | when first published | present; test enabled | no binding workflow |
 

@@ -10,8 +10,13 @@ on a new cast. This gate is the enforcement:
 - clippy runs on the pushed packages with `--force-warn clippy::as_conversions`,
   which reports every `as` through allows and expects alike;
 - a reported site whose span covers a line the push adds fails, unless its
-  file is a sanctioned conversion or cast module (a span covers the whole
-  `expr as T`, so a cast ending a method chain starts lines above its `as`);
+  file is a sanctioned conversion module (a span covers the whole
+  `expr as T`, so a cast ending a method chain starts lines above its `as`).
+  A conversion module is excluded from every count. A package's one cast
+  module (`cast_modules`) is counted like any other file, so a cast moved
+  into it neither raises nor lowers the package's count. Its added lines pass
+  only under `cast_module_fault`, no file of its package mounted twice
+  (`clippy::duplicate_mod`, force-warned), and the base count;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -22,8 +27,9 @@ on a new cast. This gate is the enforcement:
   feature change that compiles existing casts in a pushed package fails this
   too, until those casts convert. The base builds only when the range can
   bring existing casts into a pushed package without adding their lines
-  (`base-triggers`): a renamed file, or a changed `Cargo.toml`, package-root
-  `build.rs`, cargo config or `rust-toolchain` file. A source-level `cfg`
+  (`base-triggers`): a renamed file, a changed cast module, or a changed
+  `Cargo.toml`, package-root `build.rs`, cargo config or `rust-toolchain`
+  file. A source-level `cfg`
   flip, `#[path]`, `include!`, a new `mod` line naming a file that was not
   compiled before, or a build script at a custom `package.build` path or in
   a helper module is not a trigger and is held to the row alone. Only pushed packages are counted:
@@ -69,7 +75,9 @@ A row may fall or be dropped; it may not rise, and a package of a member the
 base already measured may not gain a row (no row counts as zero). A member
 the base does not measure enters with its rows (onboarding). A sanctioned
 path may not be added to a member the base measures: exclusion lowers a
-count without converting a cast.
+count without converting a cast. A cast module may be added for a package
+that has none, since its casts stay counted; a package's cast module path
+does not change, which would make a second module.
 """
 
 from __future__ import annotations
@@ -84,11 +92,12 @@ import subprocess
 import sys
 import time
 import tomllib
-from collections.abc import Iterable
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
+DUPLICATE_MOD = "clippy::duplicate_mod"  # canonical paths, after macro expansion
 HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
 HISTORICAL_CAST_PROFILE = "cast-history"
 HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
@@ -147,7 +156,7 @@ def clippy_command(export: pathlib.Path, packages: Iterable[str],
         "--manifest-path", str(export / manifest),
         *selection, *(["--profile", profile] if profile is not None else []),
         "--all-targets", "--locked", "--message-format=json",
-        "--", "--force-warn", LINT,
+        "--", "--force-warn", LINT, "--force-warn", DUPLICATE_MOD,
     ]
 
 
@@ -282,10 +291,12 @@ def sites(messages: Iterable[str], export: pathlib.Path,
         if record.get("reason") != "compiler-message":
             continue
         message = record["message"]
-        if (message.get("code") or {}).get("code") != LINT:
-            continue
+        code = (message.get("code") or {}).get("code")
         package = names.get(record.get("package_id", ""))
-        if package is None:
+        if code not in (LINT, DUPLICATE_MOD) or package is None:
+            continue
+        if code == DUPLICATE_MOD:  # a file mounted twice: a line-0 marker, never counted
+            found.add(Site(package, "", 0, 0, 0, 0, 0))
             continue
         for span in message["spans"]:
             if not span["is_primary"]:
@@ -450,9 +461,13 @@ def changed_entries(repo: pathlib.Path, base: str, tip: str) -> list[tuple[str, 
     return entries
 
 
-def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
+def base_triggers(repo: pathlib.Path, base: str, tip: str,
+                  cast_modules: frozenset[str] = frozenset()) -> list[str]:
     """Why the range needs the base count: each change that can bring existing
-    casts into a pushed package without adding their lines."""
+    casts into a pushed package without adding their lines, and each change
+    to a path in `cast_modules`, whose added casts only the base count holds.
+    The hook names no member here, so `cast_modules` is every member's: a
+    path another member registers costs one extra compile, never a pass."""
     reasons: list[str] = []
     for paths in changed_entries(repo, base, tip):
         if len(paths) == 2:
@@ -462,6 +477,8 @@ def base_triggers(repo: pathlib.Path, base: str, tip: str) -> list[str]:
             if (name in BUILD_INPUTS or "/.cargo/" in f"/{path}"
                     or package_build_script(repo, tip, path)):
                 reasons.append(f"{path} changed")
+            if path in cast_modules:
+                reasons.append(f"{path} is a cast module")
     return list(dict.fromkeys(reasons))
 
 
@@ -913,10 +930,13 @@ def new_standalone_owners(repo: pathlib.Path, base: str, tip: str,
 
 @dataclass(frozen=True)
 class Baseline:
-    """Sanctioned conversion and cast modules, and per-package site counts."""
+    """Sanctioned conversion modules, per-package cast modules, and per-package
+    site counts. A JSON object repeating a key is refused: `json` would keep
+    the last value, and a second path for one package is a second module."""
 
     sanctioned: dict[str, frozenset[str]]
     counts: dict[str, dict[str, int]]
+    cast_modules: dict[str, dict[str, str]] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: pathlib.Path) -> Baseline:
@@ -926,11 +946,19 @@ class Baseline:
     @classmethod
     def parse(cls, text: str, path: str) -> Baseline:
         """The baseline in `text`, read from `path`; a wrong shape is a ValueError."""
-        data = json.loads(text)
+        def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+            keys = [key for key, _ in pairs]
+            for key in keys:
+                if keys.count(key) > 1:
+                    raise ValueError(f"{path}: the baseline repeats the key {key!r}")
+            return dict(pairs)
+
+        data = json.loads(text, object_pairs_hook=unique)
         if not isinstance(data, dict):
             raise ValueError(f"{path}: the baseline is a JSON object")
         sanctioned = data.get("sanctioned", {})
         counts = data.get("counts", {})
+        cast_modules = data.get("cast_modules", {})
         if not (isinstance(sanctioned, dict) and all(
                 isinstance(paths, list) and all(isinstance(p, str) for p in paths)
                 for paths in sanctioned.values())):
@@ -940,31 +968,192 @@ class Baseline:
                     isinstance(k, str) and type(v) is int for k, v in rows.items())
                 for rows in counts.values())):
             raise ValueError(f"{path}: `counts` maps members to package counts")
+        if not (isinstance(cast_modules, dict) and all(
+                isinstance(modules, dict) and all(isinstance(p, str) for p in modules.values())
+                for modules in cast_modules.values())):
+            raise ValueError(f"{path}: `cast_modules` maps members to one path per package")
+        for member in sorted({*sanctioned, *cast_modules}):
+            named = [*cast_modules.get(member, {}).values(), *sanctioned.get(member, [])]
+            for module in named:
+                if named.count(module) > 1:
+                    raise ValueError(f"{path}: {member} names {module} more than once")
         return cls(
             {m: frozenset(p) for m, p in sanctioned.items()},
             {m: dict(c) for m, c in counts.items()},
+            {m: dict(p) for m, p in cast_modules.items()},
         )
+
+
+TOKEN = re.compile(r"""(?P<space>[\s\ufeff]+)|(?P<comment>//[^\n]*)
+    |(?P<string>[bc]?r(?P<hashes>\#*)"[\s\S]*?"(?P=hashes)|[bc]?"(?:\\[\s\S]|[^"\\])*")
+    |(?P<char>b?'(?:\\(?:x\w\w|u\{\w*\}|.)|[^\\'\n])')|(?P<lifetime>'(?:r\#)?\w+)
+    |(?P<word>(?:r\#)?\w+)|(?P<punct>[!\#-/:-@\[-^`{-~])""", re.X)
+COPIES = "; one `as` there can compile to many casts the gate counts once"  # one site per span
+# The attributes a cast module may carry: single-word built-ins, which no macro rebinds
+# (rustc 1.97.0: E0659; `cfg` is reserved). `rustfmt::skip` is no such name: `use pm as
+# rustfmt;` or a renamed dependency makes it a macro.
+ATTRIBUTES = frozenset("allow cfg cold deny doc expect forbid inline must_use repr "
+                       "track_caller warn".split())
+UNARY_AFTER = frozenset("break if in match return while yield".split())  # `!` is a not
+# The tokens an `impl` item follows; after any other, `impl` names a type.
+ITEM_START = frozenset({("punct", ";"), ("punct", "{"), ("punct", "}"), ("punct", "]"),
+                        ("word", "unsafe")})
+# clippy 1.97.0's `as` and pointer cast lints (`clippy-driver -W help`). A name
+# pattern also admits `match_as_ref` and eleven more Option, str and XOR lints.
+CAST_LINTS = frozenset(f"clippy::{name}" for name in (
+    "as_conversions as_pointer_underscore as_ptr_cast_mut as_underscore borrow_as_ptr "
+    "cast_abs_to_unsigned cast_enum_constructor cast_enum_truncation cast_lossless "
+    "cast_nan_to_int cast_possible_truncation cast_possible_wrap cast_precision_loss "
+    "cast_ptr_alignment cast_sign_loss cast_slice_different_sizes "
+    "cast_slice_from_raw_parts char_lit_as_u8 confusing_method_to_numeric_cast "
+    "fn_to_numeric_cast fn_to_numeric_cast_any fn_to_numeric_cast_with_truncation "
+    "invalid_upcast_comparisons needless_type_cast ptr_as_ptr ptr_cast_constness "
+    "ptr_offset_with_cast ref_as_ptr unnecessary_cast").split())
+
+
+def lex(text: str) -> list[tuple[str, str]]:
+    """The (kind, text) Rust tokens of `text`, comments (nested) and space
+    dropped. An unclosed literal or comment, or a stray character, raises."""
+    tokens: list[tuple[str, str]] = []
+    index = 0
+    while index < len(text):
+        if text.startswith("/*", index):
+            depth, index = 1, index + 2
+            while depth:
+                close, opened = text.find("*/", index), text.find("/*", index)
+                if close < 0:
+                    raise ValueError("an unclosed block comment")
+                depth, index = ((depth + 1, opened + 2) if 0 <= opened < close
+                                else (depth - 1, close + 2))
+        elif match := TOKEN.match(text, index):
+            if match.lastgroup not in ("space", "comment"):
+                tokens.append((match.lastgroup, match.group()))
+            index = match.end()
+        else:
+            raise ValueError(f"no token at offset {index}")
+    return tokens
+
+
+def attributes(tokens: list[tuple[str, str]]) -> list[tuple[int, int, bool, str]]:
+    """Each attribute as (index of `#`, index after `]`, inner, path); unclosed raises."""
+    found, index = [], 0
+    while index < len(tokens):
+        inner = tokens[index + 1:index + 2] == [("punct", "!")]
+        opening = index + 1 + inner
+        if tokens[index] != ("punct", "#") or tokens[opening:opening + 1] != [("punct", "[")]:
+            index += 1
+            continue
+        path, end = "", opening + 1
+        while end < len(tokens) and (tokens[end][0] == "word" or tokens[end] == ("punct", ":")):
+            path, end = path + tokens[end][1], end + 1
+        depth = 0
+        for end in range(opening, len(tokens)):
+            kind, text = tokens[end]
+            depth += (text in "([{") - (text in ")]}") if kind == "punct" else 0
+            if not depth:
+                break
+        else:
+            raise ValueError("an unclosed attribute")
+        found.append((index, end + 1, inner, path))
+        index = end + 1
+    return found
+
+
+def copying_fault(tokens: list[tuple[str, str]],
+                  spans: list[tuple[int, int, bool, str]]) -> str | None:
+    """Why one `as` here could compile to many casts (attribute, macro, generic)."""
+    for _, _, _, path in spans:
+        if path not in ATTRIBUTES:
+            return f"carries `#[{path}]`, not a built-in attribute it may use{COPIES}"
+    for index, (kind, text) in enumerate(tokens):
+        before = tokens[index - 1] if index else ("punct", ";")
+        after = tokens[index + 1] if index + 1 < len(tokens) else ("punct", ";")
+        if (kind == "word" and text in ("macro", "macro_rules")
+                or (kind, text) == ("punct", "!") and before[0] == "word"
+                and before[1] not in UNARY_AFTER and after != ("punct", "=")):
+            return f"invokes or defines a macro{COPIES}"
+        if kind == "word" and (
+                text == "trait"
+                or text == "impl" and (after == ("punct", "<") or before not in ITEM_START)
+                or text == "fn" and tokens[index + 2:index + 3] == [("punct", "<")]):
+            return f"declares a generic item, a trait or an `impl Trait` type{COPIES}"
+    return None
+
+
+def literal(text: str) -> str:  # the body of a string literal token
+    return re.sub(r'^[bc]?r?#*"|"#*$', "", text)
+
+
+def cast_module_fault(text: str | None) -> str | None:
+    """Why `text` is not a cast module; None when it is one: it copies no cast
+    (`copying_fault`) and opens, before any item, with exactly one inner
+    `#![expect(...)]` naming only cast lints with a reason. Whether each lint
+    fires is rustc's to judge (`unfulfilled_lint_expectations`)."""
+    if text is None:
+        return "is absent at the pushed tip"
+    try:
+        tokens = lex(text)
+        spans = attributes(tokens)
+    except ValueError as error:
+        return f"cannot be lexed ({error}){COPIES}"
+    if fault := copying_fault(tokens, spans):
+        return fault
+    expects = [(start, end) for start, end, inner, path in spans if inner and path == "expect"]
+    if len(expects) != 1:
+        return f"holds {len(expects)} inner `#![expect(...)]` attributes, not one"
+    (start, end), leading = expects[0], 0
+    for opening, closing, inner, _ in spans:
+        if opening != leading or not inner:
+            break
+        leading = closing
+    if start >= leading:
+        return "places its `#![expect(...)]` after an item, so it does not scope the file"
+    args = tokens[start + 5:end - 2] if tokens[start + 4] == ("punct", "(") else []
+    at = next((at for at in range(len(args) - 2)
+               if args[at:at + 2] == [("word", "reason"), ("punct", "=")]), None)
+    if at is None or args[at + 2][0] != "string" or not literal(args[at + 2][1]).strip():
+        return "gives its `#![expect(...)]` no reason"
+    lints = "".join(text for _, text in args[:at] + args[at + 3:]).split(",")
+    if not any(lints) or not all(lint in CAST_LINTS for lint in lints if lint):
+        return "names a lint other than a cast lint, or none, in its `#![expect(...)]`"
+    return None
 
 
 def violations(member: str, found: set[Site], added: dict[str, set[int]],
                packages: Iterable[str], baseline: Baseline,
                base: set[Site] = frozenset(),
-               base_packages: Iterable[str] = ()) -> list[str]:
+               base_packages: Iterable[str] = (),
+               cast_modules: Mapping[str, tuple[str, str | None]] | None = None) -> list[str]:
     """Why the push fails, one line per violation; empty when it passes.
 
     `base` holds the sites of the pushed range's base, measured with the same
     selection. Each package in `base_packages` is held to its count there; any
     other package is held to its row alone.
+
+    `cast_modules` maps a package to its cast module's path and fault at the
+    tip; an added cast there passes with neither a fault nor a missing base count.
+    A copying fault fails every module site: a use added elsewhere multiplies it.
     """
     sanctioned = baseline.sanctioned.get(member, frozenset())
     bare = sorted(s for s in found if s.path not in sanctioned)
-    problems = [
-        f"{s.path}:{s.line}:{s.column}: bare `as` cast on a line this push adds"
-        for s in bare
-        if not added.get(s.path, set()).isdisjoint(range(s.line, s.line_end + 1))
-    ]
     rows = baseline.counts.get(member, {})
     compared = frozenset(base_packages)
+    problems = []
+    for s in bare:
+        path, fault = (cast_modules or {}).get(s.package, ("", None))
+        where = f"{s.path}:{s.line}:{s.column}"
+        if s.path == path and fault and fault.endswith(COPIES):
+            problems.append(f"{where}: `as` cast in {s.package}'s cast module, which {fault}")
+        elif added.get(s.path, set()).isdisjoint(range(s.line, s.line_end + 1)):
+            continue
+        elif s.path != path:
+            problems.append(f"{where}: bare `as` cast on a line this push adds")
+        elif fault:
+            problems.append(f"{where}: `as` cast added to {s.package}'s cast module, "
+                            f"which {fault}")
+        elif s.package not in compared:
+            problems.append(f"{where}: `as` cast added to {s.package}'s cast module "
+                            "without a count at the pushed base")
     for package in sorted(set(packages)):
         count = sum(1 for s in bare if s.package == package)
         row = rows.get(package, 0)
@@ -985,7 +1174,7 @@ def counts(found: set[Site], sanctioned: frozenset[str]) -> dict[str, int]:
     """Bare sites per package, sanctioned modules excluded."""
     tally: dict[str, int] = {}
     for site in found:
-        if site.path not in sanctioned:
+        if site.line and site.path not in sanctioned:
             tally[site.package] = tally.get(site.package, 0) + 1
     return dict(sorted(tally.items()))
 
@@ -1038,8 +1227,16 @@ def check(args: argparse.Namespace) -> int:
     added = pushed_additions(repo, args.base or None, args.tip)
     held = held_to_base(repo, args.base, args.base_package, base)
     held |= frozenset(args.zero_base_package)
+    doubled = {s.package for s in found if not s.line}
+    found, base = {s for s in found if s.line}, {s for s in base if s.line}
+    modules = {}
+    for package, path in baseline.cast_modules.get(args.member, {}).items():
+        fault = cast_module_fault(git_file(repo, args.tip, path))
+        if package in doubled and (fault is None or not fault.endswith(COPIES)):
+            fault = f"shares its package with a file clippy finds mounted twice{COPIES}"
+        modules[package] = (path, fault)
     problems = violations(args.member, found, added, args.package, baseline, base,
-                          held)
+                          held, modules)
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:
@@ -1051,8 +1248,10 @@ def check(args: argparse.Namespace) -> int:
 
 def raised_rows(base: Baseline, tip: Baseline) -> list[str]:
     """Each way `tip` loosens `base`: a row above its base row, a row for a
-    package of a measured member that had none, or a sanctioned path added to
-    a measured member. A member `base` does not measure is onboarding."""
+    package of a measured member that had none, a sanctioned path added to a
+    measured member, or a package's cast module moved to another path. A
+    member `base` does not measure is onboarding. A cast module added for a
+    package that had none loosens nothing: its casts stay counted."""
     problems = []
     for member, rows in sorted(tip.counts.items()):
         if member not in base.counts:
@@ -1060,10 +1259,17 @@ def raised_rows(base: Baseline, tip: Baseline) -> list[str]:
         for package, count in sorted(rows.items()):
             before = base.counts[member].get(package, 0)
             if count > before:
-                problems.append(f"{member}/{package} rises from {before} to {count}")
+                problems.append(f"{member}/{package} rises from {before} to {count}; "
+                                "rows only fall")
         for path in sorted(tip.sanctioned.get(member, frozenset())
                            - base.sanctioned.get(member, frozenset())):
-            problems.append(f"{member} sanctions {path}, which the base does not")
+            problems.append(f"{member} sanctions {path}, which the base does not; "
+                            "exclusion lowers a count without converting a cast")
+        modules = base.cast_modules.get(member, {})
+        for package, path in sorted(tip.cast_modules.get(member, {}).items()):
+            if modules.get(package, path) != path:
+                problems.append(f"{member}/{package} names a second cast module, {path}; "
+                                f"its cast module is {modules[package]}")
     return problems
 
 
@@ -1092,7 +1298,7 @@ def ratchet(args: argparse.Namespace) -> int:
         return 1
     problems = raised_rows(base, tip)
     for problem in problems:
-        print(f"cast gate: baseline {problem}; rows only fall", file=sys.stderr)
+        print(f"cast gate: baseline {problem}", file=sys.stderr)
     return 1 if problems else 0
 
 
@@ -1100,7 +1306,9 @@ def triggers(args: argparse.Namespace) -> int:
     # UTF-8 whatever the console code page: a path outside it must not stop
     # the gate (a Windows pipe defaults to the ANSI code page).
     sys.stdout.reconfigure(encoding="utf-8", newline="\n")
-    for reason in base_triggers(pathlib.Path(args.repo), args.base, args.tip):
+    modules = Baseline.load(args.baseline).cast_modules
+    paths = frozenset(path for packages in modules.values() for path in packages.values())
+    for reason in base_triggers(pathlib.Path(args.repo), args.base, args.tip, paths):
         print(reason)
     return 0
 

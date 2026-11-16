@@ -1,5 +1,13 @@
 # atlas — cross-repository integration gap audit
 
+<a id="board-headroom"></a>
+## Finding 2026-11-15: the atlas board has no headroom for a new item
+
+Risk: `backlog.md` plus `backlog/*.md` hold 993 of the 1000-line budget after the 2026-11-16b filing sweep (948 at origin/main a74897f8c4b3, 999 on 2026-11-15), so the ratchet admits one more item of the smallest size (3 lines plus 1 index line) and filings must amend existing items.
+Evidence: the sweep dropped seven findings of this file, six promoted to items (ATLAS-HOOK-SAFETY-RATCHET-NAME, ATLAS-CAST-CHECK-MEMBER-CI, ATLAS-HOOK-PROVIDER-BUMP-GATE, ATLAS-CONFORMANCE-LANDED-ROWS, ATLAS-MEMBER-BOARD-SCHEMA, ATLAS-HOOK-COMMIT-MSG) and one folded into ATLAS-STANDALONE-CRATES-BUILD, and filed two more (ATLAS-TEST-MAINTENANCE-RACE, ATLAS-HOOK-RELEASED-GATE-CHANGES), using 45 of the 52 free lines; `atlas-board-compact.py --dry-run` reports 141 items, 0 would delete. Remaining levers (judge /869): the 13 `ATLAS-REGISTRY-SLICE-*` items (about 95 lines, dependent slices of closed PR 587) and the four `ATLAS-SEMVER-*` follow-ups, which share one test module and pin sources.
+Fix direction: consolidate the registry slices and the SemVer follow-ups, or deliver and delete items, so a filing sweep can add items; no budget raise.
+Re-open trigger: a filing refused by the budget, or the slices' consolidation landing.
+
 <a id="leaseless-peer-write"></a>
 ## Finding 2026-11-13: a leaseless peer write reaches a gate record
 
@@ -105,7 +113,7 @@ Risk: new bare `as` casts land unmeasured wherever the owned pre-push hook is no
 
 ## Finding 2026-10-02: the bare-cast gate sees one configuration
 
-Risk: clippy reports only casts it compiles: default features and the host target. A cast behind a non-default feature or another target's `cfg` passes on an added line, and a cast inside a `macro_rules!` body is one site at the body however many call sites expand it (probe 2026-10-02), so a new call of an existing casting macro adds none. Rows are measured `--workspace`, push counts `-p`. The push count is also held to the pushed base's count under the same selection when the range renames a file or changes a `Cargo.toml`, a package-root `build.rs`, `.cargo` config or `rust-toolchain` file (`base-triggers`; the base build costs one more closure build, 394-513 s for leto-ops measured 2026-10-03 under lock contention, so it does not run on every push): a moved file or a feature change cannot fill the difference. A source-level `cfg` flip, `#[path]`, `include!`, a new `mod` line naming a file not compiled before, or a build script at a custom `package.build` path or in a helper module triggers nothing and is held to the row alone. Only pushed packages are counted: a pushed package enabling a feature of an unpushed dependency compiles that dependency's casts unmeasured. A manifest whose base fails to compile in its own packages (a rustc error or a denied lint, with cargo naming one of them) leaves those packages to their rows (said on the push), so a fix to a default branch broken in its own source stays pushable; a base broken in a dependency, by unreadable or mismatched crate metadata, or by a compiler that exited abnormally (killed, out of memory, crashed, silent, or panicked: cargo's `Caused by: process didn't exit successfully`) refuses. Cargo's summary must say `due to N previous error`; a compiler fault that still prints that summary and no `Caused by` would pass as a compile error. Code under `cfg(not(feature = ...))` can lift a clean `-p` count above its row (the 2026-10-02 review found no row it breaks). Check that would catch it: run the gate under the feature matrix (`cargo hack --each-feature`) in the scheduled member CI job. Owner: none. Re-open: a cast found in feature- or target-gated code after merge, or a count failure on a push that adds no cast.
+Risk: clippy reports only casts it compiles: default features and the host target. A cast behind a non-default feature or another target's `cfg` passes on an added line, and a cast inside a `macro_rules!` body is one site at the body however many call sites expand it (probe 2026-10-02), so a new call of an existing casting macro adds none. Rows are measured `--workspace`, push counts `-p`. The push count is also held to the pushed base's count under the same selection when the range renames a file, changes a registered cast module (`cast_modules`), or changes a `Cargo.toml`, a package-root `build.rs`, `.cargo` config or `rust-toolchain` file (`base-triggers`; the base build costs one more closure build, 394-513 s for leto-ops measured 2026-10-03 under lock contention, so it does not run on every push): a moved file or a feature change cannot fill the difference. A source-level `cfg` flip, `#[path]`, `include!`, a new `mod` line naming a file not compiled before, or a build script at a custom `package.build` path or in a helper module triggers nothing and is held to the row alone. Only pushed packages are counted: a pushed package enabling a feature of an unpushed dependency compiles that dependency's casts unmeasured. A manifest whose base fails to compile in its own packages (a rustc error or a denied lint, with cargo naming one of them) leaves those packages to their rows (said on the push), so a fix to a default branch broken in its own source stays pushable; a base broken in a dependency, by unreadable or mismatched crate metadata, or by a compiler that exited abnormally (killed, out of memory, crashed, silent, or panicked: cargo's `Caused by: process didn't exit successfully`) refuses. Cargo's summary must say `due to N previous error`; a compiler fault that still prints that summary and no `Caused by` would pass as a compile error. Code under `cfg(not(feature = ...))` can lift a clean `-p` count above its row (the 2026-10-02 review found no row it breaks). Check that would catch it: run the gate under the feature matrix (`cargo hack --each-feature`) in the scheduled member CI job. Owner: none. Re-open: a cast found in feature- or target-gated code after merge, or a count failure on a push that adds no cast.
 
 ## Finding 2026-10-02: the pre-push gate skips the feature matrix CI checks
 
@@ -396,15 +404,6 @@ Re-open trigger: the scan lands in the stack tooling, or a second occurrence is 
 
 Risk: `refs/rescue/apollo-scratch-order-isolation` (apollo checkout only, unpushed) preserves a hunk that renames the scratch-hook registry test and weakens its release-count assertion from an exact `assert_eq!` to `>= 1`; applying it would mask the thread-local hook leak instead of fixing it. Re-open trigger: the ref still exists; delete the ref and this finding together once its isolation hunk is confirmed landed on apollo main or obsolete against it.
 
-<a id="commit-msg-hook-absent"></a>
-## Finding 2026-11-10: no commit-msg hook is installed in the stack
-
-Risk: commit subjects over 50 characters, body lines over 72, unparseable trailers and agent commits without an `Agent:` trailer reach default branches, because nothing checks a message before it is pushed. Evidence: ryancinsight/kwavers#961 landed two 52-character subjects; `scripts/git-hooks/` at `origin/main` holds `pre-commit`, `pre-push` and `rescue-push` only, and `.git/atlas-hooks` has no `commit-msg`. On 2026-11-13 the code commit of the kwavers#1061 claim branch had a 53-character subject, accepted in a lane whose `.git/atlas-hooks` held no `commit-msg` hook.
-
-Catching check: a committed `scripts/git-hooks/commit-msg` (subject length and form, body width, literal `\n`, trailer parse, `Agent:` under a harness session variable; merge and `fixup!` commits exempt), installed by the stack setup path in every member, with the conformance scan asserting the installed hook path.
-
-Re-open trigger: a board line frees for the item, or a second over-length subject lands.
-
 <a id="fast-pytest-timeout-margin"></a>
 ## Finding 2026-11-10: the fast script-test job runs at its timeout
 
@@ -413,3 +412,7 @@ Risk: `script-tests / Run pytest (fast)` (`.github/workflows/python-tests.yml`, 
 Catching check: the job's duration against a committed budget in the scheduled CI report, and the suite's slowest tests moved to the slow job or sharded until the fast job holds the five-minute target; the bound itself does not rise.
 
 Re-open trigger: a second cancellation at the bound, or the fast job's median passing 480 s.
+
+## Finding 2026-11-15: the member hook fleet restores locks unsynchronized and follows the checked-out branch
+
+Risk: (1) the hook's `Cargo.lock` snapshot and restore is unsynchronized, so concurrent hooks can restore over each other; the selector and publisher fixes do not serialize it, and members whose stale hook refuses or times out the sync push are published through the git data API with the same bytes. (2) 25 members set `core.hooksPath=.githooks`, so the hook version follows the checked-out branch: `repos/CFDrs` on 2026-09-28 sat 80 commits behind and its pre-push failed on the `python3` Store stub until a peer switched the tree; only one member points at `D:/atlas/scripts/git-hooks`. Owner: [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog.md#hook-fleet-duplication). Re-open trigger: a lock restored over a peer's, or a refused push traced to a stale member checkout.
