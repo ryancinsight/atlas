@@ -92,6 +92,7 @@ from atlas_stack import (
     staleness_note,
 )
 from atlas_scattered_containers_classify import VEC_VEC
+from lockfile import GitUnavailable, read_blobs
 
 GIT_TIMEOUT_SECONDS = 60
 ARCHIVE_TIMEOUT_SECONDS = 120
@@ -360,21 +361,21 @@ TARGET_DIR_SETTING = re.compile(
 )
 
 
-def _hook_contents(path: Path) -> bytes:
+def _hook_contents(data: bytes) -> bytes:
     """Keep line-ending hygiene separate from gate-version drift."""
-    return path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
 
 def _gate_version_count(root: Path, content: Path, members: list[Path]) -> int:
     """Count the owned gate and distinct member versions outside landed history."""
     member_hooks = (member / ".githooks" / "pre-push" for member in members)
-    versions = {_hook_contents(hook) if hook.is_file() else None for hook in member_hooks}
+    versions = {_hook_contents(hook.read_bytes()) if hook.is_file() else None for hook in member_hooks}
     gate = "scripts/git-hooks/pre-push"
     owned = content / gate
     if not owned.is_file():
         return len(versions)
 
-    versions.discard(_hook_contents(owned))
+    versions.discard(_hook_contents(owned.read_bytes()))
     if not versions or not (root / ".git").exists():
         return 1 + len(versions)
 
@@ -403,7 +404,14 @@ def _gate_version_count(root: Path, content: Path, members: list[Path]) -> int:
                 return True
         return False
 
-    return 1 + sum(data is None or not recorded(data) for data in versions)
+    unknown = {data for data in versions if data is not None and not recorded(data)}
+    if unknown:
+        try:
+            historical = read_blobs(root, sorted(blobs))
+        except GitUnavailable as error:
+            raise RuntimeError(str(error)) from error
+        unknown.difference_update(_hook_contents(raw) for raw in historical.values())
+    return 1 + (None in versions) + len(unknown)
 
 
 # Crate- and module-level `#![allow(...)]`, counted separately from the

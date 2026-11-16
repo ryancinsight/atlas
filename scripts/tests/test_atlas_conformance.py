@@ -1682,7 +1682,9 @@ class AtlasConformanceTestCase(unittest.TestCase):
             git(root, "init", "-q", "-b", "main")
             git(member, "init", "-q", "-b", "main")
             _write(root, ".gitmodules", '[submodule "alpha"]\n path = repos/alpha\n')
-            _write(root, gate, "landed\n")
+            git(root, "config", "core.autocrlf", "false")
+            _write(root, gate, "landed\nsource\n")
+            (root / gate).write_bytes(b"landed\r\nsource\n")
             git(root, "add", ".gitmodules", gate)
             git(root, "commit", "-q", "-m", "landed source")
             git(root, "update-ref", "refs/remotes/origin/main", "HEAD")
@@ -1691,7 +1693,7 @@ class AtlasConformanceTestCase(unittest.TestCase):
             _write(root, gate, "current\n")
             git(root, "commit", "-qam", "current branch source")
 
-            for copy, expected in (("landed", 1), ("branch-only", 2), ("current", 1)):
+            for copy, expected in (("landed\nsource", 1), ("branch-only", 2), ("current", 1)):
                 with self.subTest(copy=copy):
                     _write(member, ".githooks/pre-push", copy + "\n")
                     git(member, "add", ".githooks/pre-push")
