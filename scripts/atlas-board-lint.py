@@ -66,6 +66,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from atlas_board_items import (  # noqa: E402
     ANCHOR_INLINE,
     LADDER_HEADING,
+    MILESTONE_LADDER_FILE,
     expand_board_lines,
     extract_anchor,
     split_title_status,
@@ -557,6 +558,14 @@ STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([
 PRIORITY_LINE = re.compile(
     r"(?i)^\s*[-*]?\s*(?:[^;\n]*;)*\s*[*_`]*priority[*_`]*\s*[:=]\s*[*_`]*\s*([a-z0-9-]*)"
 )
+# A milestone assignment takes the same two placement forms as `priority:` --
+# its own field line or a `;`-separated one -- plus the bold
+# `**Milestone:** M-x` label a member's ladder used. The value is the ladder's
+# own free-form `M-<slug>` id, so unlike `priority:` there is no closed set to
+# validate it against; only its presence is counted.
+MILESTONE_LINE = re.compile(
+    r"(?i)^\s*[-*]?\s*(?:[^;\n]*;)*\s*[*_`]*milestone[*_`]*\s*[:=]\s*[*_`]*\s*[A-Za-z0-9._-]*"
+)
 # The roadmap's closed triage set (sprint: closed priority order).
 BOARD_PRIORITIES = frozenset(
     {"correctness", "architecture", "verification", "feature", "tightening"}
@@ -608,6 +617,7 @@ def _items_in(lines: list[str]) -> list[dict]:
                 "status": _status_word(split[1]) if split else None,
                 "priority": False,
                 "priority_value": None,
+                "milestone": False,
                 "basis": False,
             }
             items.append(current)
@@ -619,6 +629,7 @@ def _items_in(lines: list[str]) -> list[dict]:
             if priority and current["priority_value"] is None:
                 current["priority_value"] = priority.group(1)
             current["priority"] = current["priority"] or priority is not None
+            current["milestone"] = current["milestone"] or bool(MILESTONE_LINE.match(line))
             current["basis"] = current["basis"] or bool(BASIS_LINE.match(line))
         if line.strip():
             prev = line
@@ -631,15 +642,44 @@ def board_items(repo: pathlib.Path) -> list[dict]:
     return _items_in(expand_board_lines(board)) if board is not None else []
 
 
+def milestone_ladder(repo: pathlib.Path) -> pathlib.Path | None:
+    """`repo`'s `backlog/<milestones>.md` ladder, if it carries one.
+
+    The ladder is what makes a `milestone:` assignment meaningful, so the
+    absence count is gated on it: a repository with no ladder has nothing to
+    assign its items to and counts nothing.
+    """
+    if not repo.is_dir():
+        return None
+    backlog = next(
+        (p for p in sorted(repo.iterdir()) if p.is_dir() and p.name.lower() == "backlog"),
+        None,
+    )
+    if backlog is None:
+        return None
+    return next(
+        (
+            p
+            for p in sorted(backlog.iterdir())
+            if p.is_file() and p.name.lower() == MILESTONE_LADDER_FILE
+        ),
+        None,
+    )
+
+
 def board_schema_counts(repo: pathlib.Path) -> dict[str, int]:
     """Schema defects on `repo`'s board, one count per conformance class."""
     items = board_items(repo)
+    has_ladder = milestone_ladder(repo) is not None
     return {
         "board_items_outside_status_set": sum(
             1 for item in items if item["status"] not in BOARD_STATUSES
         ),
         "board_items_without_anchor": sum(1 for item in items if item["anchor"] is None),
         "board_items_without_priority": sum(1 for item in items if not item["priority"]),
+        "board_items_without_milestone": (
+            sum(1 for item in items if not item["milestone"]) if has_ladder else 0
+        ),
         "board_checklist_files": int(_root_file(repo, "checklist.md") is not None),
     }
 

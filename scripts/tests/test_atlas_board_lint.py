@@ -545,6 +545,7 @@ class BoardSchemaTestCase(unittest.TestCase):
                 "board_items_outside_status_set": 1,
                 "board_items_without_anchor": 1,
                 "board_items_without_priority": 1,
+                "board_items_without_milestone": 0,
                 "board_checklist_files": 0,
             },
         )
@@ -576,6 +577,56 @@ class BoardSchemaTestCase(unittest.TestCase):
         self.assertEqual(counts["board_items_without_priority"], 1)
         self.assertEqual(counts["board_items_outside_status_set"], 0)
 
+    def test_a_milestone_counts_only_where_a_ladder_exists(self) -> None:
+        """Both field spellings land; an item with neither is the one count."""
+        (self.repo / "backlog.md").write_text(
+            '<a id="ATLAS-M-001"></a>\n'
+            "## ATLAS-M-001 - field on its own line\n"
+            "- priority: feature\n"
+            "- milestone: M-1.0\n"
+            '<a id="ATLAS-M-002"></a>\n'
+            "## ATLAS-M-002 - bold label\n"
+            "- **Milestone:** M-1.0\n"
+            "- priority: feature\n"
+            '<a id="ATLAS-M-003"></a>\n'
+            "## ATLAS-M-003 - no milestone anywhere\n"
+            "- priority: feature\n",
+            encoding="utf-8",
+        )
+        # No ladder file yet: a repository with nothing to assign to counts 0.
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo)["board_items_without_milestone"], 0
+        )
+
+        ladder = self.repo / "backlog"
+        ladder.mkdir()
+        (ladder / "milestones.md").write_text(
+            "## M-1.0 — Release one — exit: cargo test\n", encoding="utf-8"
+        )
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo)["board_items_without_milestone"], 1
+        )
+
+    def test_a_milestone_on_a_shared_field_line_counts(self) -> None:
+        """`- Status: todo; milestone: M-x` carries it; prose does not."""
+        (self.repo / "backlog").mkdir()
+        (self.repo / "backlog" / "milestones.md").write_text(
+            "## M-1.0 — Release one — exit: cargo test\n", encoding="utf-8"
+        )
+        (self.repo / "backlog.md").write_text(
+            '<a id="ATLAS-M-010"></a>\n'
+            "## ATLAS-M-010 - inline fields\n"
+            "- Status: todo; priority: feature; milestone: M-1.0\n"
+            '<a id="ATLAS-M-011"></a>\n'
+            "## ATLAS-M-011 - prose mentions the word\n"
+            "- priority: feature\n"
+            "- outcome: assign a milestone: once the ladder lands\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo)["board_items_without_milestone"], 1
+        )
+
     def test_a_missing_status_and_a_checklist_count(self) -> None:
         (self.repo / "backlog.md").write_text(
             "### ATLAS-B-001 - no status anywhere\n", encoding="utf-8"
@@ -592,6 +643,7 @@ class BoardSchemaTestCase(unittest.TestCase):
                 "board_items_outside_status_set": 0,
                 "board_items_without_anchor": 0,
                 "board_items_without_priority": 0,
+                "board_items_without_milestone": 0,
                 "board_checklist_files": 0,
             },
         )
@@ -671,6 +723,7 @@ class BoardLadderTestCase(unittest.TestCase):
                 "board_items_outside_status_set": 0,
                 "board_items_without_anchor": 0,
                 "board_items_without_priority": 0,
+                "board_items_without_milestone": 0,
                 "board_checklist_files": 0,
             },
         )
