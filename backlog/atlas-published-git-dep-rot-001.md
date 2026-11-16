@@ -1,6 +1,5 @@
 <a id="atlas-published-git-dep-rot-001"></a>
 ## ATLAS-PUBLISHED-GIT-DEP-ROT-001 — Published members carry floating git deps that rot every fresh resolution [arch] — todo
-
 - priority: correctness; scope: every member whose manifest carries `git+version` first-party deps (leto, apollo, gaia, athena, kwavers per their manifests); the overlay generator (`[patch.crates-io]` emission); one ADR recording the convention change
 - outcome: a fresh resolution of any published member's tarball (and of any consumer's git edge onto a member's main) compiles coherently forever, because first-party requirements name registry versions, not floating git branches.
 - evidence (basis 2026-10-05): apollo's pending-publish run 37275972653 fails at the plan's tarball verification through `apollo-fft -> apollo-leto-interop -> leto`: leto's fresh resolution hits `stencil.rs` E0599 (`in_unit` / `T: UnitScalar`) because leto's manifest deps are `git+version` (aequitas, eunomia, moirai, mnemosyne, themis) and float to upstream mains that are dev-ahead of the API leto's code expects. The same rot made the 0.43.1 registry baseline unbuildable (ATLAS-SEMVER-BASELINE-ROT, PR #489) — that class is now baked into published artifacts: leto 0.45.0's tarball carries the same floating manifest, so every downstream fresh resolution of it breaks the same way.

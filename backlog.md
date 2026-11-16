@@ -139,3 +139,5 @@
 <a id="atlas-semver-nightly-pin-sources"></a>- [ATLAS-SEMVER-NIGHTLY-PIN-SOURCES](backlog/atlas-semver-nightly-pin-sources.md) — The SemVer rustdoc nightly pin is written in four files [patch] — todo
 <a id="atlas-semver-pr-step-bounds"></a>- [ATLAS-SEMVER-PR-STEP-BOUNDS](backlog/atlas-semver-pr-step-bounds.md) — The `semver-pr` job's `tool` and `atlas` steps carry no bound and its job bound has no derivation [patch] — todo
 <a id="atlas-semver-pr-test-import-bound"></a>- [ATLAS-SEMVER-PR-TEST-IMPORT-BOUND](backlog/atlas-semver-pr-test-import-bound.md) — The SemVer PR test's `tool_ready()` runs two commands at import with no deadline [patch] — todo
+<a id="atlas-cast-gate-cfg-clippy"></a>- [ATLAS-CAST-GATE-CFG-CLIPPY](backlog/atlas-cast-gate-cfg-clippy.md) — Code under `cfg(not(clippy))` is invisible to the cast gate [patch] — todo
+<a id="atlas-cast-gate-second-target"></a>- [ATLAS-CAST-GATE-SECOND-TARGET](backlog/atlas-cast-gate-second-target.md) — A second crate target can compile a registered cast module and the gate exits 0 [patch] — todo
