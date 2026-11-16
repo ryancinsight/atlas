@@ -274,7 +274,7 @@ fabricated evidence and must not be committed. The gap is tracked as
   (`ATLAS-PUB-006`). Nothing else in this ADR waits on it.
 
 - Eight duplicated crate-release workflows collapse to eight thin callers plus
-  one Atlas workflow; the 26 book callers share one Atlas workflow.
+  one Atlas workflow; the 25 book callers share one Atlas workflow.
 - A pipeline defect is fixed once. Adoption is explicit and auditable: each
   package's Atlas pin says which pipeline revision it runs.
 - Toolchain pins stay per package. The audit's 1.95.0/1.97.0/1.97.1 spread is
