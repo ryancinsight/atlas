@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Run Athena's algebraic-multigrid V-cycle on borrowed slices (athena
+  `a12a09f`), delivering the code half of
+  `ATLAS-ATHENA-AMG-VCYCLE-SLICES`. `athena-leto`'s
+  Athena `Preconditioner::apply` copied the residual view into an owned
+  `Array1`, ran the cycle, and copied the result back out, and carried a
+  cached `athena_boundary` buffer pair to do it; the cycle and its level
+  helpers only ever needed element slices. `v_cycle`, both smoothing
+  dispatches, and `sparse_apply_into` now take `&[T]` / `&mut [T]`, the
+  per-level workspace holds plain `Vec`s, and the seam hands the caller's
+  views straight through, so a preconditioner application makes no copy in or
+  out and the boundary cache is deleted. Each smoother keeps one sweep kernel
+  with its public owned `apply` as a thin adapter, so no public signature
+  moves and the change stays patch-scoped. Equivalence is pinned by the
+  pre-change cycle's digest on a three-level SPD fixture plus an
+  adapter-versus-kernel sweep oracle; no wall-clock win is claimed, because
+  the two removed passes were `O(n)` beside the cycle's `O(nnz)` sweeps.
+  Athena's workspace suite, `cargo clippy -D warnings`, and `cargo fmt
+  --check` pass. The gitlink advance awaits the member commit reaching the
+  Athena default branch.
+
 - Widen every registered consumer's `leto` / `leto-ops` requirement to admit
   the 0.48 provider line: apollo, ares, athena, CFDrs, coeus, gaia, helios,
   hephaestus, kwavers, prometheus and ritk now unify with the local Leto 0.48.0
