@@ -3,8 +3,8 @@
 <a id="board-headroom"></a>
 ## Finding 2026-11-15: the atlas board has no headroom for a new item
 
-Risk: `backlog.md` plus `backlog/*.md` hold 999 of the 1000-line budget, so the ratchet refuses any new board item (the smallest item file is 3 lines, plus 1 index line), and filings must amend existing items.
-Evidence: on an export of origin/main 1590ab87f, `atlas-artifact-budget.py check` was within budget at 998 lines; adding a 7-line item reported "1006 lines, 6 over the 1000-line budget". `atlas-board-compact.py --dry-run` reports 141 items, 0 would delete; all 141 index lines are `todo` or `blocked`. Atlas PR #714 amends ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30 instead (999 lines).
+Risk: `backlog.md` plus `backlog/*.md` hold 999 of the 1000-line budget (1000 at c10ec6f55), so the ratchet refuses any new board item (the smallest item file is 3 lines, plus 1 index line), and filings must amend existing items.
+Evidence: on an export of origin/main 1590ab87f, `atlas-artifact-budget.py check` was within budget at 998 lines; adding a 7-line item reported "1006 lines, 6 over the 1000-line budget". `atlas-board-compact.py --dry-run` reports 141 items, 0 would delete; all 141 index lines are `todo` or `blocked`. Atlas PR #714 amends ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30 instead (999 lines). A later filing sweep (ATLAS-ARTIFACT-BUDGET-VACUOUS-ROOT, ATLAS-EXPORT-TREE-FRESHNESS-RESIDUALS) folded three sibling pairs of items into one item each to stay within 1000.
 Fix direction: consolidate overlapping items or deliver and delete items so a filing sweep can add items; no budget raise.
 Re-open trigger: a delivery or compaction that leaves the board at 990 lines or fewer, or a second filing refused by the budget.
 
