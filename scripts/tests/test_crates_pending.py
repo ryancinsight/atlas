@@ -819,7 +819,7 @@ class ActionScriptTests(unittest.TestCase):
             "command": {"required": True},
             "packages": {"required": False, "default": ""},
             "owner": {"required": False, "default": "ryancinsight"}, "cohort-json": {"required": False, "default": ""},
-            "tag-prefix": {"required": False, "default": "crate-"},
+            "tag-prefix": {"required": False, "default": ""},
             "publish-outcome": {"required": False, "default": ""}})
         self.assertEqual(strip(action["outputs"]), {
             "packages": {"value": "${{ steps.run.outputs.packages }}"},
