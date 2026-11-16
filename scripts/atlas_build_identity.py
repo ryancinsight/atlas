@@ -65,6 +65,7 @@ from atlas_build_stale_packages import (
 from atlas_build_stamps import (
     BuildDirectory,
     _git_names,
+    _interrupted_git,
     _stale_git,
     _unstamped_git,
     _write_git_stamps,
@@ -567,7 +568,8 @@ def _run_build(
         rebuilt: frozenset[str] = frozenset()
         # Packages an earlier run of this identity cleaned and was killed
         # while rebuilding: held exclusive and discovered afresh like the
-        # cleaned ones, but not cleaned again. A stale Git stamp still cleans.
+        # cleaned ones, but not cleaned again. A Git stamp naming other
+        # content still cleans; the building sentinel resumes.
         resumed: frozenset[str] = frozenset()
         targets: frozenset[str] = frozenset()
         owned: dict[str, frozenset[str]] = {}
@@ -575,8 +577,15 @@ def _run_build(
         marked: frozenset[str] = frozenset()
         custom_clean = False
         if any(stale.values()):
+            # A stamp naming other content vetoes a resume; the building
+            # sentinel does not. The writer mark's run identity digests the
+            # checkout's content, so a mark of this identity names artifacts
+            # built from this content.
             marked = resumable(directory, held, writer_identity) - frozenset().union(
-                *(state.stale_git for state in states.values())
+                *(
+                    state.stale_git - _interrupted_git(inputs[package][0], directory)
+                    for package, state in states.items()
+                )
             )
             if clean_command is not None:
                 # Opaque, so it may have cleaned everything it held; only the
@@ -695,7 +704,7 @@ def _run_build(
             mark_broad_clean(directory, held, writer_identity)
             _run_checked(clean_command, execution_root, environment)
         for package, (dependencies, _) in inputs.items():
-            git_built[package] |= set(targets) & _git_names(dependencies)
+            git_built[package] |= (set(targets) | resumed) & _git_names(dependencies)
             _write_git_stamps(dependencies, directory, git_built[package], building=True)
         # One invocation for every package's targets: each `cargo clean` walks
         # the entire shared target whatever it deletes, so one call per

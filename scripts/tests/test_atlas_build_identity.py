@@ -2262,34 +2262,151 @@ class BuildIdentityTestCase(unittest.TestCase):
         )
         self.assertEqual(self.stamped(revision), "stable-content")
 
-    def test_a_failed_command_leaves_its_git_packages_stale(self) -> None:
-        # A run that cleans `dep` and fails after Cargo rebuilt it leaves
-        # the target holding what it built; the stamp must not keep naming
-        # the content the old artifacts were built from.
+    def stale_git_build(self) -> tuple[str, dict[str, object]]:
+        """A completed build of `demo` whose `dep` stamp then names other content."""
         init_repo(self.root, "fn main() {}\n")
         revision = git(self.root, "rev-parse", "HEAD")
+        snapshot = self.path_and_git_snapshot(revision)
         (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
-        self.dependency_build("first", discover=True, snapshot=self.path_and_git_snapshot(revision))
+        self.dependency_build("first", discover=True, snapshot=snapshot)
         self.git_stamp(revision).write_text('{"content_digest": "edited-content"}', encoding="utf-8")
-        run_checked = identity._run_checked
+        return revision, snapshot
 
-        def failing(command, cwd, environment):
-            if cleaned_names(command) is not None:
-                return
-            if str(self.build_script) in command:
-                raise identity.IdentityError("command failed with exit code 1")
-            run_checked(command, cwd, environment)
-
-        with patch.object(identity, "_run_checked", side_effect=failing):
-            with self.assertRaises(identity.IdentityError):
-                self.dependency_build(
-                    "first", discover=True, clean=False, snapshot=self.path_and_git_snapshot(revision)
-                )
+    def test_a_rerun_after_a_killed_command_resumes_the_git_package_marked_building(self) -> None:
+        # The run cleaned `dep` and was killed while Cargo rebuilt it: its
+        # stamp names no content and its writer mark carries this run's
+        # identity, which digests the checkout's content. Cleaning again
+        # discarded every unit the killed run finished, so a cold build
+        # longer than the supervisor deadline never completed.
+        revision, snapshot = self.stale_git_build()
+        self.assertEqual(self.killed_run("first", snapshot=snapshot), ["dep"])
         self.assertEqual(self.stamped(revision), build_stamps._BUILDING)
+
+        plan, cleaned = self.cleanup_decision("first", snapshot=snapshot)
+
+        self.assertEqual((cleaned, plan["clean"], plan["resume"]), ([], [], ["dep"]))
+        self.assertEqual(plan["packages"]["demo"]["stale_git"], ["dep"])
+        self.assertEqual(self.stamped(revision), "stable-content")
         self.assertEqual(
-            self.cleaned_packages("first", snapshot=self.path_and_git_snapshot(revision)), ["dep"]
+            self.cleaned_packages("first", snapshot=snapshot), [],
+            "the resumed run records its content, so the next run matches",
+        )
+
+    def test_a_git_stamp_naming_other_content_cleans_despite_a_matching_mark(self) -> None:
+        revision, snapshot = self.stale_git_build()
+        self.killed_run("first", snapshot=snapshot)
+        self.git_stamp(revision).write_text('{"content_digest": "edited-content"}', encoding="utf-8")
+
+        plan, cleaned = self.cleanup_decision("first", snapshot=snapshot)
+
+        self.assertEqual((cleaned, plan["clean"], plan["resume"]), (["dep"], ["dep"], []))
+        self.assertEqual(self.stamped(revision), "stable-content")
+
+    def test_a_git_package_whose_run_died_inside_its_clean_cleans_again(self) -> None:
+        _, snapshot = self.stale_git_build()
+        self.assertEqual(self.killed_run("first", in_clean=True, snapshot=snapshot), [])
+
+        plan, cleaned = self.cleanup_decision("first", snapshot=snapshot)
+
+        self.assertEqual((cleaned, plan["clean"], plan["resume"]), (["dep"], ["dep"], []))
+
+    def test_a_git_package_marked_by_another_run_identity_cleans(self) -> None:
+        revision, snapshot = self.stale_git_build()
+        self.killed_run("first", snapshot=snapshot)
+        changed = self.path_and_git_snapshot(
+            self.commit_source_change("fn main() { changed(); }\n", "change source")
+        )
+
+        plan, cleaned = self.cleanup_decision("second", snapshot=changed)
+
+        self.assertEqual(
+            (cleaned, plan["clean"], plan["resume"]), (["demo", "dep"], ["demo", "dep"], [])
         )
         self.assertEqual(self.stamped(revision), "stable-content")
+
+    def test_a_write_to_a_git_package_after_the_kill_cleans_it(self) -> None:
+        # A peer without a lease rebuilt `dep` after the killed run's last
+        # heartbeat, so its units are no longer that run's progress.
+        _, snapshot = self.stale_git_build()
+        self.killed_run("first", snapshot=snapshot)
+        time.sleep(0.05)
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"peer")
+
+        plan, cleaned = self.cleanup_decision("first", snapshot=snapshot)
+
+        self.assertEqual((cleaned, plan["clean"], plan["resume"]), (["dep"], ["dep"], []))
+
+    def test_an_unstamped_git_package_killed_on_first_sight_has_no_mark_and_cleans(self) -> None:
+        # The first run trusts an unstamped package and stamps it building
+        # without cleaning or marking it: nothing vouches for what it holds.
+        init_repo(self.root, "fn main() {}\n")
+        revision = git(self.root, "rev-parse", "HEAD")
+        snapshot = self.path_and_git_snapshot(revision)
+        (self.artifact.parent / "libdep-0ecdeded.rlib").write_bytes(b"dependency")
+        self.assertEqual(self.killed_run("first", snapshot=snapshot), ["demo"])
+        self.assertEqual(self.stamped(revision), build_stamps._BUILDING)
+        self.assertFalse(writers.writer_path(self.writer_directory(), "dep").exists())
+
+        plan, cleaned = self.cleanup_decision("first", snapshot=snapshot)
+
+        self.assertEqual((cleaned, plan["clean"], plan["resume"]), (["dep"], ["dep"], ["demo"]))
+
+    def test_the_run_identity_changes_with_a_git_package_content_digest(self) -> None:
+        init_repo(self.root, "fn main() {}\n")
+        git_root = self.base / "git-dep"
+        (git_root / "src").mkdir(parents=True)
+        (git_root / "Cargo.toml").write_text(
+            '[package]\nname = "dep"\nversion = "0.1.0"\n', encoding="utf-8"
+        )
+        source = git_root / "src" / "lib.rs"
+        source.write_text("pub fn value() -> u8 { 1 }\n", encoding="utf-8")
+        metadata = {
+            "packages": [
+                {
+                    "id": "root 0.1.0", "name": "demo", "version": "0.1.0", "source": None,
+                    "manifest_path": str((self.root / "Cargo.toml").resolve()),
+                },
+                {
+                    "id": "git dep", "name": "dep", "version": "0.1.0",
+                    "source": "git+https://example.invalid/dep#0123456789abcdef",
+                    "manifest_path": str((git_root / "Cargo.toml").resolve()),
+                },
+            ],
+            "workspace_members": ["root 0.1.0"],
+            "resolve": {
+                "nodes": [
+                    {"id": "root 0.1.0", "deps": [{"pkg": "git dep", "dep_kinds": []}]},
+                    {"id": "git dep", "deps": []},
+                ]
+            },
+        }
+
+        def snapshot() -> dict[str, object]:
+            return build_snapshot.dependency_snapshot(
+                metadata, self.root / "Cargo.toml", "demo",
+                lambda path: {"root": path.as_posix(), "revision": "a"},
+                package_source.package_source_digest,
+            )
+
+        spec = build_records.BuildSpec(
+            source=build_source.SourceIdentity("root", "revision", "tree", False),
+            package="demo", profile="debug", target="host", features="default",
+            toolchain="stable", target_dir=str(self.target), command_key="clippy",
+            selection="demo", environment_digest="environment",
+            cargo_config_digest="configuration", dependency_digest="dependencies",
+        )
+        first = snapshot()
+        source.write_text("pub fn value() -> u8 { 2 }\n", encoding="utf-8")
+        second = snapshot()
+
+        self.assertEqual(
+            [package["kind"] for package in first["packages"] if package["name"] == "dep"], ["git"]
+        )
+        self.assertNotEqual(first["digest"], second["digest"])
+        self.assertNotEqual(
+            writers.run_identity(spec, {"demo": first["digest"]}),
+            writers.run_identity(spec, {"demo": second["digest"]}),
+        )
 
     def test_a_custom_clean_still_cleans_the_stale_git_packages(self) -> None:
         # A caller's clean command is opaque: the stale Git package is
@@ -2413,7 +2530,12 @@ class BuildIdentityTestCase(unittest.TestCase):
         self.assertEqual(third.status, "reused")
         self.assertFalse(third.cleaned)
 
-    def killed_run(self, source_token: str, in_clean: bool = False) -> list[str]:
+    def killed_run(
+        self,
+        source_token: str,
+        in_clean: bool = False,
+        snapshot: dict[str, object] | None = None,
+    ) -> list[str]:
         """A run the supervisor kills: `cargo clean` is recorded, then the build command dies.
 
         With `in_clean` the kill lands inside the clean instead.
@@ -2433,7 +2555,9 @@ class BuildIdentityTestCase(unittest.TestCase):
 
         with patch.object(identity, "_run_checked", side_effect=killing):
             with self.assertRaises(identity.IdentityError):
-                self.dependency_build(source_token, discover=True, clean=False)
+                self.dependency_build(
+                    source_token, discover=True, clean=False, snapshot=snapshot
+                )
         return sorted(cleaned)
 
     def killed_after_source_change(self) -> None:
