@@ -3,58 +3,10 @@
 <a id="board-headroom"></a>
 ## Finding 2026-11-15: the atlas board has no headroom for a new item
 
-Risk: `backlog.md` plus `backlog/*.md` hold 999 of the 1000-line budget (1000 at c10ec6f55), so the ratchet refuses any new board item (the smallest item file is 3 lines, plus 1 index line), and filings must amend existing items.
-Evidence: on an export of origin/main 1590ab87f, `atlas-artifact-budget.py check` was within budget at 998 lines; adding a 7-line item reported "1006 lines, 6 over the 1000-line budget". `atlas-board-compact.py --dry-run` reports 141 items, 0 would delete; all 141 index lines are `todo` or `blocked`. Atlas PR #714 amends ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30 instead (999 lines). A later filing sweep (ATLAS-ARTIFACT-BUDGET-VACUOUS-ROOT, ATLAS-EXPORT-TREE-FRESHNESS-RESIDUALS) folded three sibling pairs of items into one item each to stay within 1000.
-Fix direction: consolidate overlapping items or deliver and delete items so a filing sweep can add items; no budget raise.
-Re-open trigger: a delivery or compaction that leaves the board at 990 lines or fewer, or a second filing refused by the budget.
-
-<a id="safety-ratchet-name"></a>
-## Finding 2026-11-16: the member pre-push hook never runs mnemosyne's SAFETY ratchet
-
-Risk: `scripts/git-hooks/pre-push` (lines 2157-2164) runs `scripts/safety_ratchet.py` only; mnemosyne's ratchet is `scripts/safety_comment_scan.py`, so a push with an undocumented `unsafe {` passes the hook and fails CI, a locally catchable failure. Its `is_production` (lines 31-39) also counts `#[cfg(test)]` modules named `tests_*.rs` (`segment/tests_huge_pool.rs`, `tests_telemetry.rs`) as production.
-Evidence: origin/main 4da788a11e7c; apollo is the only other member with a SAFETY script and uses the hook's name; mnemosyne's `ci.yml` line 146 is its only caller (`git grep safety_comment_scan` over its hooks finds none). Found by the judge of Mnemosyne#266 (F1); file facts read, a failing push not reproduced.
-Catching check: a hook test in `scripts/tests/test_atlas_pre_push_gate.py` where a fixture member whose only ratchet is `scripts/safety_comment_scan.py` and whose range adds an uncommented `unsafe {` is refused and the commented range passes; in mnemosyne a `#[cfg(test)]`-mounted `tests_<x>.rs` holding an uncommented `unsafe {` leaves the site count unchanged. Fix: rename mnemosyne's script to the stack's name.
-Re-open trigger: the board has headroom (`backlog.md` at 990 lines or fewer) and the finding files as `ATLAS-HOOK-SAFETY-RATCHET-NAME` [verification] [patch], or a second member names its ratchet differently.
-
-<a id="cast-check-outside-hook"></a>
-## Finding 2026-11-16: the cast `check` verdict runs only in the pre-push hook
-
-Risk: a bare `as` cast on a line a member PR adds is judged only by `scripts/git-hooks/pre-push`, so a rescue push (secret scan only) or a merge that bypassed the hook is never judged.
-Evidence: origin/main 4da788a11e7c; `atlas_cast_gate.py check` has one caller, `run_cast_check` (`pre-push` lines 1557-1561, 2462); the only CI step naming the gate is `atlas-conformance.yml` lines 176-185 (`ratchet`, atlas itself); a `git grep -i -E 'cast_gate|as_conversions|cast-gate'` over `.github` of gaia, hermes, mnemosyne and apollo at their origin/main finds nothing. Found by the judge of gaia#223 (F4).
-Catching check: a stack-owned reusable workflow step runs `check` over a member PR's range, tested by a fixture PR that adds a bare `as` line (fails) against the unmodified range (passes); or a decision record defers the rescue path with its first completing check. Judge call: a clippy run per member PR against the five-minute target versus the deferral.
-Re-open trigger: the board has headroom and the finding files as `ATLAS-CAST-CHECK-MEMBER-CI` [verification] [patch] beside `ATLAS-CAST-GATE-STANDALONE-OWNERS-CALLER`, or a cast lands on a member default branch past the hook.
-
-<a id="hook-lock-bump-scope"></a>
-## Finding 2026-11-16: a provider bump gates every workspace member past the hook deadline
-
-Risk: a changed root `Cargo.toml` selects every workspace package, so a provider requirement bump with its `Cargo.lock` gates all members and the hook runs past its 600 s deadline.
-Evidence: origin/main 4da788a11e7c, `scripts/git-hooks/pre-push` lines 1482-1491; hephaestus (9 crates) provider-bump pushes (leto 0.49 in #542 and #545, leto 0.50 in #551 and #552) each gated all nine and ran past 600 s twice, per the pushing agents (clippy 93 s, tests about 346 s, cold rustdoc; not reproduced here). `ATLAS-HOOK-NEXTEST-CONFIG-OWNER` second clause asks that a `Cargo.lock`-only push gate every member, so the two edits share one selection rule.
-Catching check: a three-member virtual-workspace fixture in `scripts/tests/test_atlas_pre_push_gate.py` where one member depends on the bumped provider: a root requirement plus `Cargo.lock` push records `-p` calls for that member and its reverse dependencies and none for the other two, a member's own `Cargo.toml` change selects it, and a toolchain or profile change selects all; derive the closure from `cargo metadata --locked` at base and tip.
-Re-open trigger: the board has headroom and the finding files as `ATLAS-HOOK-LOCK-BUMP-SCOPE` [tightening] [patch] (settle the shared rule with the NEXTEST-CONFIG-OWNER clause first), or a third bump push runs past 600 s.
-
-<a id="standalone-stage-ci-claim"></a>
-## Finding 2026-11-16: the standalone-crate stage says CI builds crates no CI job builds
-
-Risk: `scripts/git-hooks/pre-push` line 1615 prints "lockfile and formatting checked; CI builds it" for every standalone manifest, so a pusher trusts a build that does not run and the crate rots behind a green push.
-Evidence: origin/main 4da788a11e7c; gaia has `fuzz/Cargo.toml` and a `git grep -i fuzz` over its `.github` at origin/main finds no workflow naming it. Found by the verdict on gaia#225 (F9); `ATLAS-STANDALONE-CRATES-BUILD` shows the same class.
-Catching check: in `scripts/tests/test_atlas_pre_push_gate.py`, a fixture member with a standalone `fuzz/Cargo.toml` and no workflow naming it prints no "CI builds it" for that manifest, and one whose workflow runs `cargo build --manifest-path fuzz/Cargo.toml` may; the smaller fix drops the clause.
-Re-open trigger: the board has headroom and the finding files as `ATLAS-HOOK-STANDALONE-STAGE-CLAIM` [verification] [patch], or the message is next edited.
-
-<a id="hermes-baseline-rows"></a>
-## Finding 2026-11-16: the hermes conformance rows sit above the counts the member measures
-
-Risk: `scripts/conformance-baseline.json` holds hermes `crate_level_allows` 1 and `manifest_implementation` 11, so the ratchet tolerates regrowth to those counts.
-Evidence: `scripts/atlas-conformance.py --repo hermes --member-path repos/hermes --member-revision 89ec519792e7739e957e7e1a750be740a3f62507` run from an origin/main (4da788a11e7c) export, with a one-commit meta repository holding that gitlink, measures 0 and 3; the other classes that differ (`target_forks`, `cache_retention_policy_missing`, `unresolved_references`) come from the live checkout and the one-commit meta repository, not the member.
-Catching check: `atlas-conformance.py generate` (never by hand) at the revision the same change's gitlink records, since a lowered row fails `check` at an older pin; `check` then prints no tightening for those two classes and a test that re-adds a crate-level allow to a hermes export fails.
-Re-open trigger: the board has headroom and the finding files as `ATLAS-CONFORMANCE-HERMES-ROWS` [tightening] [patch], or the hermes gitlink advances.
-
-<a id="member-board-schema"></a>
-## Finding 2026-11-16: fifteen member boards fail the board schema the stack lint enforces
-
-Risk: `scripts/atlas-board-lint.py --file <board>` rejects a status outside {todo, blocked} and a priority outside the closed set, so wiring it into member checks refuses every first board edit of fifteen members, while the conformance baseline counts the status class (`board_items_outside_status_set`) but only a missing priority (`board_items_without_priority`), never a priority value outside the closed set (atlas-board-lint.py:608,629): metis's 22 and CFDrs's 8 violations measure 0 in both classes.
-Evidence: lint from origin/main 4da788a11e7c on `backlog.md` of each of 28 members at its fetched default branch (item directories absent from the export, so counts are a lower bound): hephaestus (`master`) 4, CFDrs 8, apollo 1, asclepius 1, eunomia 6, gaia 5 (priority `P1`, GAIA-017 to GAIA-021), harmonia 2, hermes 2 (status `in-progress`), horae 14, hyperion 8, iris 11, leto 2, metis 22, mnemosyne 2, tyche 8; the other thirteen are clean. Gaia and hermes first reported in a judge verdict on the lint's schema check.
-Catching check: the command exits 0 on a full checkout of each member's board; an item with status `in-progress` or priority `P1` added to a clean member fails it. Convert one member per pull request in count order; do not add the lint to member CI before the counts reach zero.
-Re-open trigger: the board has headroom and the finding files as `ATLAS-MEMBER-BOARD-SCHEMA` [verification] [patch], or the lint is wired into a member check.
+Risk: `backlog.md` plus `backlog/*.md` hold 993 of the 1000-line budget after the 2026-11-16b filing sweep (948 at origin/main a74897f8c4b3, 999 on 2026-11-15), so the ratchet admits one more item of the smallest size (3 lines plus 1 index line) and filings must amend existing items.
+Evidence: the sweep dropped seven findings of this file, six promoted to items (ATLAS-HOOK-SAFETY-RATCHET-NAME, ATLAS-CAST-CHECK-MEMBER-CI, ATLAS-HOOK-PROVIDER-BUMP-GATE, ATLAS-CONFORMANCE-LANDED-ROWS, ATLAS-MEMBER-BOARD-SCHEMA, ATLAS-HOOK-COMMIT-MSG) and one folded into ATLAS-STANDALONE-CRATES-BUILD, and filed two more (ATLAS-TEST-MAINTENANCE-RACE, ATLAS-HOOK-RELEASED-GATE-CHANGES), using 45 of the 52 free lines; `atlas-board-compact.py --dry-run` reports 141 items, 0 would delete. Remaining levers (judge /869): the 13 `ATLAS-REGISTRY-SLICE-*` items (about 95 lines, dependent slices of closed PR 587) and the four `ATLAS-SEMVER-*` follow-ups, which share one test module and pin sources.
+Fix direction: consolidate the registry slices and the SemVer follow-ups, or deliver and delete items, so a filing sweep can add items; no budget raise.
+Re-open trigger: a filing refused by the budget, or the slices' consolidation landing.
 
 <a id="leaseless-peer-write"></a>
 ## Finding 2026-11-13: a leaseless peer write reaches a gate record
@@ -451,15 +403,6 @@ Re-open trigger: the scan lands in the stack tooling, or a second occurrence is 
 ## Finding 2026-10-13: apollo rescue ref preserves a defect-masking test weakening
 
 Risk: `refs/rescue/apollo-scratch-order-isolation` (apollo checkout only, unpushed) preserves a hunk that renames the scratch-hook registry test and weakens its release-count assertion from an exact `assert_eq!` to `>= 1`; applying it would mask the thread-local hook leak instead of fixing it. Re-open trigger: the ref still exists; delete the ref and this finding together once its isolation hunk is confirmed landed on apollo main or obsolete against it.
-
-<a id="commit-msg-hook-absent"></a>
-## Finding 2026-11-10: no commit-msg hook is installed in the stack
-
-Risk: commit subjects over 50 characters, body lines over 72, unparseable trailers and agent commits without an `Agent:` trailer reach default branches, because nothing checks a message before it is pushed. Evidence: ryancinsight/kwavers#961 landed two 52-character subjects; `scripts/git-hooks/` at `origin/main` holds `pre-commit`, `pre-push` and `rescue-push` only, and `.git/atlas-hooks` has no `commit-msg`. On 2026-11-13 the code commit of the kwavers#1061 claim branch had a 53-character subject, accepted in a lane whose `.git/atlas-hooks` held no `commit-msg` hook.
-
-Catching check: a committed `scripts/git-hooks/commit-msg` (subject length and form, body width, literal `\n`, trailer parse, `Agent:` under a harness session variable; merge and `fixup!` commits exempt), installed by the stack setup path in every member, with the conformance scan asserting the installed hook path.
-
-Re-open trigger: a board line frees for the item, or a second over-length subject lands.
 
 <a id="fast-pytest-timeout-margin"></a>
 ## Finding 2026-11-10: the fast script-test job runs at its timeout
