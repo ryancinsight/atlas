@@ -128,7 +128,7 @@ def test_clippy_lints_every_target_against_the_lock(tmp_path):
         os.environ.get("CARGO") or "cargo", "clippy",
         "--manifest-path", str(tmp_path / "Cargo.toml"), "-p", "core", "-p", "ops",
         "--all-targets", "--locked", "--message-format=json",
-        "--", "--force-warn", "clippy::as_conversions",
+        "--", "--force-warn", "clippy::as_conversions", "--force-warn", "clippy::duplicate_mod",
     ]
 
 
@@ -2147,3 +2147,202 @@ def test_a_second_cast_module_for_one_crate_is_refused():
             Baseline.parse(text, "t")
     with pytest.raises(ValueError, match="one path per package"):
         Baseline.parse('{"cast_modules": {"m": {"prof": ["a.rs", "b.rs"]}}}', "t")
+
+
+LIB, MODULE = "crates/prof/src/lib.rs", "crates/prof/src/cast.rs"
+HOOK = ('pub fn hook(f: Option<unsafe extern "C" fn()>) -> *mut c_void {\n'
+        "    match f {\n        Some(f) => f as *mut c_void,\n"
+        "        None => core::ptr::null_mut(),\n    }\n}\n")
+CAST_MODULE = (
+    "//! The crate's one home for function-pointer casts.\n#![expect(\n"
+    "    clippy::as_conversions,\n"
+    '    reason = "a function pointer has no stable typed conversion to a data pointer"\n'
+    ")]\n\nuse core::ffi::c_void;\n\n" + HOOK.replace("hook", "address"))
+MOUNT = "mod cast;\n\npub use cast::address as hook;\n"
+CAST_MODULE_SITE = site("prof", MODULE, 11, 20)  # `Some(f) => f as *mut c_void,` in CAST_MODULE
+EXPECT = '#![expect(clippy::as_conversions, reason = "x")]\n'
+WIDEN = "macro_rules! widen {\n    ($e:expr) => {\n        $e as u64\n    };\n}\n"
+USES = "".join(f"\npub fn w{n}(x: u32) -> u64 {{\n    widen!(x)\n}}\n" for n in range(4))
+COPIES = "; one `as` there can compile to many casts the gate counts once"
+MACRO = "invokes or defines a macro" + COPIES
+GENERIC = "declares a generic item, a trait or an `impl Trait` type" + COPIES
+NO_REASON = "gives its `#![expect(...)]` no reason"
+NOT_CAST = "names a lint other than a cast lint, or none, in its `#![expect(...)]`"
+AFTER_ITEM = "places its `#![expect(...)]` after an item, so it does not scope the file"
+
+
+def cast_module_push(tmp_path, capsys, module, lib=MOUNT, found=(CAST_MODULE_SITE,), *, held=True,
+                     packages=("prof",), base_module=None, before=None, manifest=None):
+    """The gate's verdict when a member moves its fn-pointer cast into its cast module."""
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates/prof/src").mkdir(parents=True)
+    (repo / "crates/prof/Cargo.toml").write_text('[package]\nname = "prof"\n')
+    (repo / LIB).write_text("use core::ffi::c_void;\n\n" + HOOK)
+    if base_module is not None:
+        (repo / MODULE).write_text(base_module)
+    base = commit(repo, "base")
+    (repo / MODULE).write_text(module, encoding="utf-8")
+    (repo / LIB).write_text(lib)
+    if manifest:
+        (repo / "crates/prof/Cargo.toml").write_text(manifest)
+    tip = commit(repo, "tip")
+    rules, tip_sites, base_sites = (tmp_path / n for n in ("rules.json", "tip.json", "base.json"))
+    rules.write_text(json.dumps({"counts": {"m": {"prof": 9, "other": 9}},
+                                 "cast_modules": {"m": {"prof": MODULE}}}))
+    gate.write_sites(tip_sites, set(found))
+    gate.write_sites(base_sites, before or {site("prof", LIB, 5, 20)})
+    capsys.readouterr()
+    triggered = gate.main(["--baseline", str(rules), "base-triggers", "--repo", str(repo),
+                           "--base", base, "--tip", tip])
+    reasons = capsys.readouterr().out
+    status = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                        "--base", base, "--tip", tip, "--sites", str(tip_sites),
+                        *(arg for name in packages for arg in ("--package", name)),
+                        "--base-sites", str(base_sites), *(["--base-package", "prof"] * held)])
+    problems = [line.removeprefix("cast gate: ") for line in capsys.readouterr().err.splitlines()]
+    return (triggered, reasons), status, problems
+
+
+def faults(fault, *lines):
+    verb = "in" if fault.endswith(COPIES) else "added to"
+    return [f"{MODULE}:{line}: `as` cast {verb} prof's cast module, which {fault}"
+            for line in lines]
+
+
+def test_a_measured_member_moves_a_fn_pointer_cast_into_its_cast_module(tmp_path, capsys):
+    assert cast_module_push(tmp_path, capsys, CAST_MODULE) == (
+        (0, f"{MODULE} is a cast module\n"), 0, [])
+
+
+def test_a_cast_module_exempts_only_its_own_lines_under_a_base_count(tmp_path, capsys):
+    n = "pub fn n(x: u8) -> u32 { x as u32 }\n"
+    rise = "prof: 2 bare `as` casts, up from 1 at the pushed base"
+    assert cast_module_push(tmp_path / "o", capsys, CAST_MODULE, MOUNT + n, (
+        CAST_MODULE_SITE, site("prof", LIB, 4, 26)))[1:] == (
+        1, [f"{LIB}:4:26: bare `as` cast on a line this push adds", rise])
+    found = (CAST_MODULE_SITE, site("prof", MODULE, 15, 26))
+    assert cast_module_push(tmp_path / "a", capsys, CAST_MODULE + n, found=found)[1:] == (1, [rise])
+    assert cast_module_push(tmp_path / "b", capsys, CAST_MODULE, held=False)[1:] == (1, [
+        f"{MODULE}:11:20: `as` cast added to prof's cast module without a count at the "
+        "pushed base"])
+    assert cast_module_push(tmp_path / "c", capsys, CAST_MODULE, found=(
+        site("other", MODULE, 11, 20),), packages=("other",))[1:] == (
+        1, [f"{MODULE}:11:20: bare `as` cast on a line this push adds"])
+
+
+NOT_CAST_LINTS = (  # clippy 1.97.0 lints named `as_*` or `*_as_*` that are not cast lints
+    "char_indices_as_byte_indices manual_option_as_slice match_as_ref needless_as_bytes "
+    "needless_option_as_deref option_as_ref_cloned option_as_ref_deref redundant_as_str "
+    "sliced_string_as_bytes string_from_utf8_as_bytes string_lit_as_bytes suspicious_xor_used_as_pow"
+).split()
+WIRE = ("pub enum Kind {\n    A = 1,\n}\n\nimpl Kind {\n    pub const fn wire(self) -> u8 {\n"
+        "        if !(1 != 2) { 0 } else { self as u8 }\n    }\n}\n")
+HOLDS = "holds {} inner `#![expect(...)]` attributes, not one"
+
+
+@pytest.mark.parametrize(("text", "fault"), [
+    (CAST_MODULE + WIRE, None),
+    ("\ufeff/* L /* nested */ */\n/*! Docs. */\n#![allow(dead_code)]\n" + CAST_MODULE, None),
+    (CAST_MODULE.replace("clippy::as_conversions", "clippy::cast_possible_truncation,\n"
+                         "    clippy::fn_to_numeric_cast_any"), None),
+    (CAST_MODULE.replace('"a function', '"see https://example.org/x; a function'), None),
+    (HOOK, HOLDS.format(0)),
+    ("use core::ptr; // " + EXPECT + HOOK, HOLDS.format(0)),
+    ('#![doc = r#"' + EXPECT.strip() + '"#]\n' + HOOK, HOLDS.format(0)),
+    (CAST_MODULE + '# ![expect(clippy::match_as_ref, reason = "y")]\n', HOLDS.format(2)),
+    ('#![cfg_attr(all(), expect(clippy::match_as_ref, reason = "y"))]\n' + CAST_MODULE,
+     "carries `#[cfg_attr]`, not a built-in attribute it may use" + COPIES),
+    (CAST_MODULE.replace("    reason", "    // reason"), NO_REASON),
+    (CAST_MODULE.replace('"a function', '"  "//'), NO_REASON),
+    (CAST_MODULE.replace(")]\n", "\n"), "cannot be lexed (an unclosed attribute)" + COPIES),
+    (CAST_MODULE.replace("clippy::as_conversions,\n", ""), NOT_CAST),
+    (CAST_MODULE.replace("clippy::as_conversions", "dead_code"), NOT_CAST),
+    *[(CAST_MODULE.replace("clippy::as_conversions,", f"clippy::as_conversions, clippy::{lint},"),
+       NOT_CAST) for lint in NOT_CAST_LINTS],
+    ("use core::ffi::c_void;\n" + EXPECT + HOOK, AFTER_ITEM),
+    ("use core::ffi::c_void;\n\n" + HOOK.replace("{\n", "{\n    " + EXPECT, 1), AFTER_ITEM),
+])
+def test_a_cast_module_opens_with_one_expect_naming_cast_lints(tmp_path, capsys, text, fault):
+    found = (site("prof", MODULE, 1, 1),)  # line 1 is added in every shape
+    assert cast_module_push(tmp_path, capsys, text, found=found)[1:] == (
+        (0, []) if fault is None else (1, faults(fault, "1:1")))
+
+
+# The round-2 judge's witnesses, each with the sites clippy 1.97.0 reports for it.
+TYPED = ("macro_rules! each {\n    ($p:ident => $e:expr; $($name:ident: $t:ty),*) => {\n"
+         "        $(pub fn $name($p: $t) -> u64 { $e })*\n    };\n}\n\nmod cast;\n\n"
+         "pub use cast::{address as hook, w8, w16, w32};\n")
+HELPER = ("macro_rules! define {\n    ($rules:ident $name:ident $($body:tt)*) => {\n"
+          "        $rules! $name $($body)*\n    };\n}\n\n#[macro_use]\n" + MOUNT + USES)
+RAW_DOC = ('#![doc = r#"a"b"#]\n\nuse core::ffi::c_void;\n\n'
+           + HOOK.replace("pub fn hook", "pub fn address").replace(" {\n", ' { // "]\n    '
+                                                                    + EXPECT, 1)
+           + "\npub fn widen(x: u32) -> u64 {\n    x as u64\n}\n")
+
+
+MOUNTED = "shares its package with a file clippy finds mounted twice" + COPIES
+DUPLICATE = '#[expect(clippy::duplicate_mod, reason = "x")]\n'
+
+
+@pytest.mark.parametrize(("module", "lib", "lines", "fault"), [
+    (CAST_MODULE + "\ndefine!(macro_rules widen {\n    ($e:expr) => {\n        $e as u64\n"
+     "    };\n});\n", HELPER, ("11:20", "18:9"), MACRO),
+    (CAST_MODULE + "\nmacro_rules /* c */ ! widen {\n    ($e:expr) => {\n"
+     "        $e as u64\n    };\n}\n", "#[macro_use]\n" + MOUNT + USES, ("11:20", "18:9"), MACRO),
+    (CAST_MODULE + "\neach!(x => x as u64; w8: u8, w16: u16, w32: u32);\n", TYPED,
+     ("11:20", "16:12"), MACRO),
+    (CAST_MODULE + "\npub fn addr<T>(p: *const T) -> *const u8 {\n    p as *const u8\n}\n",
+     MOUNT, ("11:20", "17:5"), GENERIC),
+    (CAST_MODULE + "\npub fn w(x: impl Into<u32>) -> u64 {\n    x.into() as u64\n}\n",
+     MOUNT, ("11:20", "17:5"), GENERIC),
+    (CAST_MODULE + "\n#[duplicate_item(T; [u8]; [u16])]\npub fn w(x: T) -> u64 {\n"
+     "    x as u64\n}\n", MOUNT, ("11:20", "18:5"),
+     "carries `#[duplicate_item]`, not a built-in attribute it may use" + COPIES),
+    (CAST_MODULE, MOUNT + DUPLICATE + '#[path = "cast.rs"]\nmod again;\n', ("11:20",), MOUNTED),
+    (CAST_MODULE, "macro_rules! mount {\n    ($n:ident) => {\n        pub mod $n;\n    };\n}\n"
+     + MOUNT + DUPLICATE + '#[path = "."]\npub mod again {\n    mount!(cast);\n}\n', ("11:20",),
+     MOUNTED),
+    (RAW_DOC, "mod cast;\n\npub use cast::{address as hook, widen};\n", ("8:20", "14:5"),
+     AFTER_ITEM),
+])
+def test_one_cast_in_a_cast_module_never_passes_as_many(tmp_path, capsys, module, lib, lines,
+                                                        fault):
+    found = {site("prof", MODULE, *map(int, line.split(":"))) for line in lines}
+    if fault == MOUNTED:  # clippy's force-warned report of the second mount, as `sites` reads it
+        found |= gate.sites([message("id", LIB, 1, code="clippy::duplicate_mod")], tmp_path,
+                            {"id": "prof"})
+    before = {site("prof", LIB, line + 1) for line in range(len(lines))}  # the count holds
+    assert cast_module_push(tmp_path, capsys, module, lib, found, before=before)[1:] == (
+        1, faults(fault, *lines))
+
+
+SKIPPED = "\n#[rustfmt::skip]\npub fn w(x: u8) -> u64 {\n    x as u64\n}\n"
+REPEATED = "mod cast;\n\npub use cast::{address as hook, w8, w16, w32};\n"  # `skip` repeats `w`
+
+@pytest.mark.parametrize(("rebind", "lib", "manifest"), [  # each makes `skip` repeat `w`
+    ("use pm as rustfmt;\n", REPEATED, None),
+    ("extern crate pm as rustfmt;\n", REPEATED, None),
+    ("mod rustfmt {\n    pub use pm::skip;\n}\n", REPEATED, None),
+    ("", "extern crate pm as rustfmt;\n\n" + REPEATED, None),  # no `rustfmt` in the module file
+    ("", REPEATED, '[package]\nname = "prof"\n[dependencies]\n'
+                   'rustfmt = { package = "pm", path = "../pm" }\n'),
+])
+def test_a_path_attribute_never_passes_however_its_first_segment_is_rebound(
+        tmp_path, capsys, rebind, lib, manifest):
+    module = CAST_MODULE.replace("c_void;\n", "c_void;\n" + rebind) + SKIPPED
+    lines = f"{11 + (n := len(rebind.splitlines()))}:20", f"{18 + n}:5"  # 2 sites for 4 casts
+    found = {site("prof", MODULE, *map(int, line.split(":"))) for line in lines}
+    before = {site("prof", LIB, line + 1) for line in range(len(lines))}
+    assert cast_module_push(tmp_path, capsys, module, lib, found, before=before,
+                            manifest=manifest)[1:] == (1, faults(
+        "carries `#[rustfmt::skip]`, not a built-in attribute it may use" + COPIES, *lines))
+
+
+def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tmp_path, capsys):
+    # The module predates the push, which adds only uses: no module line is added.
+    module = CAST_MODULE + WIDEN
+    found = (CAST_MODULE_SITE, site("prof", MODULE, 17, 9))
+    assert cast_module_push(tmp_path, capsys, module, "#[macro_use]\n" + MOUNT + USES, found,
+                            held=False, base_module=module, before={CAST_MODULE_SITE})[1:] == (
+        1, faults(MACRO, "11:20", "17:9"))
