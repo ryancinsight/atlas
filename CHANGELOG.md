@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+- Flatten the circle FFT's twiddle levels (apollo `02b23135`, branch
+  `refactor/circle-flat-twiddles`), one site of `ATLAS-ARCH-008`. The circle
+  domain carried its `x` twiddles as one `Vec<u64>` per level in each
+  direction — a pointer table plus a heap block per level, and a transform
+  that followed one pointer per butterfly pass. Those four sites
+  (`apollo-ntt` `kernel/circle.rs` lines 70, 74, 142, 150) are now two
+  `LevelTwiddles`: one contiguous value buffer behind an ascending offset
+  table per direction, in a new leaf module `kernel/circle/twiddles.rs`, with
+  construction filling the flat buffer directly instead of a jagged
+  intermediate. Arithmetic, level order and twiddle values are unchanged — the
+  exact round-trip and basis-evaluation oracles pass untouched — and a new
+  structural test pins level count, per-level lengths (`N/4, N/8, …, 1`) and
+  the `N/2 − 1` value total for `n = 2^1..2^8`. `apollo-ntt`'s 38 tests, strict
+  clippy and fmt pass; the `circle` bench completes inside its 60 s budget
+  (19.8 s). No wall-clock win is claimed — no paired baseline was taken.
+  The census keeps listing those sites until the `repos/apollo` gitlink
+  advances, because `--pinned` reads the recorded revision.
+
+- Refuse non-finite direction inverses in `ritk-spatial` (ritk `cb6c91a7b`,
+  branch `fix/spatial-finite-inverse`), delivering the code half of
+  `ATLAS-RITK-SPATIAL-FINITE-INVERSE`. `Direction::try_inverse` rejected only a
+  pivot below `PIVOT_SINGULARITY_THRESHOLD`, so a NaN pivot made the comparison
+  false and the routine returned a NaN-filled matrix; arithmetic that overflowed
+  mid-elimination likewise surfaced as a plausible-looking inverse. It now
+  rejects a non-finite input entry up front and checks every pivot, normalized
+  row entry, and updated working/inverse entry as it is computed, with the
+  threshold and elimination order unchanged. `CartesianGridGeometry::new`
+  already maps `None` to `NonCartesianGrid::SingularDirection`, so it reports
+  that instead of keeping an invalid index/world pair. Covered by the 42
+  non-finite input cases across ranks one to three plus overflow, pivoted-shear
+  and dyadic-diagonal fixtures; ritk-spatial's 101 tests, strict clippy and fmt
+  pass. One oracle claim was corrected rather than implemented: a `2^-1023`
+  diagonal is below the unchanged threshold and is refused as singular, which
+  the tests now pin. The ritk pull request and the gitlink advance remain open.
+
 - Run Athena's algebraic-multigrid V-cycle on borrowed slices (athena
   `a12a09f`), delivering the code half of
   `ATLAS-ATHENA-AMG-VCYCLE-SLICES`. `athena-leto`'s
