@@ -13,9 +13,9 @@
   },
   "waivers": [
     {
-      "member": "metis",
-      "reason": "METIS-QUIC-PROMOTION-001: the default tip raises `unresolved_references` 0 -> 9 (bare citations of the unmerged Moirai provider commits 52c90639241c4e6fad3be93270b4bfa9831326ad, 8f8fd753fd716d33061434cdfb1a1b08f64d4cfb and ed039a6ed5fcc454a572fd7ab840b4c1919a2c9d in backlog.md, gap_audit.md, CHANGELOG.md and checklist.md) and `board_checklist_files` 0 -> 1 (checklist.md), which the conformance ratchet rejects",
-      "reopen": "a metis PR folds checklist.md into its backlog item and cites the provider commits as commit/PR links (or ryancinsight/Moirai#618 merges so the hashes resolve from a landed ref), the tip measures 0/0 again, so the pin advances and this entry is deleted"
+      "member": "ritk",
+      "reason": "RITK-SNAP-SCOPED-ANONYMIZATION (ritk#943): the default tip grows `crates/ritk-snap/src/presentation/native_session/window_controls/layout/construction.rs` from 498 to 507 lines, raising `oversized_files` 38 -> 39, which the conformance ratchet rejects; the pin stays at `596b7afc`, the last default commit under the threshold",
+      "reopen": "a ritk PR splits `construction.rs` below 500 lines along the construction-helper seam, the default tip measures 38 again, so the pin advances and this entry is deleted"
     }
   ]
 }

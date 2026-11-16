@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+- Admit Leto 0.50.0 across the last three lagging consumers and advance
+  their pins. `asclepius` (`1dbc3459`, asclepius#122) and `metis` (`d3f6c5a7`,
+  metis#544) are lock-only moves — Coeus `7e1ded59` with Apollo `b7bffe1c`,
+  and Gaia-Mesh `4c69a978`, each onto the default-branch revision whose Leto
+  bounds admit 0.50, with Leto itself at `6483eac3` — while `kwavers`
+  (`4a8e1aa2`, kwavers#1100) widens its requirement from `>=0.47.1, <0.49.0`
+  to `>=0.47.1, <0.51.0` and moves the same six-provider cohort in one lock
+  delta. `scripts/atlas-stack-overlay.py check --pinned` now reports "stack
+  aligned: requirements satisfiable and locks match the local trees", the
+  version-guard sweep leaves no requirement that excludes 0.50, and
+  `scripts/atlas-pin-drift.py` reports all 28 members within one sweep.
+
+- Hold the ritk pin at `596b7afc` and retire the metis pin waiver. ritk#943
+  grows `crates/ritk-snap/src/presentation/native_session/window_controls/
+  layout/construction.rs` from 498 to 507 lines, so the default tip raises
+  `oversized_files` 38 -> 39 and the conformance ratchet rejects it;
+  `scripts/pin-drift-waivers.json` now records that regression and the file
+  split that reopens the pin. The metis entry it replaces was re-measured
+  against that member's current default and no longer reproduces (0
+  unresolved references, no `checklist.md`), so it was deleted rather than
+  renewed.
+
+- Two more `ATLAS-ARCH-008` sites in kwavers. #1107: the IR-drop solver's
+  private `Vec<(usize, f64)>`-per-node power-net graph is one CSR pair
+  (neighbour run + conductance run behind an offset table) built in two passes
+  from the edge list; each node's edges are inserted in the original order, so
+  the Gauss–Seidel summation order is unchanged and the result is pinned
+  bit-exactly (`4591621414013336774`). #1108: `gaussian_elim_flat` and
+  `symmetric_eigenvalues` in `kwavers-physics` now work on one row-major block
+  each (strides `n + 1` and `n`) instead of re-jagging a flat input per solve,
+  with the singular values and L-curve residual/solution norms pinned
+  bit-exactly, and the pivot search's bare `unwrap` replaced by an invariant
+  `expect`. Verified: 5 `ir_drop` tests, 1577 kwavers-physics tests, strict
+  clippy and fmt clean; the push gates measured `kwavers/scattered_containers
+  54 -> 51` then `54 -> 50` and `unwrap_production 183 -> 181`, with 0
+  regressions. No wall-clock claim.
+
 - Hold the genetic search's candidate batches in one buffer and one round-robin
   (CFDrs#569), another `ATLAS-ARCH-008` site. `cfd-optim`
   built a `Vec<BlueprintCandidate>` per parent for its mutations, crossovers and
