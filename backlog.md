@@ -93,7 +93,7 @@
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
-<a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Kill the surviving writer-scan mutants [patch] — todo
+<a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Decide the post-command heartbeat window and re-aim one scan test [patch] — todo
 <a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo
 <a id="atlas-board-index-ladder-crash"></a>- [ATLAS-BOARD-INDEX-LADDER-CRASH](backlog/atlas-board-index-ladder-crash.md) — The board index tool aborts on the milestone ladder file [patch] — todo
 <a id="atlas-board-lint-milestone"></a>- [ATLAS-BOARD-LINT-MILESTONE](backlog/atlas-board-lint-milestone.md) — Board lint does not count items missing a milestone [patch] — todo
@@ -139,3 +139,4 @@
 <a id="atlas-hook-safety-ratchet-name"></a>- [ATLAS-HOOK-SAFETY-RATCHET-NAME](backlog/atlas-hook-safety-ratchet-name.md) — The member pre-push hook runs a SAFETY scan only when it is named `safety_ratchet.py` [verification] [patch] — todo
 <a id="atlas-member-board-schema"></a>- [ATLAS-MEMBER-BOARD-SCHEMA](backlog/atlas-member-board-schema.md) — Fifteen member boards fail the board schema and ten keep a root checklist.md [verification] [patch] — todo
 <a id="atlas-test-maintenance-race"></a>- [ATLAS-TEST-MAINTENANCE-RACE](backlog/atlas-test-maintenance-race.md) — Script-test fixtures that commit or push leave Git's detached maintenance running into teardown [verification] [patch] — todo
+<a id="atlas-hook-test-stage-overrun"></a>- [ATLAS-HOOK-TEST-STAGE-OVERRUN](backlog/atlas-hook-test-stage-overrun.md) — The pre-push test stage ran past 600 s three times on one CFDrs revision [tightening] [patch] — todo

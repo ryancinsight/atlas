@@ -200,11 +200,11 @@ fragment one field's theory across 173 crates and force every shared derivation
 to be restated, which is the duplication this stack exists to avoid; the
 consolidation rule applies to prose exactly as it does to code.
 
-All 25 book-bearing members join the Atlas cross-book dead-link and build gate
+All 26 book-bearing members join the Atlas cross-book dead-link and build gate
 ([`docs.yml`](../../.github/workflows/docs.yml)) through its repository glob.
 The remaining board work is ATLAS-PUB-005's per-book failing-sample evidence
-(every caller already runs `mdbook test`); Leto requires a separate book
-authoring and caller-integration item.
+(every caller already runs `mdbook test`, Leto's included: its default
+branch holds `docs/book` and a `book-pages.yml` caller, read 2026-11-16).
 
 ### 6. `mdbook test` is adopted per book, not flipped globally
 
@@ -255,7 +255,7 @@ stands regardless.
 
 The pipelines are unaffected — a caller passes a package name, so a rename is a
 manifest change, not a workflow change. Consequently ATLAS-PUB-001
-proceeds independently of ATLAS-PUB-006.
+(retired 2026-10-01) proceeded independently of ATLAS-PUB-006.
 
 ### 8. Pages action pins are a recorded gap, not an invented digest
 
@@ -274,7 +274,7 @@ fabricated evidence and must not be committed. The gap is tracked as
   (`ATLAS-PUB-006`). Nothing else in this ADR waits on it.
 
 - Eight duplicated crate-release workflows collapse to eight thin callers plus
-  one Atlas workflow; the 25 book callers share one Atlas workflow.
+  one Atlas workflow; the 26 book callers share one Atlas workflow.
 - A pipeline defect is fixed once. Adoption is explicit and auditable: each
   package's Atlas pin says which pipeline revision it runs.
 - Toolchain pins stay per package. The audit's 1.95.0/1.97.0/1.97.1 spread is
