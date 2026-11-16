@@ -32,7 +32,7 @@ on:
       tag-prefix:
         description: Release-tag prefix preceding <package>-v<version>
         required: false
-        default: "crate-"
+        default: ""
         type: string
       owner:
         description: crates.io login that must own a crate before it is published
