@@ -110,6 +110,15 @@ def _stale_git(dependencies: dict[str, object], directory: BuildDirectory) -> se
     }
 
 
+def _interrupted_git(dependencies: dict[str, object], directory: BuildDirectory) -> set[str]:
+    """Git packages whose stamp is the building sentinel: a run ended before stamping their content."""
+    return {
+        str(record.get("name"))
+        for record in _git_records(dependencies, _git_names(dependencies))
+        if _git_stamp(directory, record) == _BUILDING
+    }
+
+
 def _unstamped_git(dependencies: dict[str, object], directory: BuildDirectory) -> set[str]:
     return {
         str(record.get("name"))

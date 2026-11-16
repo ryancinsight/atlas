@@ -1,0 +1,4 @@
+<a id="atlas-gate-build-dir-lock-wait"></a>
+## ATLAS-GATE-BUILD-DIR-LOCK-WAIT — Peer Cargo builds serialize every gate on the shared target's build-directory lock [patch] — todo
+- Outcome: the fleet's concurrent gate width is bounded by a measured per-stage wait on Cargo's "Blocking waiting for file lock on build directory", so a stage's lock wait stays under a stated figure; no deadline changes. Evidence: two blocked kwavers pushes of one revision print the line before the tests stage while four peer nextest builds ran on `D:/atlas/target`; stable Cargo 1.97 has no fine-grained locking. Attribution seconds belong to ATLAS-HOOK-TEST-STAGE-OVERRUN.
+- basis: 6ee24b06a1136fd7a4da1fe24759d4a32a023885; priority: tightening; needs: none; scope: `scripts/git-hooks/pre-push`, `scripts/pre_push_gate.py`, `docs/adr/0064-shared-build-source-identity.md`; next step: record lock-wait seconds per stage over five consecutive kwavers pushes, then derive the width bound from them.

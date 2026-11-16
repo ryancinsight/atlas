@@ -86,6 +86,7 @@
 <a id="atlas-v1-milestone-ladders-001"></a>- [ATLAS-V1-MILESTONE-LADDERS-001](backlog/atlas-v1-milestone-ladders-001.md) — Roll the 1.0 milestone ladder out to every member [arch] — todo
 <a id="atlas-version-coherence-sweep-2026-09-30"></a>- [ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30](backlog/atlas-version-coherence-sweep-2026-09-30.md) — Follow the current provider cohort into every consumer [correctness] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
+<a id="atlas-gate-build-dir-lock-wait"></a>- [ATLAS-GATE-BUILD-DIR-LOCK-WAIT](backlog/atlas-gate-build-dir-lock-wait.md) — Peer Cargo builds serialize every gate on the shared target's build-directory lock [patch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
 <a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — blocked
