@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Hold the genetic search's candidate batches in one buffer and one round-robin
+  (CFDrs#569), another `ATLAS-ARCH-008` site. `cfd-optim`
+  built a `Vec<BlueprintCandidate>` per parent for its mutations, crossovers and
+  local perturbations — four production `Vec<Vec<_>>` sites rebuilt every
+  generation — and walked them with a round-robin that existed twice (the
+  helper plus an open-coded copy in the seed path). A new `CandidateBatches`
+  leaf module stores every batch back to back behind an offset table,
+  appending batch by batch so no jagged intermediate is built, and the one
+  helper now serves both walks. The full-optimizer oracle, the mutation and
+  crossover validity oracles and `cfd-optim`'s 109 unit tests pass; the push
+  gate measured `CFDrs/scattered_containers 24 -> 18` with 0 regressions. No
+  wall-clock claim.
+
 - Count board items with no `milestone:` assignment once a repository carries a
   `backlog/milestones.md` ladder, closing `ATLAS-BOARD-LINT-MILESTONE`. The
   lint's schema check had four classes (status set, anchors, priorities,
