@@ -86,6 +86,7 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 
 import lockfile  # noqa: E402  (overlay-free cargo runner; shared, not copied)
+from atlas_git_process import restamp_tree  # noqa: E402
 from atlas_pull_request import open_pull_request  # noqa: E402
 from atlas_stack import ROOT, git, member_pins, registered_member_names, registered_members  # noqa: E402
 
@@ -411,6 +412,7 @@ def export_tree(member: Path, base: str, directory: Path) -> None:
     )
     with tarfile.open(archive) as tree:
         tree.extractall(directory / "tree", filter="data")
+    restamp_tree(directory / "tree")
     archive.unlink()
 
 

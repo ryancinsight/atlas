@@ -6,7 +6,8 @@ import io
 import math
 import os
 import tarfile
-from collections.abc import Sequence
+import time
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -154,7 +155,7 @@ def archive(
     commit's members with its commit date, so a revision older than the build
     output already in a shared target directory would extract as older than
     that output and Cargo would treat the stale artifacts as fresh. A tree
-    carries no date, so members are stamped with the time of the export.
+    carries no date, and `extract_archive` stamps its members with the export time.
     """
     arguments = ["archive", "--format=tar", f"{revision}^{{tree}}"]
     if paths:
@@ -166,7 +167,27 @@ def archive(
     return result.stdout
 
 
-def extract_archive(payload: bytes, destination: Path) -> None:
+def stamp_files(paths: Iterable[Path]) -> None:
+    """Give every regular file in `paths` one common, full-precision present time.
+
+    Tar member times are whole seconds, so a member extracted in the second a
+    build finished reads as not newer than that build's output, and Cargo
+    reuses the output of a unit whose sources are not newer than it. A tree
+    handed to a build is stamped here, after the last build that can share
+    its units has exited, never from the archive.
+    """
+    stamp = time.time_ns()
+    for path in paths:
+        if not path.is_symlink():
+            os.utime(path, ns=(stamp, stamp))
+
+
+def restamp_tree(root: Path) -> None:
+    """Stamp every regular file under `root` as of now, before a build reads it."""
+    stamp_files(path for path in root.rglob("*") if path.is_file())
+
+
+def unpack_archive(payload: bytes, destination: Path) -> None:
     """Extract a Git archive while rejecting unsafe member paths."""
     with tarfile.open(fileobj=io.BytesIO(payload)) as tree:
         if hasattr(tarfile, "data_filter"):
@@ -181,3 +202,11 @@ def extract_archive(payload: bytes, destination: Path) -> None:
             if member.issym() or member.islnk() or not (member.isdir() or member.isfile()):
                 raise tarfile.ExtractError(f"unsupported archive entry: {member.name}")
             tree.extract(member, path=destination)
+
+
+def extract_archive(payload: bytes, destination: Path) -> None:
+    """Extract a Git archive safely, then stamp its files with the present time."""
+    unpack_archive(payload, destination)
+    with tarfile.open(fileobj=io.BytesIO(payload)) as tree:
+        names = [member.name for member in tree.getmembers() if member.isfile()]
+    stamp_files(destination.joinpath(*PurePosixPath(name).parts) for name in names)

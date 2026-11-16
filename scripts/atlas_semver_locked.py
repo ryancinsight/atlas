@@ -12,7 +12,7 @@ import re
 import shutil
 import tempfile
 import process_tree
-from atlas_git_process import archive, extract_archive
+from atlas_git_process import archive, extract_archive, restamp_tree
 TOOL_VERSION = "0.51.0"
 COMMAND_SECONDS = 600
 KNOWN_RESOLUTION_DIAGNOSTICS = (
@@ -275,12 +275,16 @@ def evaluation(native: dict, severity_check: dict | None, baseline: str, current
     }, exit_code
 
 
-def supplemental(manifests: list[Path], locks: list[Path], package: str,
-                 env: dict[str, str], config: dict) -> dict:
+def supplemental(roots: list[Path], manifests: list[Path], locks: list[Path],
+                 package: str, env: dict[str, str], config: dict) -> dict:
     """Collect locked consumer evidence without claiming API compatibility."""
     before = [digest(lock) for lock in locks]
     checks, dependencies = [], []
-    for manifest in manifests:
+    for root, manifest in zip(roots, manifests):
+        # Both sides build into one target and a same-named path package shares
+        # a unit across them, so a side exported before the other's build reads
+        # as older than that build's output. Stamp each side as it is built.
+        restamp_tree(root)
         check, compiled = compiled_packages(manifest, package, env, config)
         checks.append(check)
         dependencies.append(compiled)
@@ -380,7 +384,7 @@ def compare(args) -> int:
                     if known:
                         try:
                             entry["supplemental"] = supplemental(
-                                manifests, list(locks), package, env, config,
+                                roots, manifests, list(locks), package, env, config,
                             )
                         except Exception as error:
                             entry["supplemental"] = {

@@ -1,12 +1,16 @@
-"""Exports of a revision are stamped with the export time, not the commit date.
+"""Exports of a revision are stamped with the time they are made, not the commit date.
 
 `git archive <commit>` stamps every member with the commit date. A build that
 extracts an older revision into a path already built against a shared target
 directory then sees sources older than the build output, and Cargo reuses the
-stale artifacts. `git archive <tree>` has no date to inherit, so members take
-the time of the export and any source that differs from the last build is newer
-than it. Each exporter that feeds a build is pinned here: the shared helper,
-the locked SemVer export, and the lock sweep's member export.
+stale artifacts. `git archive <tree>` has no date to inherit, and the helper
+restamps each extracted file at nanosecond precision, because tar member times
+are whole seconds and an export in the second a build finished would otherwise
+read as not newer. Each exporter that feeds a build is pinned here for the
+stamp: the shared helper, the locked SemVer export, and the lock sweep's member
+export. The cargo case below re-exports one path after an aged build; the order
+in which the locked SemVer comparison exports both sides before building either
+is pinned in test_atlas_semver_locked.py, not here.
 """
 
 from __future__ import annotations
@@ -131,6 +135,21 @@ class ExportTimestamps(unittest.TestCase):
                     self.assertGreaterEqual(
                         stamp, started, f"{name} carries the commit date, not the export time"
                     )
+
+    def test_export_made_right_after_a_write_is_newer_than_that_write(self):
+        with tempfile.TemporaryDirectory() as root:
+            repo = make_repo(Path(root))
+            revision = commit_program(repo, 1, OLD_DATE)
+            for label, exporter in EXPORTERS:
+                marker = Path(root) / f"built-{len(label)}"
+                marker.write_text("build output", encoding="utf-8")
+                exported = exporter(repo, revision, Path(root) / f"export-{len(label)}")
+                for path in sorted(exported.rglob("*")):
+                    if path.is_file():
+                        self.assertGreater(
+                            path.stat().st_mtime_ns, marker.stat().st_mtime_ns,
+                            f"{label}: {path.name} is not newer than the preceding write",
+                        )
 
     def test_archive_peels_every_revision_form_to_the_same_tree(self):
         with tempfile.TemporaryDirectory() as root:
