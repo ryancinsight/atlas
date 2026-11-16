@@ -73,13 +73,21 @@
   `apollo-ntt/.../kernel/circle.rs` (70, 74, 142, 150), kwavers `93f6fecd5`
   removes the two `Vec<Vec<f64>>` cost matrices from
   `kwavers-analysis/.../ulm/tracking/tracker.rs` (63, 170), CFDrs `74e269a5`
-  folds the three element-to-node copies into one `ElementNodeMap` (three
+  folds the three element-to-node copies into one `ElementNodes` (three
   sites out of `assembly.rs` and `element.rs`, one new site in
   `element_nodes.rs:51`), and leto `bd349c5e` had already flattened
   `amd_order`'s adjacency so `leto-ops/.../sparse/amd.rs:126` is gone.
   ritk `09c254e4` shifted `ritk-mgh/src/reader/mod.rs` (69 to 83) and
   `ritk-mif/src/reader.rs` (282 to 300) without converting either
   `Vec<Vec<f32>>`.
+
+- Advance the ritk gitlink to `596b7afc`, the merge of ritk#946, which moved
+  that member's `main` 13 commits past the recorded pin while pin drift
+  allows one; `scripts/atlas-pin-drift.py` now reports all 28 members within
+  one sweep. The advance leaves the ARCH-008 census unchanged at 169
+  production sites (158 test/bench, 327 total), so
+  `scripts/oracles/arch-008-production-sites.txt` is untouched and
+  `make verify-scattered-oracle` still passes.
 
 - Close ATLAS-V1-MILESTONE-LADDERS-001 and delete the item: all 28 members
   hold a 1.0 ladder at their default branch — the 12 original
