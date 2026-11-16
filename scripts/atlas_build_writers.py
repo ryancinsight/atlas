@@ -20,8 +20,10 @@ is newer than the mark's last heartbeat. The kill stops the heartbeat, so a
 peer's later write, and the killed run's own last interval of output, are
 newer and clean; progress older than the final heartbeat survives. One beat
 can still be stamped in the window between the command returning and the
-caller setting the stop flag; that beat only ages the mark past the run's own
-final output, so a rerun cleans that last interval rather than resuming it.
+caller setting the stop flag. That beat is newer than the run's own final
+output, so a run killed before it records the command resumes that output
+rather than cleaning it, and the beat also vouches for any write a peer made
+without a lease between that output and the stamp.
 """
 
 from __future__ import annotations
@@ -334,9 +336,10 @@ def heartbeat(
         while not stopped.wait(HEARTBEAT_SECONDS):
             # Read before the stop check, so a beat already due when the
             # command exited is stamped for the time it was read. A beat can
-            # land in the window between the command returning and the caller
-            # setting `stopped` (see the module docstring); it ages the mark
-            # past that last output, which then cleans rather than resumes.
+            # still land between the command returning and the caller setting
+            # `stopped` (see the module docstring). Its stamp is newer than
+            # the run's last output, so a rerun resumes that output, and a
+            # leaseless peer write before the stamp is vouched for with it.
             stamp = time.time_ns()
             if stopped.is_set():
                 return
