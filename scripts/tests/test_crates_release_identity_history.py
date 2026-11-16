@@ -14,7 +14,7 @@ def run(args, cwd):
                           timeout=60, env={**os.environ, "CARGO_NET_OFFLINE": "true"}).stdout.strip()
 
 
-HISTORY = {"b553c42da72dcdeb2bb2644c60759dc465fb329a": (".github/workflows/crates-publish.yml",),
+HISTORY = {"ff7bf4e8f56a55181ca343ae2a580c31b76471bf": (".github/workflows/crates-publish.yml",),
            "8df6f30d7fb6d65d6ac639c5323ddac1c1897d75": (".github/actions/crate-release-identity/action.yml",
                                                        ".github/actions/crate-release-identity/release_identity.py")}
 

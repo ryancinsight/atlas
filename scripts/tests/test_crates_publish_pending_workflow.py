@@ -66,7 +66,7 @@ EXPECTED_JOBS = {
                "with": {"release-gate": True, "package": "${{ needs.plan.outputs.packages }}",
                         "rust-toolchain": "${{ inputs.semver-toolchain || inputs.rust-toolchain }}",
                         "apt-packages": "${{ inputs.apt-packages }}",
-                        "atlas-ref": "c1ea21e948b34ef0cedc1c6e66a7a4c330776874"}},
+                        "atlas-ref": "ff7bf4e8f56a55181ca343ae2a580c31b76471bf"}},
     "publish": {"needs": ["plan", "semver"], "if": "needs.plan.outputs.count != '0'",
                 "runs-on": "ubuntu-latest", "timeout-minutes": 30,
                 "concurrency": {"group": "crates-publish-pending-${{ github.repository }}",

@@ -411,7 +411,7 @@ def test_workflow_rejects_missing_or_unknown_decision(decision, code):
 
 
 def test_workflow_preserves_validation_interface_permissions_and_upload_command(history):
-    base = yaml.safe_load(run(["git", "show", "b553c42da72dcdeb2bb2644c60759dc465fb329a:.github/workflows/crates-publish.yml"], history))
+    base = yaml.safe_load(run(["git", "show", "ff7bf4e8f56a55181ca343ae2a580c31b76471bf:.github/workflows/crates-publish.yml"], history))
     current = yaml.safe_load(WORKFLOW.read_text())
     assert {k: v for k, v in current.items() if k != "jobs"} == {k: v for k, v in base.items() if k != "jobs"}
     assert current["jobs"]["validate"] == base["jobs"]["validate"]
