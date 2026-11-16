@@ -14,8 +14,15 @@ to detect and expensive to unpick later, so detect them.
     python scripts/atlas-board-lint.py
     python scripts/atlas-board-lint.py --file checklist.md
 
-Exit status is nonzero when any id is used twice, or when an
-ATLAS-* reference resolves to no heading in either board file.
+Exit status is nonzero when any id is used twice, when two items share an
+anchor, when an item's status is outside {todo, blocked} or its priority
+outside the roadmap's closed triage set, or when a line carries a control
+character. A missing status, anchor, or priority is a conformance count, not
+a failure here. A milestone ladder block (`## M-1.0`, `M-<slug>`) is a
+roadmap record and is never an item.
+
+`--file` lints the given board and reports on the repository holding it,
+never the stack root's own; the root's `backlog.md` is the default.
 
 A bare commit hash cited in a board, item file, ADR, or changelog that no
 repository in the stack can resolve is reported here and counted per member
@@ -58,6 +65,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from atlas_board_items import (  # noqa: E402
     ANCHOR_INLINE,
+    LADDER_HEADING,
     expand_board_lines,
     extract_anchor,
     split_title_status,
@@ -523,7 +531,9 @@ def count_unresolved(repo: pathlib.Path, stores: list[pathlib.Path]) -> int:
 # of 81). Every item carries an anchor and a `priority:`, and checklist.md is
 # retired into item blocks. Each defect is a count the conformance ratchet
 # holds non-increasing per member, so boards convert at first touch instead
-# of blocking every push at once.
+# of blocking every push at once. A present value outside its closed set
+# (`schema_violations`) also fails the lint run, since no conversion makes a
+# wrong value right; a missing field stays a count.
 BOARD_STATUSES = frozenset({"todo", "blocked"})
 ITEM_HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)(.*)$")
 STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([a-z][a-z-]*)")
@@ -531,7 +541,13 @@ STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([
 # (`- Status: todo; priority: tightening; needs: none`, the form every metis
 # item uses); reading only the first form counted metis's prioritized items
 # as unprioritized.
-PRIORITY_LINE = re.compile(r"(?i)^\s*[-*]?\s*(?:[^;\n]*;\s*)*[*_`]*priority[*_`]*\s*[:=]")
+PRIORITY_LINE = re.compile(
+    r"(?i)^\s*[-*]?\s*(?:[^;\n]*;)*\s*[*_`]*priority[*_`]*\s*[:=]\s*[*_`]*\s*([a-z0-9-]*)"
+)
+# The roadmap's closed triage set (sprint: closed priority order).
+BOARD_PRIORITIES = frozenset(
+    {"correctness", "architecture", "verification", "feature", "tightening"}
+)
 BASIS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_`]*basis[*_`]*\s*[:=]")
 STATUS_WORD = re.compile(r"[A-Za-z][A-Za-z-]*")
 AGING_DAYS = 30
@@ -556,13 +572,20 @@ def _status_word(text: str) -> str | None:
 
 
 def _items_in(lines: list[str]) -> list[dict]:
-    """Items in board text: id, heading line, anchor, status, priority, basis."""
+    """Items in board text: id, heading line, anchor, status, priority, basis.
+
+    A milestone ladder block is not an item and ends the item above it, so
+    its body is never read as that item's fields.
+    """
     items: list[dict] = []
     current: dict | None = None
     prev: str | None = None
     for number, line in enumerate(lines, start=1):
-        match = ITEM_HEADING.match(line)
-        if match:
+        ladder = LADDER_HEADING.match(line) is not None
+        match = None if ladder else ITEM_HEADING.match(line)
+        if ladder:
+            current = None
+        elif match:
             tail = ANCHOR_INLINE.sub("", match.group(2))
             split = split_title_status(tail)
             current = {
@@ -571,6 +594,7 @@ def _items_in(lines: list[str]) -> list[dict]:
                 "anchor": extract_anchor(line, prev),
                 "status": _status_word(split[1]) if split else None,
                 "priority": False,
+                "priority_value": None,
                 "basis": False,
             }
             items.append(current)
@@ -578,7 +602,10 @@ def _items_in(lines: list[str]) -> list[dict]:
             status = STATUS_LINE.match(line)
             if current["status"] is None and status:
                 current["status"] = status.group(1).lower()
-            current["priority"] = current["priority"] or bool(PRIORITY_LINE.match(line))
+            priority = PRIORITY_LINE.match(line)
+            if priority and current["priority_value"] is None:
+                current["priority_value"] = priority.group(1)
+            current["priority"] = current["priority"] or priority is not None
             current["basis"] = current["basis"] or bool(BASIS_LINE.match(line))
         if line.strip():
             prev = line
@@ -602,6 +629,43 @@ def board_schema_counts(repo: pathlib.Path) -> dict[str, int]:
         "board_items_without_priority": sum(1 for item in items if not item["priority"]),
         "board_checklist_files": int(_root_file(repo, "checklist.md") is not None),
     }
+
+
+def schema_violations(items: list[dict], *, located: bool) -> list[str]:
+    """Values a board holds outside their closed sets, and shared anchors.
+
+    These are wrong values, not absences: an item with no status or priority
+    is a count the conformance ratchet holds non-increasing, so it stays
+    out of this hard gate. `located` adds each item's line, valid only when
+    the board is one file (an indexed board's lines are the expanded text).
+    """
+
+    def where(item: dict) -> str:
+        return f"{item['id']} (line {item['line']})" if located else item["id"]
+
+    found: list[str] = []
+    owners: dict[str, list[dict]] = {}
+    for item in items:
+        if item["anchor"] is not None:
+            owners.setdefault(item["anchor"], []).append(item)
+        status = item["status"]
+        if status is not None and status not in BOARD_STATUSES:
+            found.append(
+                f'{where(item)}: status "{status}" is outside '
+                f"{{{', '.join(sorted(BOARD_STATUSES))}}}"
+            )
+        value = item["priority_value"]
+        if value is not None and value.lower() not in BOARD_PRIORITIES:
+            found.append(
+                f'{where(item)}: priority "{value}" is outside '
+                f"{{{', '.join(sorted(BOARD_PRIORITIES))}}}"
+            )
+    for anchor, sharing in owners.items():
+        if len(sharing) > 1:
+            found.append(
+                f'anchor "{anchor}" is shared by ' + ", ".join(where(i) for i in sharing)
+            )
+    return found
 
 
 def _git_times(repo: pathlib.Path, *args: str) -> str:
@@ -683,7 +747,7 @@ def main() -> int:
     # stands in for backlog.md wherever it previously contributed headings.
     boards = [
         *(item_files if indexed else ([path] if path.name == "backlog.md" else [])),
-        ROOT / "checklist.md",
+        path.parent / "checklist.md",
     ]
     if path.name != "backlog.md":
         boards.append(path)
@@ -717,7 +781,19 @@ def main() -> int:
         )
         status = 1
 
-    aged = aged_items(ROOT)
+    violations = schema_violations(
+        _items_in(expand_board_lines(path)), located=not indexed
+    )
+    if violations:
+        print(f"{args.file}: {len(violations)} board schema violation(s)\n")
+        for violation in violations:
+            print(f"  {violation}")
+        print()
+        status = 1
+
+    # Reports read the given board's own repository, never the stack root's
+    # (the two are one for the default `backlog.md`).
+    aged = aged_items(path.parent) if path.name == "backlog.md" else []
     if aged:
         # Report at orientation; re-validate or delete in the next filing sweep.
         print(
@@ -728,7 +804,8 @@ def main() -> int:
             print(f"  {item_id}  {days} days")
         print()
 
-    hashes = unresolved_hashes(reference_artifacts(ROOT), object_stores(ROOT))
+    cited = reference_artifacts(path.parent) if path.name == "backlog.md" else [path]
+    hashes = unresolved_hashes(cited, object_stores(ROOT))
     if hashes:
         # Report here; the conformance scan ratchets the count per member.
         sites = sum(len(v) for v in hashes.values())

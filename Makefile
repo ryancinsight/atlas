@@ -8,7 +8,7 @@ help:
 	@echo "  make check-mdbook-links  Verify internal mdBook links across all four books"
 	@echo "  make build-mdbooks       Build all four mdBooks"
 	@echo "  make fmt-check           cargo fmt --check across every stack member"
-	@echo "  make board-lint          Check backlog.md for duplicate item ids"
+	@echo "  make board-lint          Check backlog.md for duplicate ids, shared anchors, off-set status/priority"
 	@echo "  make stale-sides         Fail if a changed file is an older revision of itself"
 	@echo "  make stale-basis         Check alternate Git indexes for stale staging state"
 	@echo "  make verify-scattered-oracle  Re-verify the ARCH-008 production split against the committed oracle (pinned gitlinks)"
