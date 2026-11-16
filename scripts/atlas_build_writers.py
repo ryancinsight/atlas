@@ -18,7 +18,12 @@ runs, a heartbeat refreshes each `building` mark every `HEARTBEAT_SECONDS`;
 a rerun resumes a package only if none of its artifact or fingerprint files
 is newer than the mark's last heartbeat. The kill stops the heartbeat, so a
 peer's later write, and the killed run's own last interval of output, are
-newer and clean; progress older than the final heartbeat survives.
+newer and clean; progress older than the final heartbeat survives. One beat
+can still be stamped in the window between the command returning and the
+caller setting the stop flag. That beat is newer than the run's own final
+output, so a run killed before it records the command resumes that output
+rather than cleaning it, and the beat also vouches for any write a peer made
+without a lease between that output and the stamp.
 """
 
 from __future__ import annotations
@@ -329,8 +334,12 @@ def heartbeat(
 
     def beat() -> None:
         while not stopped.wait(HEARTBEAT_SECONDS):
-            # Read before the stop check: no beat is stamped after the command
-            # exited, which would vouch for a peer's later write.
+            # Read before the stop check, so a beat already due when the
+            # command exited is stamped for the time it was read. A beat can
+            # still land between the command returning and the caller setting
+            # `stopped` (see the module docstring). Its stamp is newer than
+            # the run's last output, so a rerun resumes that output, and a
+            # leaseless peer write before the stamp is vouched for with it.
             stamp = time.time_ns()
             if stopped.is_set():
                 return
