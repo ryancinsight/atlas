@@ -5762,3 +5762,230 @@ def base_failure_fixture(
         str(root), 0, base_exit=101, base_says=_BASE_FAILURE_CASES[0][1]
     )
     return fixture
+
+
+def _branch_update_line(branch: str, local_sha: str, remote_sha: str) -> str:
+    return f"refs/heads/{branch} {local_sha} refs/heads/{branch} {remote_sha}\n"
+
+
+class MergeRangeTestCase(unittest.TestCase):
+    """A branch update that merged the default branch gates only its own commits.
+
+    The remote tip is an ancestor of the pushed tip, so the range
+    `<remote>..<local>` used to include every mainline commit the merge brought
+    in: a `Cargo.toml` change on main gated the whole workspace, and the
+    artifact budget measured against the previous tip instead of main.
+    """
+
+    def _fixture(self, temp: str) -> tuple:
+        stack = pathlib.Path(temp)
+        fixture = GateFixture.in_stack(stack)
+        budget_log = stack / "budget-args.log"
+        _write(
+            stack / "scripts" / "atlas-artifact-budget.py",
+            "#!/usr/bin/env python3\n"
+            "import pathlib, sys\n"
+            f"pathlib.Path({str(budget_log)!r}).write_text(' '.join(sys.argv[1:]))\n",
+            executable=True,
+        )
+        _publish_stack_scripts(stack)
+        return fixture, budget_log
+
+    def _advance_default(self, fixture: "GateFixture", manifest_text: str) -> str:
+        root = fixture.root
+        _git(root, "checkout", "-q", "main")
+        (root / "Cargo.toml").write_text(manifest_text, encoding="utf-8")
+        _git(root, "add", "Cargo.toml")
+        _git(root, "commit", "-q", "-m", "main changes its manifest")
+        _git(root, "push", "-q", "origin", "HEAD:main")
+        tip = _git(root, "rev-parse", "HEAD")
+        _git(root, "update-ref", "refs/remotes/origin/main", tip)
+        _git(root, "remote", "set-head", "origin", "--auto")
+        return tip
+
+    def test_a_merged_mainline_manifest_is_not_gated(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, budget_log = self._fixture(temp)
+            root = fixture.root
+            seed = _git(root, "rev-parse", "HEAD")
+            main_tip = self._advance_default(
+                fixture,
+                '[workspace]\nmembers = ["crates/foo"]\n'
+                '\n[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n'
+                "# mainline comment\n",
+            )
+            _git(root, "checkout", "-q", "-b", "feat", seed)
+            _git(root, "merge", "-q", "--no-edit", "origin/main")
+            (root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// branch work\n", encoding="utf-8"
+            )
+            _git(root, "commit", "-q", "-am", "branch work")
+            tip = _git(root, "rev-parse", "feat")
+
+            code, stderr = fixture.run_hook(
+                _branch_update_line("feat", tip, seed)
+            )
+
+            self.assertEqual(code, 0, stderr)
+            calls = fixture.calls.read_text(encoding="utf-8")
+            self.assertIn("-p foo", calls)
+            self.assertNotIn(
+                "-p unrelated-member", calls,
+                "a manifest main changed was gated as this push's work",
+            )
+            args = budget_log.read_text(encoding="utf-8").split()
+            self.assertEqual(args[args.index("--base") + 1], main_tip)
+
+    def test_the_branchs_own_manifest_change_still_gates(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture, _ = self._fixture(temp)
+            root = fixture.root
+            seed = _git(root, "rev-parse", "HEAD")
+            _git(root, "checkout", "-q", "-b", "feat", seed)
+            (root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = ["crates/foo"]\n'
+                '\n[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n'
+                "# branch comment\n",
+                encoding="utf-8",
+            )
+            _git(root, "commit", "-q", "-am", "branch changes its manifest")
+            tip = _git(root, "rev-parse", "feat")
+
+            code, stderr = fixture.run_hook(
+                _branch_update_line("feat", tip, seed)
+            )
+
+            self.assertEqual(code, 0, stderr)
+            calls = fixture.calls.read_text(encoding="utf-8")
+            self.assertIn("-p unrelated-member", calls)
+
+
+class NextestConfigOwnerTestCase(unittest.TestCase):
+    """A push changing only a package-independent input still selects packages.
+
+    A member's `.config/nextest.toml`, toolchain pin, or cargo config schedules
+    the package selection; the mapper walked up from `.config/` for a
+    `Cargo.toml`, found none, and ended at "no package owns the changed files".
+    """
+
+    def _fixture(self, temp: str) -> "GateFixture":
+        return GateFixture.in_stack(pathlib.Path(temp))
+
+    def _push_one_file(self, fixture: "GateFixture", path: str, text: str) -> tuple:
+        root = fixture.root
+        _git(root, "checkout", "-q", "-b", "feat", "main")
+        (root / path).parent.mkdir(parents=True, exist_ok=True)
+        (root / path).write_text(text, encoding="utf-8")
+        _git(root, "add", path)
+        _git(root, "commit", "-q", "-m", f"change {path}")
+        return fixture.run_hook(fixture.push_line_new_branch("feat"))
+
+    def test_a_nextest_profile_change_selects_packages(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            code, stderr = self._push_one_file(
+                fixture, ".config/nextest.toml", "[profile.default]\nretries = 2\n"
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("no package owns", stderr)
+            self.assertIn("-p foo", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_a_toolchain_pin_change_selects_packages(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            code, stderr = self._push_one_file(
+                fixture,
+                "rust-toolchain.toml",
+                '[toolchain]\nchannel = "stable"\n',
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("no package owns", stderr)
+            self.assertIn("-p foo", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_a_readme_only_change_selects_nothing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            code, stderr = self._push_one_file(fixture, "README.md", "notes\n")
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("no package owns", stderr)
+
+
+class DuplicateRefTestCase(unittest.TestCase):
+    """One push of a ref at a time; a push of another ref is unaffected.
+
+    A second concurrent gate of the same ref judges the same commits and
+    contends for the same build leases, so it is refused rather than made to
+    wait. The lock is keyed by the remote ref.
+    """
+
+    def _fixture(self, temp: str) -> "GateFixture":
+        fixture = GateFixture.in_stack(pathlib.Path(temp))
+        root = fixture.root
+        _git(root, "checkout", "-q", "-b", "feat", "main")
+        (root / "crates" / "foo" / "src" / "lib.rs").write_text(
+            "pub fn f() {}\n// gated\n", encoding="utf-8"
+        )
+        _git(root, "commit", "-q", "-am", "gated")
+        _git(root, "branch", "other", "main")
+        return fixture
+
+    def _lock_path(self, fixture: "GateFixture", ref: str) -> pathlib.Path:
+        store = pathlib.Path(
+            _git(fixture.root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+        )
+        key = subprocess.run(
+            ["git", "hash-object", "--stdin"],
+            input=ref, check=True, capture_output=True, text=True,
+        ).stdout.strip()[:16]
+        return store / "atlas-push-locks" / key
+
+    def _live_lock(self, fixture: "GateFixture", ref: str) -> pathlib.Path:
+        """A lock a real, live shell holds: liveness is an MSYS pid, not a Windows one."""
+        lock = self._lock_path(fixture, ref)
+        lock.mkdir(parents=True)
+        holder = subprocess.Popen(
+            ["bash", "-c", 'printf "%s\\n" "$$" > "$1/pid"; exec sleep 120', "bash", str(lock)]
+        )
+        self.addCleanup(holder.kill)
+        deadline = time.monotonic() + 30
+        while not (lock / "pid").exists():
+            self.assertLess(time.monotonic(), deadline, "the lock holder never wrote its pid")
+            time.sleep(0.02)
+        return lock
+
+    def _dead_pid(self) -> str:
+        finished = subprocess.run(["bash", "-c", "echo $$"], capture_output=True, text=True, check=True)
+        return finished.stdout.strip()
+
+    def test_a_second_push_of_the_same_ref_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            self._live_lock(fixture, "refs/heads/feat")
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("another push of refs/heads/feat is already running", stderr)
+
+    def test_a_push_of_another_ref_is_not_made_to_wait(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            self._live_lock(fixture, "refs/heads/feat")
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("other"))
+            self.assertEqual(code, 0, stderr)
+            self.assertNotIn("already running", stderr)
+
+    def test_a_dead_holders_lock_is_taken_over(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            lock = self._lock_path(fixture, "refs/heads/feat")
+            lock.mkdir(parents=True)
+            (lock / "pid").write_text(self._dead_pid(), encoding="utf-8")
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 0, stderr)
+            self.assertFalse(lock.exists(), "the run left its push lock behind")
+
+    def test_a_finished_run_removes_its_lock(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._fixture(temp)
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch("feat"))
+            self.assertEqual(code, 0, stderr)
+            self.assertFalse(self._lock_path(fixture, "refs/heads/feat").exists())

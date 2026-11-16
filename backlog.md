@@ -101,7 +101,7 @@
 <a id="atlas-ci-ubuntu-2604"></a>- [ATLAS-CI-UBUNTU-2604](backlog/atlas-ci-ubuntu-2604.md) — `ubuntu-latest` moved to 26.04: wheel callers repin atlas python-wheels.yml, and apt-installing atlas jobs need a named image [patch] — todo
 <a id="atlas-hook-credential-alias"></a>- [ATLAS-HOOK-CREDENTIAL-ALIAS](backlog/atlas-hook-credential-alias.md) — Decide the credential-alias and include handling in the exported Cargo config [patch] — todo
 <a id="atlas-hook-merge-range"></a>- [ATLAS-HOOK-MERGE-RANGE](backlog/atlas-hook-merge-range.md) — A pushed branch update gates and budgets against the wrong base [patch] — todo
-<a id="atlas-hook-nextest-config-owner"></a>- [ATLAS-HOOK-NEXTEST-CONFIG-OWNER](backlog/atlas-hook-nextest-config-owner.md) — A push changing only a global Cargo input (`.config/nextest.toml`, or a virtual root's `Cargo.lock`) selects no package in the pre-push gate [patch] — todo
+<a id="atlas-hook-nextest-config-owner"></a>- [ATLAS-HOOK-NEXTEST-CONFIG-OWNER](backlog/atlas-hook-nextest-config-owner.md) — A push changing only a virtual root's `Cargo.lock` selects no package in the pre-push gate [patch] — todo
 <a id="atlas-python-39-floor"></a>- [ATLAS-PYTHON-39-FLOOR](backlog/atlas-python-39-floor.md) — Decide the Python floor the wheel callers support [arch] — todo
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — ADR 0055's substrate contract is enforced only for direct, unrenamed dependencies [patch] — todo
 <a id="atlas-athena-amg-vcycle-slices"></a>- [ATLAS-ATHENA-AMG-VCYCLE-SLICES](backlog/atlas-athena-amg-vcycle-slices.md) — AMG applies its V-cycle through two O(n) boundary copies [tightening] [patch] — todo
