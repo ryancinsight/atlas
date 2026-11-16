@@ -5,15 +5,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
 import re
 import shutil
-import tarfile
 import tempfile
 import process_tree
+from atlas_git_process import archive, extract_archive, restamp_tree
 TOOL_VERSION = "0.51.0"
 COMMAND_SECONDS = 600
 KNOWN_RESOLUTION_DIAGNOSTICS = (
@@ -56,12 +55,9 @@ def commit(repo: Path, ref: str, env: dict[str, str]) -> str:
     return value
 def export(repo: Path, revision: str, destination: Path, env: dict[str, str]) -> None:
     """Export committed source without reading the shared checkout."""
-    archive = checked(
-        ["git", "archive", "--format=tar", revision], repo, env, 120,
-    ).stdout
+    payload = archive(repo, revision, env=env, timeout=120)
     destination.mkdir()
-    with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
-        stream.extractall(destination, filter="data")
+    extract_archive(payload, destination)
 def permission(baseline: str, current: str) -> str:
     """Return the manifest boundary's Cargo-compatible change class."""
     def core(version: str) -> tuple[int, int, int]:
@@ -279,12 +275,16 @@ def evaluation(native: dict, severity_check: dict | None, baseline: str, current
     }, exit_code
 
 
-def supplemental(manifests: list[Path], locks: list[Path], package: str,
-                 env: dict[str, str], config: dict) -> dict:
+def supplemental(roots: list[Path], manifests: list[Path], locks: list[Path],
+                 package: str, env: dict[str, str], config: dict) -> dict:
     """Collect locked consumer evidence without claiming API compatibility."""
     before = [digest(lock) for lock in locks]
     checks, dependencies = [], []
-    for manifest in manifests:
+    for root, manifest in zip(roots, manifests):
+        # Both sides build into one target and a same-named path package shares
+        # a unit across them, so a side exported before the other's build reads
+        # as older than that build's output. Stamp each side as it is built.
+        restamp_tree(root)
         check, compiled = compiled_packages(manifest, package, env, config)
         checks.append(check)
         dependencies.append(compiled)
@@ -384,7 +384,7 @@ def compare(args) -> int:
                     if known:
                         try:
                             entry["supplemental"] = supplemental(
-                                manifests, list(locks), package, env, config,
+                                roots, manifests, list(locks), package, env, config,
                             )
                         except Exception as error:
                             entry["supplemental"] = {
