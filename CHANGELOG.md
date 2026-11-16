@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Count board items with no `milestone:` assignment once a repository carries a
+  `backlog/milestones.md` ladder, closing `ATLAS-BOARD-LINT-MILESTONE`. The
+  lint's schema check had four classes (status set, anchors, priorities,
+  checklist files) and no milestone class, so the ladder rollout could not
+  tell which items its ladders had left unassigned. `MILESTONE_LINE` mirrors
+  `PRIORITY_LINE`'s two placement forms — its own field line or a
+  `;`-separated one (`- Status: todo; priority: feature; milestone: M-1.0`) —
+  and adds the bold `**Milestone:** M-x` label one member's ladder used. The
+  new `board_items_without_milestone` class is gated on the ladder file, so a
+  repository with nothing to assign to counts 0; the value is the ladder's
+  free-form `M-<slug>`, so unlike `priority:` there is no closed set and only
+  presence is counted. The conformance baseline is regenerated from the
+  recorded pins in the same change, as the generator contract requires: the
+  class measures 50 across the stack (`horae` 14, `iris` 9, `hyperion` 8).
+  Two new tests pin both spellings landing and a third item counting once, and
+  the detector's non-vacuity was checked by disabling the regex (1 expected vs
+  3 reported). `scripts/tests/test_atlas_board_lint.py` +
+  `test_atlas_conformance.py`: 236 tests pass; the root board still lints
+  clean and `atlas-conformance.py check` reports 0 regressions.
+
 - Close `ATLAS-RITK-SPATIAL-FINITE-INVERSE` and delete the item: ritk
   `6414a16a` makes `try_inverse` reject a non-finite input entry up front and
   then check every pivot, every normalized row entry and every updated entry

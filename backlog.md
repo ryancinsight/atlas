@@ -94,7 +94,6 @@
 <a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Decide the post-command heartbeat window and re-aim one scan test [patch] — todo
 <a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo
 <a id="atlas-board-index-ladder-crash"></a>- [ATLAS-BOARD-INDEX-LADDER-CRASH](backlog/atlas-board-index-ladder-crash.md) — The board index and compact tools mishandle the milestone ladder [patch] — todo
-<a id="atlas-board-lint-milestone"></a>- [ATLAS-BOARD-LINT-MILESTONE](backlog/atlas-board-lint-milestone.md) — Board lint does not count items missing a milestone [patch] — todo
 <a id="atlas-ci-ubuntu-2604"></a>- [ATLAS-CI-UBUNTU-2604](backlog/atlas-ci-ubuntu-2604.md) — `ubuntu-latest` moved to 26.04: wheel callers repin atlas python-wheels.yml, and apt-installing atlas jobs need a named image [patch] — todo
 <a id="atlas-hook-credential-alias"></a>- [ATLAS-HOOK-CREDENTIAL-ALIAS](backlog/atlas-hook-credential-alias.md) — Decide the credential-alias and include handling in the exported Cargo config [patch] — todo
 <a id="atlas-hook-merge-range"></a>- [ATLAS-HOOK-MERGE-RANGE](backlog/atlas-hook-merge-range.md) — A pushed branch update gates and budgets against the wrong base [patch] — todo
