@@ -1181,7 +1181,9 @@ def test_the_ratchet_refuses_raises_new_rows_and_sanctioned_paths():
     tip = gate.Baseline.parse(baseline_text({"m": {"a": 4, "b": 1}}, {"m": ["x.rs", "z.rs"]}),
                               "tip")
     assert gate.raised_rows(base, tip) == [
-        "m/a rises from 3 to 4", "m/b rises from 0 to 1", "m sanctions z.rs, which the base does not"]
+        "m/a rises from 3 to 4; rows only fall", "m/b rises from 0 to 1; rows only fall",
+        "m sanctions z.rs, which the base does not; exclusion lowers a count without converting "
+        "a cast"]
 
 
 def test_the_ratchet_reads_the_committed_baseline(tmp_path, capsys):
@@ -2122,10 +2124,9 @@ def test_the_ratchet_refuses_a_second_cast_module_on_a_git_range(tmp_path, capsy
     shared = write({"m": {"prof": "src/ptr.rs"}}, {"m": ["src/ptr.rs"]})
     assert ratchet(none, added) == (0, "")
     assert ratchet(added, moved) == (1, "cast gate: baseline m/prof names a second cast module, "
-                                        "src/ptr.rs; its cast module is src/cast.rs; "
-                                        "rows only fall\n")
+                                        "src/ptr.rs; its cast module is src/cast.rs\n")
     status, err = ratchet(moved, shared)
-    assert (status, "names src/ptr.rs as more than one module" in err) == (2, True)
+    assert (status, "names src/ptr.rs more than once" in err) == (2, True)
 
 
 def test_a_second_cast_module_for_one_crate_is_refused():
@@ -2140,8 +2141,9 @@ def test_a_second_cast_module_for_one_crate_is_refused():
     with pytest.raises(ValueError, match="repeats the key 'prof'"):
         Baseline.parse('{"cast_modules": {"m": {"prof": "a.rs", "prof": "b.rs"}}}', "t")
     for text in ('{"cast_modules": {"m": {"prof": "a.rs", "ops": "a.rs"}}}',
-                 '{"sanctioned": {"m": ["a.rs"]}, "cast_modules": {"m": {"prof": "a.rs"}}}'):
-        with pytest.raises(ValueError, match="names a.rs as more than one module"):
+                 '{"sanctioned": {"m": ["a.rs"]}, "cast_modules": {"m": {"prof": "a.rs"}}}',
+                 '{"sanctioned": {"m": ["a.rs", "a.rs"]}}'):
+        with pytest.raises(ValueError, match="names a.rs more than once"):
             Baseline.parse(text, "t")
     with pytest.raises(ValueError, match="one path per package"):
         Baseline.parse('{"cast_modules": {"m": {"prof": ["a.rs", "b.rs"]}}}', "t")
