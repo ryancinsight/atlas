@@ -145,13 +145,21 @@ def archive(
     revision: str,
     *,
     paths: Sequence[str] = (),
+    env: dict[str, str] | None = None,
     timeout: int,
 ) -> bytes:
-    """Return a Git tree archive with a bounded process lifetime."""
-    arguments = ["archive", "--format=tar", revision]
+    """Return the tree of `revision` as a tar archive under a bounded process lifetime.
+
+    The archive is taken of the peeled tree, never of the commit: Git stamps a
+    commit's members with its commit date, so a revision older than the build
+    output already in a shared target directory would extract as older than
+    that output and Cargo would treat the stale artifacts as fresh. A tree
+    carries no date, so members are stamped with the time of the export.
+    """
+    arguments = ["archive", "--format=tar", f"{revision}^{{tree}}"]
     if paths:
         arguments.extend(("--", *paths))
-    result = execute(repo, tuple(arguments), timeout=timeout)
+    result = execute(repo, tuple(arguments), env=env, timeout=timeout)
     if result.returncode:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise GitProcessError(detail or f"git archive failed for {revision}")

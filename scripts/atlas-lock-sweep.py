@@ -402,9 +402,11 @@ def plan_member(member: Path, targets: dict[str, str],
 
 
 def export_tree(member: Path, base: str, directory: Path) -> None:
+    # The tree, not the commit: a commit stamps members with its date, which
+    # an older revision leaves behind the shared target's build output.
     archive = directory / "tree.tar"
     subprocess.run(
-        ["git", "-C", str(member), "archive", "--format=tar", "-o", str(archive), base],
+        ["git", "-C", str(member), "archive", "--format=tar", "-o", str(archive), f"{base}^{{tree}}"],
         check=True, capture_output=True,
     )
     with tarfile.open(archive) as tree:

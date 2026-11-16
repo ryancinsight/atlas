@@ -5,15 +5,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
 import re
 import shutil
-import tarfile
 import tempfile
 import process_tree
+from atlas_git_process import archive, extract_archive
 TOOL_VERSION = "0.51.0"
 COMMAND_SECONDS = 600
 KNOWN_RESOLUTION_DIAGNOSTICS = (
@@ -56,12 +55,9 @@ def commit(repo: Path, ref: str, env: dict[str, str]) -> str:
     return value
 def export(repo: Path, revision: str, destination: Path, env: dict[str, str]) -> None:
     """Export committed source without reading the shared checkout."""
-    archive = checked(
-        ["git", "archive", "--format=tar", revision], repo, env, 120,
-    ).stdout
+    payload = archive(repo, revision, env=env, timeout=120)
     destination.mkdir()
-    with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
-        stream.extractall(destination, filter="data")
+    extract_archive(payload, destination)
 def permission(baseline: str, current: str) -> str:
     """Return the manifest boundary's Cargo-compatible change class."""
     def core(version: str) -> tuple[int, int, int]:
