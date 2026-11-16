@@ -2703,6 +2703,128 @@ class BuildIdentityTestCase(unittest.TestCase):
         with patch.object(os, "scandir", side_effect=scandir):
             self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
 
+    def test_an_entry_removed_after_the_target_listing_makes_the_scan_clean(self) -> None:
+        # The target listing names an entry; a peer's clean removes it before
+        # the scan stats it. Treating the vanished entry as fine resumes a
+        # package whose artifacts were just removed.
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        removed = target / "atlas-cache"
+        removed.mkdir()
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        self.assertEqual(writers.resumable(directory, ["demo"], "identity"), {"demo"})
+        real = os.scandir
+
+        class Vanished:
+            """The DirEntry the listing produced, whose path is now gone.
+
+            A real `DirEntry.stat` on Windows answers from the listing's
+            cached metadata, so a removed entry cannot be reproduced by a
+            delete alone; the vanished stat is what the scan must survive.
+            """
+
+            def __init__(self, entry):
+                self._entry = entry
+
+            @property
+            def name(self):
+                return self._entry.name
+
+            @property
+            def path(self):
+                return self._entry.path
+
+            def stat(self, follow_symlinks=True):
+                raise FileNotFoundError(f"{self._entry.path} was removed mid-scan")
+
+            def __getattr__(self, attribute):
+                return getattr(self._entry, attribute)
+
+        class Listing:
+            def __init__(self, scan):
+                self._scan = scan
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *arguments):
+                self._scan.close()
+
+            def __iter__(self):
+                for entry in self._scan:
+                    yield Vanished(entry) if entry.name == "atlas-cache" else entry
+
+        def scandir(path):
+            scan = real(path)
+            return Listing(scan) if Path(path) == target else scan
+
+        with patch.object(os, "scandir", side_effect=scandir):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_an_artifact_stat_error_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        artifact = target / "debug" / "deps" / "libdemo-abcdef.rlib"
+        artifact.write_text("progress", encoding="utf-8")
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        real = os.stat
+
+        def stat(path, *arguments, **options):
+            if Path(path) == artifact:
+                raise PermissionError("denied")
+            return real(path, *arguments, **options)
+
+        with patch.object(os, "stat", side_effect=stat):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_a_walked_file_stat_error_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        generated = target / "debug" / "build" / "demo-0123456789abcdef" / "out" / "generated.rs"
+        generated.parent.mkdir(parents=True)
+        generated.write_text("old", encoding="utf-8")
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        real = os.stat
+
+        def stat(path, *arguments, **options):
+            if Path(path) == generated:
+                raise PermissionError("denied")
+            return real(path, *arguments, **options)
+
+        with patch.object(os, "stat", side_effect=stat):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_an_unlistable_profile_directory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        profile = target / "debug"
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        real = os.scandir
+
+        def scandir(path):
+            if Path(path) == profile:
+                raise PermissionError("denied")
+            return real(path)
+
+        with patch.object(os, "scandir", side_effect=scandir):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
+    def test_an_unlistable_subdirectory_makes_the_scan_clean(self) -> None:
+        target = build_source._canonical(self.target)
+        directory = self.writer_directory()
+        deps = target / "debug" / "deps"
+        deps.mkdir(parents=True, exist_ok=True)
+        writers.mark(directory, ["demo"], writers.BUILDING, "identity")
+        real = os.scandir
+
+        def scandir(path):
+            if Path(path) == deps:
+                raise PermissionError("denied")
+            return real(path)
+
+        with patch.object(os, "scandir", side_effect=scandir):
+            self.assertEqual(writers.resumable(directory, ["demo"], "identity"), frozenset())
+
     def test_progress_written_within_a_run_resumes_only_through_the_heartbeat(self) -> None:
         self.killed_after_source_change()
         run_checked = identity._run_checked
