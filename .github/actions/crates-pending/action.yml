@@ -20,7 +20,7 @@ inputs:
   tag-prefix:
     description: Release-tag prefix preceding <package>-v<version> (tag)
     required: false
-    default: crate-
+    default: ""
   publish-outcome:
     description: Outcome of the publish step; after success every planned version must reach the index (tag)
     required: false

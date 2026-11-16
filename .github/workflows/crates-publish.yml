@@ -24,7 +24,7 @@ on:
       tag-prefix:
         description: Release-tag prefix preceding <package>-v<version>
         required: false
-        default: "crate-"
+        default: ""
         type: string
       atlas-ref:
         description: >-
@@ -95,12 +95,21 @@ jobs:
           set -euo pipefail
 
           if [[ "$EVENT_NAME" == "release" ]]; then
+            tag="$RELEASE_TAG"
+            # The retired `crate-` prefix still resolves on the release-event
+            # path (ATLAS-PUB-012): existing tags such as
+            # `crate-ritk-image-v0.4.0` keep working, while new tags carry no
+            # prefix. A package genuinely named `crate-*` needs an explicit
+            # tag-prefix instead of the default.
+            if [[ -z "$TAG_PREFIX" && "$tag" == crate-* ]]; then
+              tag="${tag#crate-}"
+            fi
             pattern="^${TAG_PREFIX}(.+)-v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?)$"
-            if [[ "$RELEASE_TAG" =~ $pattern ]]; then
+            if [[ "$tag" =~ $pattern ]]; then
               package="${BASH_REMATCH[1]}"
               version="${BASH_REMATCH[2]}"
             else
-              echo "release tag must be ${TAG_PREFIX}<package>-v<version>" >&2
+              echo "release tag must be [${TAG_PREFIX:-<no prefix>}]<package>-v<version> (legacy crate-<package>-v<version> also resolves)" >&2
               exit 1
             fi
           else

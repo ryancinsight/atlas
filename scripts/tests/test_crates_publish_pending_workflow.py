@@ -8,8 +8,13 @@ revision for the shared action and gate.
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
+import stat
 import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -61,7 +66,7 @@ EXPECTED_JOBS = {
                "with": {"release-gate": True, "package": "${{ needs.plan.outputs.packages }}",
                         "rust-toolchain": "${{ inputs.semver-toolchain || inputs.rust-toolchain }}",
                         "apt-packages": "${{ inputs.apt-packages }}",
-                        "atlas-ref": "c1ea21e948b34ef0cedc1c6e66a7a4c330776874"}},
+                        "atlas-ref": "ff7bf4e8f56a55181ca343ae2a580c31b76471bf"}},
     "publish": {"needs": ["plan", "semver"], "if": "needs.plan.outputs.count != '0'",
                 "runs-on": "ubuntu-latest", "timeout-minutes": 30,
                 "concurrency": {"group": "crates-publish-pending-${{ github.repository }}",
@@ -74,7 +79,7 @@ EXPECTED_JOBS = {
 EXPECTED_INPUTS = {
     "rust-toolchain": {"required": True, "type": "string"},
     "semver-toolchain": {"required": False, "default": "", "type": "string"},
-    "tag-prefix": {"required": False, "default": "crate-", "type": "string"},
+    "tag-prefix": {"required": False, "default": "", "type": "string"},
     "owner": {"required": False, "default": "ryancinsight", "type": "string"},
     "cohort-json": {"required": False, "default": "", "type": "string"},
     "apt-packages": {"required": False, "default": "", "type": "string"},
@@ -201,6 +206,98 @@ class PendingWorkflowTests(unittest.TestCase):
         scopes = [release.get("permissions", {})] + [job.get("permissions", {}) for job in release["jobs"].values()]
         granted = {p for scope in scopes for p, v in scope.items() if v == "write"}
         self.assertEqual(granted, {"id-token"})
+
+
+# Minimal jq over the canned metadata the cargo stub emits: enough for the
+# three fixed queries in the release-identity step (count, version, publish).
+STUB_JQ = """\
+import json
+import sys
+argv = sys.argv[1:]
+package = argv[argv.index("--arg") + 2]
+query = argv[-1]
+metadata = json.load(sys.stdin)
+matches = [p for p in metadata["packages"] if p.get("name") == package]
+if "length" in query:
+    print(len(matches))
+elif "version" in query:
+    print(matches[0]["version"])
+else:
+    publish = matches[0].get("publish")
+    print("true" if (publish is None or "crates-io" in publish) else "false")
+"""
+
+STUB_CARGO = """\
+#!/usr/bin/env bash
+printf '%s' '{"packages":[{"name":"sample-pkg","version":"1.2.3","publish":null}]}'
+"""
+
+
+@unittest.skipUnless(shutil.which("bash"), "the release-identity step is a bash script")
+class ReleaseTagResolutionTests(unittest.TestCase):
+    """The release-event path resolves the package from either tag form (ATLAS-PUB-012).
+
+    New tags carry no prefix (`<package>-v<version>`); the retired `crate-`
+    prefix still resolves so existing releases keep working. The workflow's
+    own script runs here against stubbed cargo/jq over canned metadata.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        release = yaml.safe_load(RELEASE_WORKFLOW.read_text(encoding="utf-8"))
+        step = next(s for s in release["jobs"]["validate"]["steps"]
+                    if s.get("name") == "Resolve and validate release identity")
+        cls.script = step["run"]
+
+    def run_resolve(self, tag: str, prefix: str = "") -> tuple[int, dict[str, str]]:
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = os.path.join(tmp, "bin")
+            os.mkdir(bin_dir)
+            cargo = os.path.join(bin_dir, "cargo")
+            with open(cargo, "w", encoding="utf-8", newline="\n") as out:
+                out.write(STUB_CARGO)
+            os.chmod(cargo, os.stat(cargo).st_mode | stat.S_IXUSR)
+            jq_helper = os.path.join(tmp, "jq_stub.py")
+            with open(jq_helper, "w", encoding="utf-8", newline="\n") as out:
+                out.write(STUB_JQ)
+            jq = os.path.join(bin_dir, "jq")
+            with open(jq, "w", encoding="utf-8", newline="\n") as out:
+                out.write(f'#!/usr/bin/env bash\nexec "{sys.executable}" "{jq_helper}" "$@"\n')
+            os.chmod(jq, os.stat(jq).st_mode | stat.S_IXUSR)
+            script = os.path.join(tmp, "resolve.sh")
+            with open(script, "w", encoding="utf-8", newline="\n") as out:
+                out.write(self.script)
+            outputs = os.path.join(tmp, "outputs")
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ["PATH"],
+                       EVENT_NAME="release", INPUT_PACKAGE="", INPUT_VERSION="",
+                       RELEASE_TAG=tag, TAG_PREFIX=prefix, GITHUB_OUTPUT=outputs)
+            proc = subprocess.run(["bash", script], env=env, capture_output=True, text=True)
+            resolved = {}
+            if os.path.exists(outputs):
+                with open(outputs, encoding="utf-8") as recorded:
+                    for line in recorded.read().splitlines():
+                        key, _, value = line.partition("=")
+                        resolved[key] = value
+            return proc.returncode, resolved
+
+    def test_the_new_prefix_free_form_resolves(self) -> None:
+        code, resolved = self.run_resolve("sample-pkg-v1.2.3")
+        self.assertEqual(code, 0)
+        self.assertEqual(resolved, {"package": "sample-pkg", "version": "1.2.3"})
+
+    def test_the_retired_crate_prefix_form_still_resolves(self) -> None:
+        code, resolved = self.run_resolve("crate-sample-pkg-v1.2.3")
+        self.assertEqual(code, 0)
+        self.assertEqual(resolved, {"package": "sample-pkg", "version": "1.2.3"})
+
+    def test_an_explicit_prefix_is_still_honored(self) -> None:
+        code, resolved = self.run_resolve("crate-sample-pkg-v1.2.3", prefix="crate-")
+        self.assertEqual(code, 0)
+        self.assertEqual(resolved, {"package": "sample-pkg", "version": "1.2.3"})
+
+    def test_a_non_release_tag_still_fails(self) -> None:
+        code, _ = self.run_resolve("not-a-release")
+        self.assertNotEqual(code, 0)
 
 
 if __name__ == "__main__":
