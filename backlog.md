@@ -1,5 +1,4 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
-<a id="atlas-ritk-spatial-finite-inverse"></a>- [ATLAS-RITK-SPATIAL-FINITE-INVERSE](backlog/atlas-ritk-spatial-finite-inverse.md) — `Direction::try_inverse` accepts non-finite arithmetic [correctness] [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
@@ -112,7 +111,6 @@
 <a id="atlas-hook-nextest-config-owner"></a>- [ATLAS-HOOK-NEXTEST-CONFIG-OWNER](backlog/atlas-hook-nextest-config-owner.md) — A member's nextest config change selects no package in the pre-push gate [patch] — todo
 <a id="atlas-python-39-floor"></a>- [ATLAS-PYTHON-39-FLOOR](backlog/atlas-python-39-floor.md) — Decide the Python floor the wheel callers support [arch] — todo
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — ADR 0055's substrate contract is enforced only for direct, unrenamed dependencies [patch] — todo
-<a id="atlas-athena-amg-vcycle-slices"></a>- [ATLAS-ATHENA-AMG-VCYCLE-SLICES](backlog/atlas-athena-amg-vcycle-slices.md) — AMG applies its V-cycle through two O(n) boundary copies [tightening] [patch] — todo
 <a id="atlas-registry-slice-001"></a>- [ATLAS-REGISTRY-SLICE-001](backlog/atlas-registry-slice-001.md) — Compact the publication pipeline record (ADR 0035, part 1) [patch] — todo
 <a id="atlas-registry-slice-002"></a>- [ATLAS-REGISTRY-SLICE-002](backlog/atlas-registry-slice-002.md) — Compact the publication pipeline record (ADR 0035, part 2) [patch] — todo
 <a id="atlas-registry-slice-004"></a>- [ATLAS-REGISTRY-SLICE-004](backlog/atlas-registry-slice-004.md) — Share the registry reader and policy in release identity [patch] — todo

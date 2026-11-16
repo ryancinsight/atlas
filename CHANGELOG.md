@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- Close `ATLAS-RITK-SPATIAL-FINITE-INVERSE` and delete the item: ritk
+  `6414a16a` makes `try_inverse` reject a non-finite input entry up front and
+  then check every pivot, every normalized row entry and every updated entry
+  of both the working matrix and the inverse, so a NaN pivot — which made the
+  old `pivot_value < threshold` comparison false and returned `Some` of a
+  NaN-filled matrix — is now refused. The pivot threshold and elimination
+  order are unchanged, and `grid_geometry.rs` needed no code change because
+  `CartesianGridGeometry::new` already maps `None` to
+  `NonCartesianGrid::SingularDirection`. The item's original oracle claimed a
+  `2^1023`/`2^-1023` diagonal stays accepted; it does not and never did,
+  because `2^-1023` sits below `PIVOT_SINGULARITY_THRESHOLD`, so the landed
+  tests pin the real boundary (accepted at `2^-9`, refused at `2^-1023`).
+  ritk-spatial: 101 tests, strict clippy and rustfmt clean.
+
+- Close `ATLAS-ATHENA-AMG-VCYCLE-SLICES` and delete the item: athena's default
+  branch now runs the V-cycle on the borrowed views Athena passes, in two
+  commits — `5e1722a` moves the smoother fixtures into `smoothers/tests.rs`,
+  and `9352b5c` turns `Preconditioner::apply` into a call into a `cycle`
+  generic over a `Vector` seam that `[T]`, `Array1` and `ArrayViewMut1` all
+  implement, with the new `vector.rs` giving contiguous operands a slice fast
+  path through `dense()`. The two O(n) boundary copies and the
+  `athena_boundary` buffer cache are gone while the public
+  `apply_to(&Array1, &mut Array1)` signature and the patch scope stay put.
+  The branch variant that removed the trait outright (PR #175) was closed in
+  favour of this one; the record follows the landed mechanism, not the
+  closed branch.
+
 - Widen the board lint's duplicate-id gate to the item-id grammar instead of
   the `ATLAS-` prefix. `scripts/atlas-board-lint.py` matched
   `^#{2,3}\s+(ATLAS-[A-Z0-9-]+)`, so on a member board whose ids are named
@@ -18,15 +45,21 @@
   family; 39 tests pass.
 
 - Regenerate the ARCH-008 pinned oracle after the gitlink advances:
-  `scripts/oracles/arch-008-production-sites.txt` now records 177 production
-  sites (158 test/bench, 335 total) and `make verify-scattered-oracle`
-  passes. Three lines differ from the previous generation and none of them is
-  code changed here: leto `bd349c5e` flattened `amd_order`'s adjacency into
-  one offset table plus one buffer, so the `Vec<Vec<usize>>` at
-  `leto-ops/src/application/sparse/amd.rs:126` is gone (the provider
-  converted it, count falls by one), and ritk `09c254e4` shifted
-  `ritk-mgh/src/reader/mod.rs` (69 to 83) and `ritk-mif/src/reader.rs` (282
-  to 300) without converting either `Vec<Vec<f32>>`.
+  `scripts/oracles/arch-008-production-sites.txt` now records 169 production
+  sites (158 test/bench, 327 total, from 177/335) and
+  `make verify-scattered-oracle` passes. The eight-site drop is the five
+  landed deliveries plus one provider conversion: apollo `a48821db` removes
+  the four `Vec<Vec<u64>>` twiddle levels from
+  `apollo-ntt/.../kernel/circle.rs` (70, 74, 142, 150), kwavers `93f6fecd5`
+  removes the two `Vec<Vec<f64>>` cost matrices from
+  `kwavers-analysis/.../ulm/tracking/tracker.rs` (63, 170), CFDrs `74e269a5`
+  folds the three element-to-node copies into one `ElementNodeMap` (three
+  sites out of `assembly.rs` and `element.rs`, one new site in
+  `element_nodes.rs:51`), and leto `bd349c5e` had already flattened
+  `amd_order`'s adjacency so `leto-ops/.../sparse/amd.rs:126` is gone.
+  ritk `09c254e4` shifted `ritk-mgh/src/reader/mod.rs` (69 to 83) and
+  `ritk-mif/src/reader.rs` (282 to 300) without converting either
+  `Vec<Vec<f32>>`.
 
 - Close ATLAS-V1-MILESTONE-LADDERS-001 and delete the item: all 28 members
   hold a 1.0 ladder at their default branch — the 12 original
@@ -48,7 +81,7 @@
   statuses are `todo` and `blocked` only while its merge is outstanding.
 
 - One element-to-node map for CFDrs's spectral meshes and global assembly
-  (CFDrs `d16dd1ef`, branch `refactor/spectral-element-nodes`), three more
+  (CFDrs `74e269a5`, CFDrs#568), three more
   sites of `ATLAS-ARCH-008`. `SpectralMesh1D` and `SpectralMesh` each held a
   `Vec<Vec<usize>>` element→node map and `GlobalAssembly` held a third — `E + 1`
   heap blocks for `E` elements, a pointer hop before any element's nodes, and
@@ -61,8 +94,8 @@
   unchanged and 17 spectral tests, strict clippy and fmt pass. No wall-clock
   claim.
 
-- Hold the ULM assignment problem in one row-major matrix (kwavers `dcd2a0904`,
-  branch `refactor/ulm-flat-cost`), two more sites of `ATLAS-ARCH-008`. The
+- Hold the ULM assignment problem in one row-major matrix (kwavers
+  `93f6fecd5`, kwavers#1106), two more sites of `ATLAS-ARCH-008`. The
   multi-frame tracker built its cost matrix as `Vec<Vec<f64>>` (one heap block
   per track) and `hungarian` copied it into a second square `Vec<Vec<f64>>`
   padded to `max(m, n)`; the solver touches that matrix `O(sz²)` per
@@ -74,8 +107,8 @@
   and kwavers-analysis's 26 ULM tests, strict clippy and fmt pass. No
   wall-clock claim: allocation/locality shape only, no paired benchmark.
 
-- Flatten the circle FFT's twiddle levels (apollo `02b23135`, branch
-  `refactor/circle-flat-twiddles`), one site of `ATLAS-ARCH-008`. The circle
+- Flatten the circle FFT's twiddle levels (apollo `a48821db`, landed as
+  apollo#718), one site of `ATLAS-ARCH-008`. The circle
   domain carried its `x` twiddles as one `Vec<u64>` per level in each
   direction — a pointer table plus a heap block per level, and a transform
   that followed one pointer per butterfly pass. Those four sites
@@ -92,8 +125,8 @@
   The census keeps listing those sites until the `repos/apollo` gitlink
   advances, because `--pinned` reads the recorded revision.
 
-- Refuse non-finite direction inverses in `ritk-spatial` (ritk `cb6c91a7b`,
-  branch `fix/spatial-finite-inverse`), delivering the code half of
+- Refuse non-finite direction inverses in `ritk-spatial` (ritk `6414a16a`,
+  ritk#941), delivering the code half of
   `ATLAS-RITK-SPATIAL-FINITE-INVERSE`. `Direction::try_inverse` rejected only a
   pivot below `PIVOT_SINGULARITY_THRESHOLD`, so a NaN pivot made the comparison
   false and the routine returned a NaN-filled matrix; arithmetic that overflowed
@@ -110,7 +143,7 @@
   the tests now pin. The ritk pull request and the gitlink advance remain open.
 
 - Run Athena's algebraic-multigrid V-cycle on borrowed slices (athena
-  `a12a09f`), delivering the code half of
+  branch `build/athena-leto-049`), delivering the code half of
   `ATLAS-ATHENA-AMG-VCYCLE-SLICES`. `athena-leto`'s
   Athena `Preconditioner::apply` copied the residual view into an owned
   `Array1`, ran the cycle, and copied the result back out, and carried a

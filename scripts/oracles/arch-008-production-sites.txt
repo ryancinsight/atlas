@@ -5,10 +5,8 @@ repos/CFDrs/crates/cfd-3d/src/bifurcation/geometry.rs:324:28  # CFDrs
 repos/CFDrs/crates/cfd-io/src/csv/reader.rs:27:73  # CFDrs
 repos/CFDrs/crates/cfd-io/src/csv/types.rs:36:15  # CFDrs
 repos/CFDrs/crates/cfd-io/src/csv/types.rs:77:36  # CFDrs
-repos/CFDrs/crates/cfd-math/src/high_order/spectral/assembly.rs:14:19  # CFDrs
-repos/CFDrs/crates/cfd-math/src/high_order/spectral/assembly.rs:25:47  # CFDrs
-repos/CFDrs/crates/cfd-math/src/high_order/spectral/assembly.rs:140:27  # CFDrs
-repos/CFDrs/crates/cfd-math/src/high_order/spectral/element.rs:150:27  # CFDrs
+repos/CFDrs/crates/cfd-math/src/high_order/spectral/assembly.rs:27:47  # CFDrs
+repos/CFDrs/crates/cfd-math/src/high_order/spectral/element_nodes.rs:51:43  # CFDrs
 repos/CFDrs/crates/cfd-math/src/high_order/spectral/operators.rs:302:12  # CFDrs
 repos/CFDrs/crates/cfd-math/src/high_order/spectral/operators.rs:313:23  # CFDrs
 repos/CFDrs/crates/cfd-math/src/sparse/assembly.rs:16:34  # CFDrs
@@ -22,10 +20,6 @@ repos/CFDrs/crates/cfd-python/src/solver_2d/mod.rs:45:15  # CFDrs
 repos/CFDrs/crates/cfd-schematic-mesh/src/blueprint_mesh.rs:1657:21  # CFDrs
 repos/CFDrs/crates/cfd-schematic-mesh/src/blueprint_mesh.rs:1730:26  # CFDrs
 repos/CFDrs/crates/cfd-schematics/src/visualizations/schematic/channel_system.rs:16:24  # CFDrs
-repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:70:16  # apollo
-repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:74:16  # apollo
-repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:142:28  # apollo
-repos/apollo/crates/apollo-ntt/src/application/execution/kernel/circle.rs:150:24  # apollo
 repos/coeus/crates/coeus-python/src/ops/shape.rs:224:17  # coeus
 repos/consus/crates/consus-hdf5/src/file/writer/builder.rs:47:22  # consus
 repos/consus/crates/consus-hdf5/src/heap/global.rs:268:13  # consus
@@ -62,8 +56,6 @@ repos/gaia/src/infrastructure/io/openfoam.rs:207:22  # gaia
 repos/kwavers/crates/kwavers-analysis/src/ml/uncertainty/ensemble_methods/mod.rs:103:32  # kwavers
 repos/kwavers/crates/kwavers-analysis/src/plotting/mod.rs:63:16  # kwavers
 repos/kwavers/crates/kwavers-analysis/src/plotting/mod.rs:182:16  # kwavers
-repos/kwavers/crates/kwavers-analysis/src/signal_processing/ulm/tracking/tracker.rs:63:19  # kwavers
-repos/kwavers/crates/kwavers-analysis/src/signal_processing/ulm/tracking/tracker.rs:170:16  # kwavers
 repos/kwavers/crates/kwavers-driver/src/dfm/tracks.rs:186:27  # kwavers
 repos/kwavers/crates/kwavers-driver/src/physics/thermal/ir_drop.rs:93:18  # kwavers
 repos/kwavers/crates/kwavers-driver/src/pipeline/place_board.rs:248:39  # kwavers
