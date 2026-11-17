@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Three more `ATLAS-ARCH-008` deliveries and a ratchet split. kwavers#1109
+  (stacked on #1108) collapses the duplicated partial-pivoting elimination
+  into `analytical/linear_solve::solve_flat`, with the square and rectangular
+  unmixing solutions pinned bit-exactly; gate `kwavers/scattered_containers
+  54 -> 49`, `unwrap_production 183 -> 180`, `allow_sites 298 -> 296`.
+  CFDrs#570 splits `spectral/operators.rs` and puts `RungeKutta`'s Butcher
+  tableau in one row-major block, matched bit for bit by a differential test
+  against the pre-change per-row step (`CFDrs/oversized_files 126 -> 125`,
+  `scattered_containers 24 -> 21`); CFDrs#571 moves the DG integrator
+  configuration into `time_integration/params.rs` as a pure move
+  (`oversized_files 126 -> 124`). gaia#230 fills the polyMesh face list in one
+  buffer at prefix-sum offsets and pins the bucketed face order and both patch
+  ranges (`gaia/scattered_containers 17 -> 16`, `gaia/oversized_files
+  27 -> 23`). No wall-clock claim: every change is an allocation/locality or
+  hierarchy shape.
+
 - Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
   overlay reports **aligned** on the recorded pins — now holds: every
   consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`
