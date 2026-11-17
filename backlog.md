@@ -1,5 +1,4 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
-<a id="atlas-ritk-spatial-finite-inverse"></a>- [ATLAS-RITK-SPATIAL-FINITE-INVERSE](backlog/atlas-ritk-spatial-finite-inverse.md) — `Direction::try_inverse` accepts non-finite arithmetic [correctness] [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
 <a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
@@ -82,8 +81,6 @@
 <a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
-<a id="atlas-v1-milestone-ladders-001"></a>- [ATLAS-V1-MILESTONE-LADDERS-001](backlog/atlas-v1-milestone-ladders-001.md) — Roll the 1.0 milestone ladder out to every member [arch] — todo
-<a id="atlas-version-coherence-sweep-2026-09-30"></a>- [ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30](backlog/atlas-version-coherence-sweep-2026-09-30.md) — Follow the current provider cohort into every consumer [correctness] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
 <a id="atlas-wgpu-safety-002"></a>- [ATLAS-WGPU-SAFETY-002](backlog/atlas-wgpu-safety-002.md) — Specify the fallible WGPU layout/dispatch boundary [arch] — todo
 <a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
@@ -95,14 +92,12 @@
 <a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Decide the post-command heartbeat window and re-aim one scan test [patch] — todo
 <a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo
 <a id="atlas-board-index-ladder-crash"></a>- [ATLAS-BOARD-INDEX-LADDER-CRASH](backlog/atlas-board-index-ladder-crash.md) — The board index and compact tools mishandle the milestone ladder [patch] — todo
-<a id="atlas-board-lint-milestone"></a>- [ATLAS-BOARD-LINT-MILESTONE](backlog/atlas-board-lint-milestone.md) — Board lint does not count items missing a milestone [patch] — todo
 <a id="atlas-ci-ubuntu-2604"></a>- [ATLAS-CI-UBUNTU-2604](backlog/atlas-ci-ubuntu-2604.md) — `ubuntu-latest` moved to 26.04: wheel callers repin atlas python-wheels.yml, and apt-installing atlas jobs need a named image [patch] — todo
 <a id="atlas-hook-credential-alias"></a>- [ATLAS-HOOK-CREDENTIAL-ALIAS](backlog/atlas-hook-credential-alias.md) — Decide the credential-alias and include handling in the exported Cargo config [patch] — todo
 <a id="atlas-hook-merge-range"></a>- [ATLAS-HOOK-MERGE-RANGE](backlog/atlas-hook-merge-range.md) — A pushed branch update gates and budgets against the wrong base [patch] — todo
 <a id="atlas-hook-nextest-config-owner"></a>- [ATLAS-HOOK-NEXTEST-CONFIG-OWNER](backlog/atlas-hook-nextest-config-owner.md) — A push changing only a global Cargo input (`.config/nextest.toml`, or a virtual root's `Cargo.lock`) selects no package in the pre-push gate [patch] — todo
 <a id="atlas-python-39-floor"></a>- [ATLAS-PYTHON-39-FLOOR](backlog/atlas-python-39-floor.md) — Decide the Python floor the wheel callers support [arch] — todo
 <a id="substrate-contract-measured"></a>- [ATLAS-SUBSTRATE-CONTRACT-MEASURED-2026-09-03](backlog/substrate-contract-measured.md) — ADR 0055's substrate contract is enforced only for direct, unrenamed dependencies [patch] — todo
-<a id="atlas-board-lint-id-prefix-20261113"></a>- [ATLAS-BOARD-LINT-ID-PREFIX-20261113](backlog/atlas-board-lint-id-prefix-20261113.md) — Board lint's duplicate-id gate reads only ATLAS- headings [patch] — todo
 <a id="atlas-registry-slice-001"></a>- [ATLAS-REGISTRY-SLICE-001](backlog/atlas-registry-slice-001.md) — Compact the publication pipeline record (ADR 0035, part 1) [patch] — todo
 <a id="atlas-registry-slice-002"></a>- [ATLAS-REGISTRY-SLICE-002](backlog/atlas-registry-slice-002.md) — Compact the publication pipeline record (ADR 0035, part 2) [patch] — todo
 <a id="atlas-registry-slice-004"></a>- [ATLAS-REGISTRY-SLICE-004](backlog/atlas-registry-slice-004.md) — Share the registry reader and policy in release identity [patch] — todo

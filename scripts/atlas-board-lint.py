@@ -68,6 +68,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from atlas_board_items import (  # noqa: E402
     ANCHOR_INLINE,
     LADDER_HEADING,
+    MILESTONE_LADDER_FILE,
     expand_board_lines,
     extract_anchor,
     split_title_status,
@@ -119,7 +120,11 @@ def collisions_across(
     mojibakeed separators), but the gate once matched only the em-dash
     level-2 form, so a duplicate id defined via a hyphen or level-3 heading
     escaped the hard gate — the anchor ambiguity the gate exists to prevent.
-    Match the same broad heading surface as `_defined_ids`.
+    Read the item-id grammar itself (`HEADING_ID`), not the `ATLAS-` prefix:
+    a member board's items are named after the member
+    (`ATHENA-GITCONFIG-20261113`, `KWAVERS-CI-PIPELINE-001`), and an id that
+    heads two entries there is ambiguous in exactly the same way. A prose
+    heading cannot match, because the grammar is all-caps hyphenated segments.
 
     A heading carrying the `original specification` appendix suffix is the
     same item's archived spec, not a second item: it never collides.
@@ -135,7 +140,7 @@ def collisions_across(
     for path in paths:
         with path.open(encoding="utf-8", errors="replace") as fh:
             for lineno, line in enumerate(fh, 1):
-                m = HEADING_ANY.match(line.rstrip("\r\n"))
+                m = HEADING_ID.match(line.rstrip("\r\n"))
                 if not m:
                     continue
                 # Trailing separators vary by era (em dash, hyphen, U+FFFD);
@@ -155,7 +160,7 @@ def next_free_across(paths: list[pathlib.Path], prefix: str) -> str:
     for path in paths:
         with path.open(encoding="utf-8", errors="replace") as fh:
             for line in fh:
-                m = HEADING_ANY.match(line.rstrip("\r\n"))
+                m = HEADING_ID.match(line.rstrip("\r\n"))
                 if not m:
                     continue
                 item_id = m.group(1).rstrip("-")
@@ -170,6 +175,15 @@ def next_free_across(paths: list[pathlib.Path], prefix: str) -> str:
 
 
 REF_PATTERN = re.compile(r"\bATLAS-[A-Z0-9]+(?:-[A-Z0-9]+)*\b")
+# The item-id grammar every board heading uses: a capitalized family prefix
+# followed by hyphen-separated all-caps segments (`ATLAS-ARCH-008`,
+# `ATHENA-GITCONFIG-20261113`). Member boards do not use the `ATLAS-` prefix,
+# so the duplicate-id gate and the `--next` suggestions read this grammar.
+ID_BODY = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+"
+HEADING_ID = re.compile(rf"^#{{2,3}}\s+({ID_BODY})")
+# `ATLAS-`-only heading match: the dangling-reference gate reads Atlas ids by
+# design (`REF_PATTERN`), so its definitions and its live-item boundaries keep
+# this narrower surface.
 HEADING_ANY = re.compile(r"^#{2,3}\s+(ATLAS-[A-Z0-9-]+)")
 
 
@@ -503,7 +517,7 @@ def count_unresolved(repo: pathlib.Path, stores: list[pathlib.Path]) -> int:
 # (`schema_violations`) also fails the lint run, since no conversion makes a
 # wrong value right; a missing field stays a count.
 BOARD_STATUSES = frozenset({"todo", "blocked"})
-ITEM_HEADING = re.compile(r"^#{2,3}\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)(.*)$")
+ITEM_HEADING = re.compile(rf"^#{{2,3}}\s+({ID_BODY})(.*)$")
 STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([a-z][a-z-]*)")
 # A priority is a field of its own line or of a `;`-separated field line
 # (`- Status: todo; priority: tightening; needs: none`, the form every metis
@@ -511,6 +525,14 @@ STATUS_LINE = re.compile(r"(?i)^\s*[-*]?\s*[*_]*status[*_]*\s*[:=]\s*[*_`]*\s*([
 # as unprioritized.
 PRIORITY_LINE = re.compile(
     r"(?i)^\s*[-*]?\s*(?:[^;\n]*;)*\s*[*_`]*priority[*_`]*\s*[:=]\s*[*_`]*\s*([a-z0-9-]*)"
+)
+# A milestone assignment takes the same two placement forms as `priority:` --
+# its own field line or a `;`-separated one -- plus the bold
+# `**Milestone:** M-x` label a member's ladder used. The value is the ladder's
+# own free-form `M-<slug>` id, so unlike `priority:` there is no closed set to
+# validate it against; only its presence is counted.
+MILESTONE_LINE = re.compile(
+    r"(?i)^\s*[-*]?\s*(?:[^;\n]*;)*\s*[*_`]*milestone[*_`]*\s*[:=]\s*[*_`]*\s*[A-Za-z0-9._-]*"
 )
 # The roadmap's closed triage set (sprint: closed priority order).
 BOARD_PRIORITIES = frozenset(
@@ -563,6 +585,7 @@ def _items_in(lines: list[str]) -> list[dict]:
                 "status": _status_word(split[1]) if split else None,
                 "priority": False,
                 "priority_value": None,
+                "milestone": False,
                 "basis": False,
             }
             items.append(current)
@@ -574,6 +597,7 @@ def _items_in(lines: list[str]) -> list[dict]:
             if priority and current["priority_value"] is None:
                 current["priority_value"] = priority.group(1)
             current["priority"] = current["priority"] or priority is not None
+            current["milestone"] = current["milestone"] or bool(MILESTONE_LINE.match(line))
             current["basis"] = current["basis"] or bool(BASIS_LINE.match(line))
         if line.strip():
             prev = line
@@ -586,15 +610,44 @@ def board_items(repo: pathlib.Path) -> list[dict]:
     return _items_in(expand_board_lines(board)) if board is not None else []
 
 
+def milestone_ladder(repo: pathlib.Path) -> pathlib.Path | None:
+    """`repo`'s `backlog/<milestones>.md` ladder, if it carries one.
+
+    The ladder is what makes a `milestone:` assignment meaningful, so the
+    absence count is gated on it: a repository with no ladder has nothing to
+    assign its items to and counts nothing.
+    """
+    if not repo.is_dir():
+        return None
+    backlog = next(
+        (p for p in sorted(repo.iterdir()) if p.is_dir() and p.name.lower() == "backlog"),
+        None,
+    )
+    if backlog is None:
+        return None
+    return next(
+        (
+            p
+            for p in sorted(backlog.iterdir())
+            if p.is_file() and p.name.lower() == MILESTONE_LADDER_FILE
+        ),
+        None,
+    )
+
+
 def board_schema_counts(repo: pathlib.Path) -> dict[str, int]:
     """Schema defects on `repo`'s board, one count per conformance class."""
     items = board_items(repo)
+    has_ladder = milestone_ladder(repo) is not None
     return {
         "board_items_outside_status_set": sum(
             1 for item in items if item["status"] not in BOARD_STATUSES
         ),
         "board_items_without_anchor": sum(1 for item in items if item["anchor"] is None),
         "board_items_without_priority": sum(1 for item in items if not item["priority"]),
+        "board_items_without_milestone": (
+            sum(1 for item in items if not item["milestone"]) if has_ladder else 0
+        ),
         "board_checklist_files": int(_root_file(repo, "checklist.md") is not None),
     }
 

@@ -348,7 +348,8 @@ CLASSES = [
     "pm_lines_over_budget", "oversized_tracked_images",
     "unresolved_references", "second_output_root",
     "board_items_outside_status_set", "board_items_without_anchor",
-    "board_items_without_priority", "board_checklist_files",
+    "board_items_without_priority", "board_items_without_milestone",
+    "board_checklist_files",
     "scattered_containers",
 ]
 

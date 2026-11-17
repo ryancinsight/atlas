@@ -2,6 +2,274 @@
 
 ## Unreleased
 
+- Three more `ATLAS-ARCH-008` deliveries and a ratchet split. kwavers#1109
+  (stacked on #1108) collapses the duplicated partial-pivoting elimination
+  into `analytical/linear_solve::solve_flat`, with the square and rectangular
+  unmixing solutions pinned bit-exactly; gate `kwavers/scattered_containers
+  54 -> 49`, `unwrap_production 183 -> 180`, `allow_sites 298 -> 296`.
+  CFDrs#570 splits `spectral/operators.rs` and puts `RungeKutta`'s Butcher
+  tableau in one row-major block, matched bit for bit by a differential test
+  against the pre-change per-row step (`CFDrs/oversized_files 126 -> 125`,
+  `scattered_containers 24 -> 21`); CFDrs#571 moves the DG integrator
+  configuration into `time_integration/params.rs` as a pure move
+  (`oversized_files 126 -> 124`). gaia#230 fills the polyMesh face list in one
+  buffer at prefix-sum offsets and pins the bucketed face order and both patch
+  ranges (`gaia/scattered_containers 17 -> 16`, `gaia/oversized_files
+  27 -> 23`). No wall-clock claim: every change is an allocation/locality or
+  hierarchy shape.
+
+- Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
+  overlay reports **aligned** on the recorded pins — now holds: every
+  consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`
+  (#1100, `4a8e1aa2`) widened its requirement, `CFDrs` (#565, `4b3ec85e9`)
+  moved the gaia-mesh lock with it, and `coeus` (#664), `ritk` (#937),
+  `asclepius` (#122, `1dbc3459`) and `metis` (#544, `d3f6c5a7`) had already
+  landed. Verified at the pushed pins: `scripts/atlas-stack-overlay.py check
+  --pinned` reports "stack aligned: requirements satisfiable and locks match
+  the local trees", `scripts/atlas-version-guard-sweep.py` reports the
+  toolchain preflight, coherence, governance and provider-integration guards
+  clean, and `scripts/atlas-pin-drift.py` reports 28 members within one sweep
+  with only the ritk waiver. The remaining pin work is the per-sweep advance,
+  not a version-coherence gap.
+
+- Admit Leto 0.50.0 across the last three lagging consumers and advance
+  their pins. `asclepius` (`1dbc3459`, asclepius#122) and `metis` (`d3f6c5a7`,
+  metis#544) are lock-only moves — Coeus `7e1ded59` with Apollo `b7bffe1c`,
+  and Gaia-Mesh `4c69a978`, each onto the default-branch revision whose Leto
+  bounds admit 0.50, with Leto itself at `6483eac3` — while `kwavers`
+  (`4a8e1aa2`, kwavers#1100) widens its requirement from `>=0.47.1, <0.49.0`
+  to `>=0.47.1, <0.51.0` and moves the same six-provider cohort in one lock
+  delta. `scripts/atlas-stack-overlay.py check --pinned` now reports "stack
+  aligned: requirements satisfiable and locks match the local trees", the
+  version-guard sweep leaves no requirement that excludes 0.50, and
+  `scripts/atlas-pin-drift.py` reports all 28 members within one sweep.
+
+- Hold the ritk pin at `596b7afc` and retire the metis pin waiver. ritk#943
+  grows `crates/ritk-snap/src/presentation/native_session/window_controls/
+  layout/construction.rs` from 498 to 507 lines, so the default tip raises
+  `oversized_files` 38 -> 39 and the conformance ratchet rejects it;
+  `scripts/pin-drift-waivers.json` now records that regression and the file
+  split that reopens the pin. The metis entry it replaces was re-measured
+  against that member's current default and no longer reproduces (0
+  unresolved references, no `checklist.md`), so it was deleted rather than
+  renewed.
+
+- Two more `ATLAS-ARCH-008` sites in kwavers. #1107: the IR-drop solver's
+  private `Vec<(usize, f64)>`-per-node power-net graph is one CSR pair
+  (neighbour run + conductance run behind an offset table) built in two passes
+  from the edge list; each node's edges are inserted in the original order, so
+  the Gauss–Seidel summation order is unchanged and the result is pinned
+  bit-exactly (`4591621414013336774`). #1108: `gaussian_elim_flat` and
+  `symmetric_eigenvalues` in `kwavers-physics` now work on one row-major block
+  each (strides `n + 1` and `n`) instead of re-jagging a flat input per solve,
+  with the singular values and L-curve residual/solution norms pinned
+  bit-exactly, and the pivot search's bare `unwrap` replaced by an invariant
+  `expect`. Verified: 5 `ir_drop` tests, 1577 kwavers-physics tests, strict
+  clippy and fmt clean; the push gates measured `kwavers/scattered_containers
+  54 -> 51` then `54 -> 50` and `unwrap_production 183 -> 181`, with 0
+  regressions. No wall-clock claim.
+
+- Hold the genetic search's candidate batches in one buffer and one round-robin
+  (CFDrs#569), another `ATLAS-ARCH-008` site. `cfd-optim`
+  built a `Vec<BlueprintCandidate>` per parent for its mutations, crossovers and
+  local perturbations — four production `Vec<Vec<_>>` sites rebuilt every
+  generation — and walked them with a round-robin that existed twice (the
+  helper plus an open-coded copy in the seed path). A new `CandidateBatches`
+  leaf module stores every batch back to back behind an offset table,
+  appending batch by batch so no jagged intermediate is built, and the one
+  helper now serves both walks. The full-optimizer oracle, the mutation and
+  crossover validity oracles and `cfd-optim`'s 109 unit tests pass; the push
+  gate measured `CFDrs/scattered_containers 24 -> 18` with 0 regressions. No
+  wall-clock claim.
+
+- Count board items with no `milestone:` assignment once a repository carries a
+  `backlog/milestones.md` ladder, closing `ATLAS-BOARD-LINT-MILESTONE`. The
+  lint's schema check had four classes (status set, anchors, priorities,
+  checklist files) and no milestone class, so the ladder rollout could not
+  tell which items its ladders had left unassigned. `MILESTONE_LINE` mirrors
+  `PRIORITY_LINE`'s two placement forms — its own field line or a
+  `;`-separated one (`- Status: todo; priority: feature; milestone: M-1.0`) —
+  and adds the bold `**Milestone:** M-x` label one member's ladder used. The
+  new `board_items_without_milestone` class is gated on the ladder file, so a
+  repository with nothing to assign to counts 0; the value is the ladder's
+  free-form `M-<slug>`, so unlike `priority:` there is no closed set and only
+  presence is counted. The conformance baseline is regenerated from the
+  recorded pins in the same change, as the generator contract requires: the
+  class measures 50 across the stack (`horae` 14, `iris` 9, `hyperion` 8).
+  Two new tests pin both spellings landing and a third item counting once, and
+  the detector's non-vacuity was checked by disabling the regex (1 expected vs
+  3 reported). `scripts/tests/test_atlas_board_lint.py` +
+  `test_atlas_conformance.py`: 236 tests pass; the root board still lints
+  clean and `atlas-conformance.py check` reports 0 regressions.
+
+- Close `ATLAS-RITK-SPATIAL-FINITE-INVERSE` and delete the item: ritk
+  `6414a16a` makes `try_inverse` reject a non-finite input entry up front and
+  then check every pivot, every normalized row entry and every updated entry
+  of both the working matrix and the inverse, so a NaN pivot — which made the
+  old `pivot_value < threshold` comparison false and returned `Some` of a
+  NaN-filled matrix — is now refused. The pivot threshold and elimination
+  order are unchanged, and `grid_geometry.rs` needed no code change because
+  `CartesianGridGeometry::new` already maps `None` to
+  `NonCartesianGrid::SingularDirection`. The item's original oracle claimed a
+  `2^1023`/`2^-1023` diagonal stays accepted; it does not and never did,
+  because `2^-1023` sits below `PIVOT_SINGULARITY_THRESHOLD`, so the landed
+  tests pin the real boundary (accepted at `2^-9`, refused at `2^-1023`).
+  ritk-spatial: 101 tests, strict clippy and rustfmt clean.
+
+- Close `ATLAS-ATHENA-AMG-VCYCLE-SLICES` and delete the item: athena's default
+  branch now runs the V-cycle on the borrowed views Athena passes, in two
+  commits — `5e1722a` moves the smoother fixtures into `smoothers/tests.rs`,
+  and `9352b5c` turns `Preconditioner::apply` into a call into a `cycle`
+  generic over a `Vector` seam that `[T]`, `Array1` and `ArrayViewMut1` all
+  implement, with the new `vector.rs` giving contiguous operands a slice fast
+  path through `dense()`. The two O(n) boundary copies and the
+  `athena_boundary` buffer cache are gone while the public
+  `apply_to(&Array1, &mut Array1)` signature and the patch scope stay put.
+  The branch variant that removed the trait outright (PR #175) was closed in
+  favour of this one; the record follows the landed mechanism, not the
+  closed branch.
+
+- Widen the board lint's duplicate-id gate to the item-id grammar instead of
+  the `ATLAS-` prefix. `scripts/atlas-board-lint.py` matched
+  `^#{2,3}\s+(ATLAS-[A-Z0-9-]+)`, so on a member board whose ids are named
+  after the member the hard gate reported "all item ids unique" over any
+  duplicated `ATHENA-*` or `KWAVERS-*` heading; a judge's negative control
+  reproduced it with two `ATHENA-GITCONFIG-20261113` headings and exit 0. One
+  `ID_BODY` grammar now feeds `HEADING_ID` (the duplicate gate and the
+  `--next` suggestions) and `ITEM_HEADING` (the schema scan), beside the
+  `ATLAS-`-only `HEADING_ANY` that the dangling-reference scan keeps by
+  design. Tests in `scripts/tests/test_atlas_board_lint.py`: a duplicated
+  member-family id is reported with both lines and `main` exits 1, distinct
+  member-family ids and prose headings are not flagged, a duplicate split
+  across two item files is caught, and `next_free` reads an `ATHENA-*`
+  family; 39 tests pass.
+
+- Regenerate the ARCH-008 pinned oracle after the gitlink advances:
+  `scripts/oracles/arch-008-production-sites.txt` now records 169 production
+  sites (158 test/bench, 327 total, from 177/335) and
+  `make verify-scattered-oracle` passes. The eight-site drop is the five
+  landed deliveries plus one provider conversion: apollo `a48821db` removes
+  the four `Vec<Vec<u64>>` twiddle levels from
+  `apollo-ntt/.../kernel/circle.rs` (70, 74, 142, 150), kwavers `93f6fecd5`
+  removes the two `Vec<Vec<f64>>` cost matrices from
+  `kwavers-analysis/.../ulm/tracking/tracker.rs` (63, 170), CFDrs `74e269a5`
+  folds the three element-to-node copies into one `ElementNodes` (three
+  sites out of `assembly.rs` and `element.rs`, one new site in
+  `element_nodes.rs:51`), and leto `bd349c5e` had already flattened
+  `amd_order`'s adjacency so `leto-ops/.../sparse/amd.rs:126` is gone.
+  ritk `09c254e4` shifted `ritk-mgh/src/reader/mod.rs` (69 to 83) and
+  `ritk-mif/src/reader.rs` (282 to 300) without converting either
+  `Vec<Vec<f32>>`.
+
+- Advance the ritk gitlink to `596b7afc`, the merge of ritk#946, which moved
+  that member's `main` 13 commits past the recorded pin while pin drift
+  allows one; `scripts/atlas-pin-drift.py` now reports all 28 members within
+  one sweep. The advance leaves the ARCH-008 census unchanged at 169
+  production sites (158 test/bench, 327 total), so
+  `scripts/oracles/arch-008-production-sites.txt` is untouched and
+  `make verify-scattered-oracle` still passes.
+
+- Close ATLAS-V1-MILESTONE-LADDERS-001 and delete the item: all 28 members
+  hold a 1.0 ladder at their default branch — the 12 original
+  `backlog/milestones.md` ladders plus eunomia, aequitas, ritk, helios,
+  metis, CFDrs and gaia merged during the rollout wave, and hermes, apollo,
+  athena, ares, coeus and prometheus carrying member-native ladder shapes
+  with milestone-tagged boards. The recorded lesson rides the closure:
+  `## M-1.0` rung headings parse as board items because `M-1` matches the id
+  grammar, so rungs are written `## Milestone M-1.0` where a member runs the
+  board lint.
+
+- Close ATLAS-PUB-002 and delete the item: RITK's caller was the last
+  outstanding book workflow and Deploy mdBook run `43534192587` (2026-11-14)
+  succeeded on main at `e4bd3567` through the shared caller pinned at
+  `book-pages.yml@20c93980`, with CFDrs, helios and kwavers callers already
+  in place (`bb505e5e`, `6ed29a95`, `ddee9af1`). ATLAS-PUB-005's dependency
+  line now names the landed caller rather than the deleted id, and
+  ATLAS-PUB-012 returns to `todo` because the board's default-branch
+  statuses are `todo` and `blocked` only while its merge is outstanding.
+
+- One element-to-node map for CFDrs's spectral meshes and global assembly
+  (CFDrs `74e269a5`, CFDrs#568), three more
+  sites of `ATLAS-ARCH-008`. `SpectralMesh1D` and `SpectralMesh` each held a
+  `Vec<Vec<usize>>` element→node map and `GlobalAssembly` held a third — `E + 1`
+  heap blocks for `E` elements, a pointer hop before any element's nodes, and
+  the same offset arithmetic three times. They now share one `ElementNodes`
+  leaf type (index buffer behind an ascending offset table), both meshes build
+  it through one `from_uniform` formula (`element * (nodes_per_element - 1) +
+  local_node`, the layout that shares boundary nodes), and the assembly
+  flattens its caller-supplied lists once. Both meshes also drop their separate
+  `num_elements` field in favour of the count the map owns. Public surface is
+  unchanged and 17 spectral tests, strict clippy and fmt pass. No wall-clock
+  claim.
+
+- Hold the ULM assignment problem in one row-major matrix (kwavers
+  `93f6fecd5`, kwavers#1106), two more sites of `ATLAS-ARCH-008`. The
+  multi-frame tracker built its cost matrix as `Vec<Vec<f64>>` (one heap block
+  per track) and `hungarian` copied it into a second square `Vec<Vec<f64>>`
+  padded to `max(m, n)`; the solver touches that matrix `O(sz²)` per
+  augmentation round through two pointer hops per element. The cost matrix is
+  now one buffer with stride `n`, the padded square one buffer with stride
+  `sz` (row reduction walks `sz`-sized slices), and `hungarian` takes `&[f64]`
+  with the stride documented. Assignment results are unchanged — the identity,
+  minimum-cost, linear-motion, crossing-bubble and termination oracles pass —
+  and kwavers-analysis's 26 ULM tests, strict clippy and fmt pass. No
+  wall-clock claim: allocation/locality shape only, no paired benchmark.
+
+- Flatten the circle FFT's twiddle levels (apollo `a48821db`, landed as
+  apollo#718), one site of `ATLAS-ARCH-008`. The circle
+  domain carried its `x` twiddles as one `Vec<u64>` per level in each
+  direction — a pointer table plus a heap block per level, and a transform
+  that followed one pointer per butterfly pass. Those four sites
+  (`apollo-ntt` `kernel/circle.rs` lines 70, 74, 142, 150) are now two
+  `LevelTwiddles`: one contiguous value buffer behind an ascending offset
+  table per direction, in a new leaf module `kernel/circle/twiddles.rs`, with
+  construction filling the flat buffer directly instead of a jagged
+  intermediate. Arithmetic, level order and twiddle values are unchanged — the
+  exact round-trip and basis-evaluation oracles pass untouched — and a new
+  structural test pins level count, per-level lengths (`N/4, N/8, …, 1`) and
+  the `N/2 − 1` value total for `n = 2^1..2^8`. `apollo-ntt`'s 38 tests, strict
+  clippy and fmt pass; the `circle` bench completes inside its 60 s budget
+  (19.8 s). No wall-clock win is claimed — no paired baseline was taken.
+  The census keeps listing those sites until the `repos/apollo` gitlink
+  advances, because `--pinned` reads the recorded revision.
+
+- Refuse non-finite direction inverses in `ritk-spatial` (ritk `6414a16a`,
+  ritk#941), delivering the code half of
+  `ATLAS-RITK-SPATIAL-FINITE-INVERSE`. `Direction::try_inverse` rejected only a
+  pivot below `PIVOT_SINGULARITY_THRESHOLD`, so a NaN pivot made the comparison
+  false and the routine returned a NaN-filled matrix; arithmetic that overflowed
+  mid-elimination likewise surfaced as a plausible-looking inverse. It now
+  rejects a non-finite input entry up front and checks every pivot, normalized
+  row entry, and updated working/inverse entry as it is computed, with the
+  threshold and elimination order unchanged. `CartesianGridGeometry::new`
+  already maps `None` to `NonCartesianGrid::SingularDirection`, so it reports
+  that instead of keeping an invalid index/world pair. Covered by the 42
+  non-finite input cases across ranks one to three plus overflow, pivoted-shear
+  and dyadic-diagonal fixtures; ritk-spatial's 101 tests, strict clippy and fmt
+  pass. One oracle claim was corrected rather than implemented: a `2^-1023`
+  diagonal is below the unchanged threshold and is refused as singular, which
+  the tests now pin. The ritk pull request and the gitlink advance remain open.
+
+- Run Athena's algebraic-multigrid V-cycle on borrowed slices (athena
+  branch `build/athena-leto-049`), delivering the code half of
+  `ATLAS-ATHENA-AMG-VCYCLE-SLICES`. `athena-leto`'s
+  Athena `Preconditioner::apply` copied the residual view into an owned
+  `Array1`, ran the cycle, and copied the result back out, and carried a
+  cached `athena_boundary` buffer pair to do it; the cycle and its level
+  helpers only ever needed element slices. `v_cycle`, both smoothing
+  dispatches, and `sparse_apply_into` now take `&[T]` / `&mut [T]`, the
+  per-level workspace holds plain `Vec`s, and the seam hands the caller's
+  views straight through, so a preconditioner application makes no copy in or
+  out and the boundary cache is deleted. Each smoother keeps one sweep kernel
+  with its public owned `apply` as a thin adapter, so no public signature
+  moves and the change stays patch-scoped. Equivalence is pinned by the
+  pre-change cycle's digest on a three-level SPD fixture plus an
+  adapter-versus-kernel sweep oracle; no wall-clock win is claimed, because
+  the two removed passes were `O(n)` beside the cycle's `O(nnz)` sweeps.
+  Athena's workspace suite, `cargo clippy -D warnings`, and `cargo fmt
+  --check` pass. The gitlink advance awaits the member commit reaching the
+  Athena default branch.
+
 - Widen every registered consumer's `leto` / `leto-ops` requirement to admit
   the 0.48 provider line: apollo, ares, athena, CFDrs, coeus, gaia, helios,
   hephaestus, kwavers, prometheus and ritk now unify with the local Leto 0.48.0

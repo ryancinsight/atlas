@@ -84,10 +84,45 @@ class CollisionsTestCase(BoardLintUtilTestCase):
         dupes = _lint.collisions_across([board])
         self.assertEqual(dupes, {})
 
-    def test_headings_without_atlas_id_are_ignored(self) -> None:
+    def test_prose_headings_without_an_id_are_ignored(self) -> None:
         board = self._board("## Not an item — prose\n## ATLAS-AUDIT-001 — one\n")
         dupes = _lint.collisions_across([board])
         self.assertEqual(dupes, {})
+
+    def test_duplicate_member_family_heading_is_flagged(self) -> None:
+        # A member board's ids are named after the member, not `ATLAS-`; the
+        # hard gate must see them or "all item ids unique" is vacuous there.
+        board = self._board(
+            "## ATHENA-GITCONFIG-20261113 — first [patch] — todo\n"
+            "## ATHENA-GITCONFIG-20261113 — second [patch] — todo\n"
+        )
+        dupes = _lint.collisions_across([board])
+        self.assertIn("ATHENA-GITCONFIG-20261113", dupes)
+        self.assertEqual(len(dupes["ATHENA-GITCONFIG-20261113"]), 2)
+
+    def test_distinct_member_family_ids_are_not_flagged(self) -> None:
+        board = self._board(
+            "## ATHENA-GITCONFIG-20261113 — first [patch] — todo\n"
+            "## KWAVERS-CI-PIPELINE-001 — second [patch] — todo\n"
+        )
+        dupes = _lint.collisions_across([board])
+        self.assertEqual(dupes, {})
+
+    def test_main_exits_one_for_a_duplicate_member_family_id(self) -> None:
+        self._board(
+            "## ATHENA-GITCONFIG-20261113 — first [patch] — todo\n"
+            "## ATHENA-GITCONFIG-20261113 — second [patch] — todo\n"
+        )
+        old_argv = sys.argv
+        old_root = _lint.ROOT
+        sys.argv = ["atlas-board-lint.py", "--file", "backlog.md"]
+        _lint.ROOT = Path(self._tmp.name)
+        try:
+            rc = _lint.main()
+        finally:
+            sys.argv = old_argv
+            _lint.ROOT = old_root
+        self.assertEqual(rc, 1)
 
     def test_original_specification_appendix_does_not_collide(self) -> None:
         # The board attaches an item's original specification as a second
@@ -134,6 +169,14 @@ class NextFreeTestCase(BoardLintUtilTestCase):
         suggestion = _lint.next_free_across([board], "ATLAS-ARCH")
         self.assertEqual(suggestion, "ATLAS-ARCH-003")
 
+    def test_next_free_reads_member_family_ids(self) -> None:
+        board = self._board(
+            "## ATHENA-GITCONFIG-001 — first [patch]\n"
+            "## ATHENA-GITCONFIG-002 — second [patch]\n"
+        )
+        suggestion = _lint.next_free_across([board], "ATHENA-GITCONFIG")
+        self.assertEqual(suggestion, "ATHENA-GITCONFIG-003")
+
 
 class IndexedLayoutTestCase(BoardLintUtilTestCase):
     """Past about forty open items a board moves bodies to
@@ -157,6 +200,20 @@ class IndexedLayoutTestCase(BoardLintUtilTestCase):
         dupes = _lint.collisions_across([item_dir / "a.md", item_dir / "b.md"])
         self.assertIn("ATLAS-DUP-100", dupes)
         self.assertEqual(len(dupes["ATLAS-DUP-100"]), 2)
+
+    def test_collisions_across_finds_a_duplicate_member_family_id(self) -> None:
+        item_dir = self._item_dir()
+        (item_dir / "a.md").write_text(
+            '<a id="a"></a>\n## ATHENA-GITCONFIG-20261113 — first [patch] — todo\n',
+            encoding="utf-8",
+        )
+        (item_dir / "b.md").write_text(
+            '<a id="b"></a>\n## ATHENA-GITCONFIG-20261113 — second [patch] — todo\n',
+            encoding="utf-8",
+        )
+        dupes = _lint.collisions_across([item_dir / "a.md", item_dir / "b.md"])
+        self.assertIn("ATHENA-GITCONFIG-20261113", dupes)
+        self.assertEqual(len(dupes["ATHENA-GITCONFIG-20261113"]), 2)
 
     def test_collisions_across_unique_ids_across_files_are_not_flagged(self) -> None:
         item_dir = self._item_dir()
@@ -488,6 +545,7 @@ class BoardSchemaTestCase(unittest.TestCase):
                 "board_items_outside_status_set": 1,
                 "board_items_without_anchor": 1,
                 "board_items_without_priority": 1,
+                "board_items_without_milestone": 0,
                 "board_checklist_files": 0,
             },
         )
@@ -519,6 +577,56 @@ class BoardSchemaTestCase(unittest.TestCase):
         self.assertEqual(counts["board_items_without_priority"], 1)
         self.assertEqual(counts["board_items_outside_status_set"], 0)
 
+    def test_a_milestone_counts_only_where_a_ladder_exists(self) -> None:
+        """Both field spellings land; an item with neither is the one count."""
+        (self.repo / "backlog.md").write_text(
+            '<a id="ATLAS-M-001"></a>\n'
+            "## ATLAS-M-001 - field on its own line\n"
+            "- priority: feature\n"
+            "- milestone: M-1.0\n"
+            '<a id="ATLAS-M-002"></a>\n'
+            "## ATLAS-M-002 - bold label\n"
+            "- **Milestone:** M-1.0\n"
+            "- priority: feature\n"
+            '<a id="ATLAS-M-003"></a>\n'
+            "## ATLAS-M-003 - no milestone anywhere\n"
+            "- priority: feature\n",
+            encoding="utf-8",
+        )
+        # No ladder file yet: a repository with nothing to assign to counts 0.
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo)["board_items_without_milestone"], 0
+        )
+
+        ladder = self.repo / "backlog"
+        ladder.mkdir()
+        (ladder / "milestones.md").write_text(
+            "## M-1.0 — Release one — exit: cargo test\n", encoding="utf-8"
+        )
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo)["board_items_without_milestone"], 1
+        )
+
+    def test_a_milestone_on_a_shared_field_line_counts(self) -> None:
+        """`- Status: todo; milestone: M-x` carries it; prose does not."""
+        (self.repo / "backlog").mkdir()
+        (self.repo / "backlog" / "milestones.md").write_text(
+            "## M-1.0 — Release one — exit: cargo test\n", encoding="utf-8"
+        )
+        (self.repo / "backlog.md").write_text(
+            '<a id="ATLAS-M-010"></a>\n'
+            "## ATLAS-M-010 - inline fields\n"
+            "- Status: todo; priority: feature; milestone: M-1.0\n"
+            '<a id="ATLAS-M-011"></a>\n'
+            "## ATLAS-M-011 - prose mentions the word\n"
+            "- priority: feature\n"
+            "- outcome: assign a milestone: once the ladder lands\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            _lint.board_schema_counts(self.repo)["board_items_without_milestone"], 1
+        )
+
     def test_a_missing_status_and_a_checklist_count(self) -> None:
         (self.repo / "backlog.md").write_text(
             "### ATLAS-B-001 - no status anywhere\n", encoding="utf-8"
@@ -535,6 +643,7 @@ class BoardSchemaTestCase(unittest.TestCase):
                 "board_items_outside_status_set": 0,
                 "board_items_without_anchor": 0,
                 "board_items_without_priority": 0,
+                "board_items_without_milestone": 0,
                 "board_checklist_files": 0,
             },
         )
@@ -614,6 +723,7 @@ class BoardLadderTestCase(unittest.TestCase):
                 "board_items_outside_status_set": 0,
                 "board_items_without_anchor": 0,
                 "board_items_without_priority": 0,
+                "board_items_without_milestone": 0,
                 "board_checklist_files": 0,
             },
         )
