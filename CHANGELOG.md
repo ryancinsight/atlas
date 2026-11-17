@@ -17,8 +17,10 @@
   remaining pin work is the per-sweep advance, not a version-coherence gap.
 
 - Admit Leto 0.50.0 across the last three lagging consumers and advance
-  their pins. `asclepius` (`1dbc3459`, asclepius#122) and `metis` (`d3f6c5a7`,
-  metis#544) are lock-only moves — Coeus `7e1ded59` with Apollo `b7bffe1c`,
+  their pins. `asclepius` (`1dbc3459`, asclepius#122) and metis's Leto
+  admission (`d3f6c5a7`, metis#544) were lock-only moves; the current metis
+  pin `e341c29e` also carries metis#547 — Coeus `7e1ded59` with Apollo
+  `b7bffe1c`,
   and Gaia-Mesh `4c69a978`, each onto the default-branch revision whose Leto
   bounds admit 0.50, with Leto itself at `6483eac3` — while `kwavers`
   (`4a8e1aa2`, kwavers#1100) widens its requirement from `>=0.47.1, <0.49.0`
