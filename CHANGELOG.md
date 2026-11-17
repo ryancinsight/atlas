@@ -54,8 +54,9 @@
   from the edge list; each node's edges are inserted in the original order, so
   the Gauss–Seidel summation order is unchanged and the result is pinned
   bit-exactly (`4591621414013336774`). The pinned census drops that
-  `Vec<Vec<_>>` occurrence: 169 -> 168 production sites. Verified: 5 `ir_drop`
-  tests, strict clippy and fmt clean. No wall-clock claim.
+  `Vec<Vec<_>>` occurrence; the current pinned census holds 162 production
+  sites. Verified: 5 `ir_drop` tests, strict clippy and fmt clean. No
+  wall-clock claim.
 
 - Hold the genetic search's candidate batches in one buffer and one round-robin
   (CFDrs#569), another `ATLAS-ARCH-008` site. `cfd-optim`
@@ -67,8 +68,34 @@
   appending batch by batch so no jagged intermediate is built, and the one
   helper now serves both walks. The full-optimizer oracle, the mutation and
   crossover validity oracles and `cfd-optim`'s 109 unit tests pass; the push
-  gate measured `CFDrs/scattered_containers 24 -> 18` with 0 regressions. No
-  wall-clock claim.
+  gate measured `CFDrs/scattered_containers 24 -> 18` with 0 regressions on
+  the PR head; the current default, with CFDrs#570 and #571 also landed,
+  measures 17. No wall-clock claim.
+
+- Advance eleven member pins to their current defaults and record the landed
+  `ATLAS-ARCH-008` work. CFDrs (`ec8995c9b`) now carries #569 (one
+  `CandidateBatches` buffer plus offset table for the genetic search), #570
+  (`1ec2a852`: the time integrators move to `operators/time_integration.rs`
+  and `RungeKutta` holds one row-major `stages x stages` Butcher block, so the
+  two per-stage census sites become the one constructor site at
+  `time_integration.rs:50`) and #571 (`ec8995c9b`: the DG configuration moves
+  to `time_integration/params.rs`, taking the parent from 571 to 372 lines);
+  gaia (`ba2bcba5`) carries #230 (`f22ab82f7`: the polyMesh writer fills one
+  contiguous face buffer at prefix-sum offsets, so the per-patch
+  `Vec<[u32; 3]>` site is gone and a new test pins the face body and both
+  patch ranges). consus (`7b8473d4b`), eunomia (`9ab3beda7`), helios
+  (`f8ac289f`), hermes (`f3ac58fd`), leto (`5f0c2307`), mnemosyne
+  (`468650f8`), moirai (`6735c1d3`), kwavers (`45db5f1d0`) and metis
+  (`d709bf87b`) advance to their own defaults; asclepius (`1dbc3459`) and
+  coeus (`223a2a43`) carry the same sweep's earlier landings. Every tip was
+  measured against the committed conformance baseline: no regression, and the
+  tightenings earn `CFDrs/scattered_containers 22 -> 17` and
+  `oversized_files 126 -> 124`, `consus/oversized_files 76 -> 75`,
+  `gaia/scattered_containers 17 -> 16` and `oversized_files 23 -> 21`, and
+  `mnemosyne/oversized_files 1 -> 0`, so the baseline and the ARCH-008 oracle
+  are regenerated in the same change (162 production sites, 159 test/bench,
+  321 total). No wall-clock claim: every delivery is an allocation, locality
+  or hierarchy-shape change.
 
 - Count board items with no `milestone:` assignment once a repository carries a
   `backlog/milestones.md` ladder, closing `ATLAS-BOARD-LINT-MILESTONE`. The
