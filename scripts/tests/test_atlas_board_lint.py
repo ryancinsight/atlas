@@ -50,7 +50,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATLAS-AUDIT-001 — first [patch] — in-progress\n"
             "## ATLAS-AUDIT-001 — second [minor] — done\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertIn("ATLAS-AUDIT-001", dupes)
         self.assertEqual(len(dupes["ATLAS-AUDIT-001"]), 2)
 
@@ -60,7 +60,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATLAS-AUDIT-001 - first [patch] - in-progress\n"
             "## ATLAS-AUDIT-001 - second [patch] - done\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertIn("ATLAS-AUDIT-001", dupes)
         self.assertEqual(len(dupes["ATLAS-AUDIT-001"]), 2)
 
@@ -71,7 +71,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATLAS-GMRES-001 — consolidate [major] — closed\n"
             "### ATLAS-GMRES-001 — CORRECTED: owner is athena\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertIn("ATLAS-GMRES-001", dupes)
         self.assertEqual(len(dupes["ATLAS-GMRES-001"]), 2)
 
@@ -81,12 +81,12 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATLAS-AUDIT-002 — second [patch] — done\n"
             "### ATLAS-AUDIT-003 — sub-note\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertEqual(dupes, {})
 
     def test_prose_headings_without_an_id_are_ignored(self) -> None:
         board = self._board("## Not an item — prose\n## ATLAS-AUDIT-001 — one\n")
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertEqual(dupes, {})
 
     def test_duplicate_member_family_heading_is_flagged(self) -> None:
@@ -96,7 +96,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATHENA-GITCONFIG-20261113 — first [patch] — todo\n"
             "## ATHENA-GITCONFIG-20261113 — second [patch] — todo\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertIn("ATHENA-GITCONFIG-20261113", dupes)
         self.assertEqual(len(dupes["ATHENA-GITCONFIG-20261113"]), 2)
 
@@ -105,7 +105,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATHENA-GITCONFIG-20261113 — first [patch] — todo\n"
             "## KWAVERS-CI-PIPELINE-001 — second [patch] — todo\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertEqual(dupes, {})
 
     def test_main_exits_one_for_a_duplicate_member_family_id(self) -> None:
@@ -132,7 +132,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — in-progress\n"
             "## ATLAS-DMRI-IO-001 original specification\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertEqual(dupes, {})
 
     def test_appendix_suffix_must_be_exact(self) -> None:
@@ -142,7 +142,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATLAS-AUDIT-001 — first — in-progress\n"
             "## ATLAS-AUDIT-001 original specification and other matter\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertIn("ATLAS-AUDIT-001", dupes)
         self.assertEqual(len(dupes["ATLAS-AUDIT-001"]), 2)
 
@@ -154,7 +154,7 @@ class CollisionsTestCase(BoardLintUtilTestCase):
             "## ATLAS-AUDIT-001 original specification\n"
             "## ATLAS-AUDIT-001 — a different item — done\n"
         )
-        dupes = _lint.collisions(board)
+        dupes = _lint.collisions_across([board])
         self.assertIn("ATLAS-AUDIT-001", dupes)
         self.assertEqual(len(dupes["ATLAS-AUDIT-001"]), 2)
 
@@ -166,7 +166,7 @@ class NextFreeTestCase(BoardLintUtilTestCase):
             "### ATLAS-ARCH-002 — sub-heading\n"
             "## ATLAS-ARCH-004 — fourth\n"
         )
-        suggestion = _lint.next_free(board, "ATLAS-ARCH")
+        suggestion = _lint.next_free_across([board], "ATLAS-ARCH")
         self.assertEqual(suggestion, "ATLAS-ARCH-003")
 
     def test_next_free_reads_member_family_ids(self) -> None:
@@ -174,7 +174,7 @@ class NextFreeTestCase(BoardLintUtilTestCase):
             "## ATHENA-GITCONFIG-001 — first [patch]\n"
             "## ATHENA-GITCONFIG-002 — second [patch]\n"
         )
-        suggestion = _lint.next_free(board, "ATHENA-GITCONFIG")
+        suggestion = _lint.next_free_across([board], "ATHENA-GITCONFIG")
         self.assertEqual(suggestion, "ATHENA-GITCONFIG-003")
 
 
@@ -878,6 +878,125 @@ class BoardSchemaGateTestCase(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertNotIn("deadbeef1234567", out)
         self.assertIn("abcdef1234567  board.md:1", out)
+
+
+class DuplicateIdLayoutTestCase(unittest.TestCase):
+    """The duplicate-id gate reads inline items and per-item files together.
+
+    A member board whose `backlog/` directory holds only `milestones.md` is
+    still an inline board; selecting the per-item-file branch on the
+    directory's existence alone skipped its inline headings, so a copied item
+    printed "all item ids unique" and exited 0.
+    """
+
+    FIRST = "## ATLAS-DUP-300 — first [patch] — todo"
+    SECOND = "## ATLAS-DUP-300 — second [patch] — todo"
+    LADDER = "## M-1.0 — first release\nexit: nothing\n"
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="board-lint-layout-")
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name) / "root"
+        self.repo = Path(self._tmp.name) / "repo"
+        self.root.mkdir()
+        self.repo.mkdir()
+
+    def _item_file(self, name: str, text: str) -> None:
+        item_dir = self.repo / "backlog"
+        item_dir.mkdir(exist_ok=True)
+        (item_dir / name).write_text(text, encoding="utf-8")
+
+    def _lint(self, text: str) -> tuple[int, str]:
+        board = self.repo / "backlog.md"
+        board.write_text(text, encoding="utf-8")
+        return _run_main(self.root, board)
+
+    def _inline_pair(self) -> str:
+        return (
+            f'<a id="dup-a"></a>\n{self.FIRST}\n- priority: feature\n\n'
+            f'<a id="dup-b"></a>\n{self.SECOND}\n- priority: feature\n'
+        )
+
+    def _assert_flagged(self, rc: int, out: str, first: str, second: str) -> None:
+        self.assertEqual(rc, 1, out)
+        self.assertNotIn("all item ids unique", out)
+        self.assertIn(": 1 duplicated item id(s)\n", out)
+        self.assertIn(
+            f"  ATLAS-DUP-300\n    {first}: {self.FIRST}\n    {second}: {self.SECOND}\n"
+            "    -> a free id for this family is ATLAS-DUP-001\n",
+            out,
+        )
+
+    def test_inline_board_flags_a_duplicate_heading(self) -> None:
+        rc, out = self._lint(self._inline_pair())
+        self._assert_flagged(rc, out, "backlog.md:2", "backlog.md:6")
+
+    def test_inline_board_with_only_milestones_file_flags_a_duplicate_heading(self) -> None:
+        self._item_file("milestones.md", self.LADDER)
+        rc, out = self._lint(self._inline_pair())
+        self._assert_flagged(rc, out, "backlog.md:2", "backlog.md:6")
+
+    def test_inline_board_with_an_empty_backlog_directory_flags_a_duplicate(self) -> None:
+        (self.repo / "backlog").mkdir()
+        rc, out = self._lint(self._inline_pair())
+        self._assert_flagged(rc, out, "backlog.md:2", "backlog.md:6")
+
+    def test_indexed_board_flags_a_duplicate_across_item_files(self) -> None:
+        self._item_file("a.md", f'<a id="dup-a"></a>\n{self.FIRST}\n- priority: feature\n')
+        self._item_file("b.md", f'<a id="dup-b"></a>\n{self.SECOND}\n- priority: feature\n')
+        rc, out = self._lint(
+            '<a id="dup-a"></a>- [ATLAS-DUP-300](backlog/a.md) — first [patch] — todo\n'
+            '<a id="dup-b"></a>- [ATLAS-DUP-300](backlog/b.md) — second [patch] — todo\n'
+        )
+        self._assert_flagged(rc, out, "a.md:2", "b.md:2")
+
+    def test_mixed_board_flags_an_inline_item_repeated_in_an_item_file(self) -> None:
+        self._item_file("b.md", f'<a id="dup-b"></a>\n{self.SECOND}\n- priority: feature\n')
+        rc, out = self._lint(
+            f'<a id="dup-a"></a>\n{self.FIRST}\n- priority: feature\n\n'
+            '<a id="dup-b"></a>- [ATLAS-DUP-300](backlog/b.md) — second [patch] — todo\n'
+        )
+        self._assert_flagged(rc, out, "backlog.md:2", "b.md:2")
+
+    def test_unique_inline_ids_beside_milestones_file_pass(self) -> None:
+        self._item_file("milestones.md", self.LADDER)
+        rc, out = self._lint(
+            f'<a id="dup-a"></a>\n{self.FIRST}\n- priority: feature\n\n'
+            '<a id="dup-c"></a>\n## ATLAS-DUP-301 — third [patch] — todo\n'
+            "- priority: feature\n"
+        )
+        self.assertEqual(rc, 0, out)
+        self.assertIn("backlog.md: all item ids unique\n", out)
+
+    def test_shared_anchor_beside_milestones_file_still_fails(self) -> None:
+        self._item_file("milestones.md", self.LADDER)
+        rc, out = self._lint(
+            '<a id="dup"></a>\n## ATLAS-DUP-310 — first [patch] — todo\n'
+            "- priority: feature\n"
+            '<a id="dup"></a>\n## ATLAS-DUP-311 — second [patch] — todo\n'
+            "- priority: feature\n"
+        )
+        self.assertEqual(rc, 1, out)
+        self.assertIn('anchor "dup" is shared by ATLAS-DUP-310, ATLAS-DUP-311', out)
+
+    def test_next_free_id_counts_inline_items_beside_milestones_file(self) -> None:
+        self._item_file("milestones.md", self.LADDER)
+        board = self.repo / "backlog.md"
+        board.write_text(
+            "## ATLAS-FAM-001 — inline one\n## ATLAS-FAM-002 — inline two\n",
+            encoding="utf-8",
+        )
+        old_argv, old_root = sys.argv, _lint.ROOT
+        sys.argv = ["atlas-board-lint.py", "--file", str(board), "--next", "ATLAS-FAM"]
+        _lint.ROOT = self.root
+        captured = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(captured):
+                rc = _lint.main()
+        finally:
+            sys.argv, _lint.ROOT = old_argv, old_root
+        self.assertEqual(rc, 0)
+        self.assertEqual(captured.getvalue(), "ATLAS-FAM-003\n")
 
 
 if __name__ == "__main__":

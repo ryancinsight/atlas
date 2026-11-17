@@ -45,11 +45,13 @@ live one-per-file under a sibling `backlog/` directory and `backlog.md`
 itself carries only the generated index (no `## ` headings to scan). Every
 check here generalizes to that layout by treating each `backlog/*.md` file
 the way it previously treated one heading's slice of a single big file --
-`collisions`/`next_free`/`control_characters` already take one path and
-work unchanged when pointed at an item file; `_defined_ids`/`dangling_refs`
-already take a *list* of paths, so the item files simply join the list.
-`main` detects the layout (a `backlog/` directory beside `backlog.md`) and
-switches the file set it scans; nothing about the checks themselves differs.
+`control_characters` takes one path and works unchanged when pointed at an
+item file; `collisions_across`, `next_free_across`, `_defined_ids` and
+`dangling_refs` take a *list* of paths, so the item files simply join it.
+`main` scans `backlog.md` and every `backlog/*.md` together, never one set
+in place of the other: a board mid-migration, or one whose `backlog/`
+directory holds only `milestones.md`, still carries inline items whose ids
+must stay unique and whose numbers `--next` must not reissue.
 """
 
 from __future__ import annotations
@@ -106,13 +108,16 @@ def control_characters(path: pathlib.Path) -> list[tuple[int, str]]:
     return found
 
 
-def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
-    """Map each duplicated id to its (line number, title) occurrences.
+def collisions_across(
+    paths: list[pathlib.Path],
+) -> dict[str, list[tuple[pathlib.Path, int, str]]]:
+    """Map each duplicated id to its (path, line number, title) occurrences
+    across `paths`.
 
     The duplicate-id gate must see every heading form the reference check
     sees. `_defined_ids` treats a level-2 or level-3 heading as a definition
     regardless of separator (the board carries em-dash, hyphen, and
-    mojibakeed separators), but this function once matched only the em-dash
+    mojibakeed separators), but the gate once matched only the em-dash
     level-2 form, so a duplicate id defined via a hyphen or level-3 heading
     escaped the hard gate — the anchor ambiguity the gate exists to prevent.
     Read the item-id grammar itself (`HEADING_ID`), not the `ATLAS-` prefix:
@@ -123,26 +128,6 @@ def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
 
     A heading carrying the `original specification` appendix suffix is the
     same item's archived spec, not a second item: it never collides.
-    """
-    seen: dict[str, list[tuple[int, str]]] = {}
-    with path.open(encoding="utf-8", errors="replace") as fh:
-        for lineno, line in enumerate(fh, 1):
-            m = HEADING_ID.match(line.rstrip("\r\n"))
-            if not m:
-                continue
-            # Trailing separators vary by era (em dash, hyphen, U+FFFD);
-            # the id ends at the first character outside [A-Z0-9-].
-            item_id = m.group(1).rstrip("-")
-            if APPENDIX_SUFFIX.search(line.rstrip("\r\n")[m.end(1):]):
-                continue
-            seen.setdefault(item_id, []).append((lineno, line.strip()))
-    return {k: v for k, v in seen.items() if len(v) > 1}
-
-
-def collisions_across(
-    paths: list[pathlib.Path],
-) -> dict[str, list[tuple[pathlib.Path, int, str]]]:
-    """Same rule as `collisions`, generalized across several files.
 
     Under the per-item-file layout (`atlas-board-index.py`) an id is
     defined by exactly one `backlog/<anchor>.md` file's heading, so a
@@ -158,6 +143,8 @@ def collisions_across(
                 m = HEADING_ID.match(line.rstrip("\r\n"))
                 if not m:
                     continue
+                # Trailing separators vary by era (em dash, hyphen, U+FFFD);
+                # the id ends at the first character outside [A-Z0-9-].
                 item_id = m.group(1).rstrip("-")
                 if APPENDIX_SUFFIX.search(line.rstrip("\r\n")[m.end(1):]):
                     continue
@@ -165,29 +152,10 @@ def collisions_across(
     return {k: v for k, v in seen.items() if len(v) > 1}
 
 
-def next_free(path: pathlib.Path, prefix: str) -> str:
-    """Suggest the next unused numeric id for a prefix, e.g. ATLAS-ARCH."""
-    used = set()
-    with path.open(encoding="utf-8", errors="replace") as fh:
-        for line in fh:
-            m = HEADING_ID.match(line.rstrip("\r\n"))
-            if m:
-                item_id = m.group(1).rstrip("-")
-            else:
-                continue
-            if item_id.startswith(prefix + "-"):
-                tail = item_id[len(prefix) + 1:]
-                if tail.isdigit():
-                    used.add(int(tail))
-    n = 1
-    while n in used:
-        n += 1
-    return f"{prefix}-{n:03d}"
-
-
 def next_free_across(paths: list[pathlib.Path], prefix: str) -> str:
-    """`next_free`, generalized across several files (the per-item-file
-    layout's ids are scattered one per `backlog/<anchor>.md` file)."""
+    """Suggest the lowest unused numeric id for a prefix, e.g. ATLAS-ARCH,
+    across several files (the per-item-file layout's ids are scattered one
+    per `backlog/<anchor>.md` file)."""
     used: set[int] = set()
     for path in paths:
         with path.open(encoding="utf-8", errors="replace") as fh:
@@ -787,28 +755,21 @@ def main() -> int:
     item_files = _item_files(path)
     indexed = bool(item_files) or (path.name == "backlog.md" and (path.parent / "backlog").is_dir())
 
+    # Item headings live in the board file and in every per-item file, and the
+    # two coexist: a board mid-migration, or one whose `backlog/` directory
+    # holds only `milestones.md`, keeps inline items in `backlog.md`. Each
+    # check reads both sets, never one in place of the other.
+    id_files = [path, *item_files]
+
     if args.next:
-        prefix = args.next.rstrip("-")
-        if indexed:
-            print(next_free_across(item_files, prefix))
-        else:
-            print(next_free(path, prefix))
+        print(next_free_across(id_files, args.next.rstrip("-")))
         return 0
 
-    # Definitions and dangling-reference scope: the per-item-file layout
-    # moves backlog.md's headings into backlog/*.md, so that file set
-    # stands in for backlog.md wherever it previously contributed headings.
-    boards = [
-        *(item_files if indexed else ([path] if path.name == "backlog.md" else [])),
-        path.parent / "checklist.md",
-    ]
-    if path.name != "backlog.md":
-        boards.append(path)
-    boards = [b for b in boards if b.is_file()]
+    boards = [b for b in (*id_files, path.parent / "checklist.md") if b.is_file()]
 
     defined = _defined_ids(boards)
     refs = dangling_refs(boards, defined)
-    dupes = collisions_across(item_files) if indexed else collisions(path)
+    dupes = collisions_across(id_files)
 
     status = 0
     # Control characters: the index/preamble file itself, plus every item
@@ -888,19 +849,11 @@ def main() -> int:
     print(f"{args.file}: {len(dupes)} duplicated item id(s)\n")
     for item_id, uses in sorted(dupes.items()):
         print(f"  {item_id}")
-        for use in uses:
-            if len(use) == 3:
-                use_path, lineno, title = use
-                print(f"    {use_path.name}:{lineno}: {title}")
-            else:
-                lineno, title = use
-                print(f"    line {lineno}: {title}")
+        for use_path, lineno, title in uses:
+            print(f"    {use_path.name}:{lineno}: {title}")
         prefix = item_id.rsplit("-", 1)[0]
         if item_id.rsplit("-", 1)[1].isdigit():
-            suggestion = (
-                next_free_across(item_files, prefix) if indexed else next_free(path, prefix)
-            )
-            print(f"    -> a free id for this family is {suggestion}")
+            print(f"    -> a free id for this family is {next_free_across(id_files, prefix)}")
         print()
     print(
         "Each id is an anchor cited by ADRs, commits and claims. Renumber the "
