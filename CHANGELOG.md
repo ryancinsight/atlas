@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
+  overlay reports **aligned** on the recorded pins — now holds: every
+  consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`
+  (#1100, `4a8e1aa2`) widened its requirement, `CFDrs` (#565, `4b3ec85e9`)
+  moved the gaia-mesh lock with it, and `coeus` (#664), `ritk` (#937),
+  `asclepius` (#122, `1dbc3459`) and `metis` (#544, `d3f6c5a7`) had already
+  landed. Verified at the pushed pins: `scripts/atlas-stack-overlay.py check
+  --pinned` reports "stack aligned: requirements satisfiable and locks match
+  the local trees", `scripts/atlas-version-guard-sweep.py` reports the
+  toolchain preflight, coherence, governance and provider-integration guards
+  clean, and `scripts/atlas-pin-drift.py` reports 28 members within one sweep
+  with only the ritk waiver. The remaining pin work is the per-sweep advance,
+  not a version-coherence gap.
+
 - Admit Leto 0.50.0 across the last three lagging consumers and advance
   their pins. `asclepius` (`1dbc3459`, asclepius#122) and `metis` (`d3f6c5a7`,
   metis#544) are lock-only moves — Coeus `7e1ded59` with Apollo `b7bffe1c`,
