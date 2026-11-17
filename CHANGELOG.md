@@ -12,10 +12,9 @@
   --pinned` reports "stack aligned: requirements satisfiable and locks match
   the local trees", `scripts/atlas-version-guard-sweep.py` reports the
   toolchain preflight, coherence, governance and provider-integration guards
-  clean, and `scripts/atlas-pin-drift.py` reports no drift outside the two recorded
-  holds (ritk and coeus), each carried by a waiver with its re-open trigger.
-  The remaining pin work is the per-sweep advance, not a version-coherence
-  gap.
+  clean, and `scripts/atlas-pin-drift.py` reports no drift outside the one
+  recorded hold (ritk), carried by a waiver with its re-open trigger. The
+  remaining pin work is the per-sweep advance, not a version-coherence gap.
 
 - Admit Leto 0.50.0 across the last three lagging consumers and advance
   their pins. `asclepius` (`1dbc3459`, asclepius#122) and `metis` (`d3f6c5a7`,
@@ -27,8 +26,8 @@
   delta. `scripts/atlas-stack-overlay.py check --pinned` now reports "stack
   aligned: requirements satisfiable and locks match the local trees", the
   version-guard sweep leaves no requirement that excludes 0.50, and
-  `scripts/atlas-pin-drift.py` reports no drift outside the two recorded holds
-  (ritk and coeus).
+  `scripts/atlas-pin-drift.py` reports no drift outside the one recorded hold
+  (ritk).
 
 - Hold the ritk pin at `596b7afc` and retire the metis pin waiver. ritk#943
   grows `crates/ritk-snap/src/presentation/native_session/window_controls/
@@ -40,12 +39,11 @@
   unresolved references, no `checklist.md`), so it was deleted rather than
   renewed.
 
-- Hold the coeus pin at `0ee8fd58`. coeus#672 grows
-  `crates/coeus-nn/tests/nn_ops/losses/nn_loss/binary.rs` from 428 to 541
-  lines, so the scanner's newline count crosses 500 and raises
-  `oversized_files` 1 -> 2, which the conformance ratchet rejects;
-  `scripts/pin-drift-waivers.json` records the hold and the file split that
-  reopens it. The pin moves when that split lands.
+- Advance the coeus pin to `223a2a43` and retire its waiver. The
+  `binary.rs` split that reopened the hold landed in coeus#678, reducing
+  `crates/coeus-nn/tests/nn_ops/losses/nn_loss/binary.rs` from 541 to 343
+  lines. The current default measures without a conformance regression, so
+  the stale hold is deleted rather than renewed.
 
 - One more `ATLAS-ARCH-008` site in kwavers. kwavers#1107: the IR-drop
   solver's private `Vec<(usize, f64)>`-per-node power-net graph
