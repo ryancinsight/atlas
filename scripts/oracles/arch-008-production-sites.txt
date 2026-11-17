@@ -57,7 +57,6 @@ repos/kwavers/crates/kwavers-analysis/src/ml/uncertainty/ensemble_methods/mod.rs
 repos/kwavers/crates/kwavers-analysis/src/plotting/mod.rs:63:16  # kwavers
 repos/kwavers/crates/kwavers-analysis/src/plotting/mod.rs:182:16  # kwavers
 repos/kwavers/crates/kwavers-driver/src/dfm/tracks.rs:186:27  # kwavers
-repos/kwavers/crates/kwavers-driver/src/physics/thermal/ir_drop.rs:93:18  # kwavers
 repos/kwavers/crates/kwavers-driver/src/pipeline/place_board.rs:248:39  # kwavers
 repos/kwavers/crates/kwavers-driver/src/place/energy/connectivity.rs:99:33  # kwavers
 repos/kwavers/crates/kwavers-driver/src/place/sexpr.rs:69:20  # kwavers
