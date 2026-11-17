@@ -16,6 +16,11 @@
       "member": "ritk",
       "reason": "RITK-SNAP-SCOPED-ANONYMIZATION (ritk#943): the default tip grows `crates/ritk-snap/src/presentation/native_session/window_controls/layout/construction.rs` from 498 to 507 lines, raising `oversized_files` 38 -> 39, which the conformance ratchet rejects; the pin stays at `596b7afc`, the last default commit under the threshold",
       "reopen": "a ritk PR splits `construction.rs` below 500 lines along the construction-helper seam, the default tip measures 38 again, so the pin advances and this entry is deleted"
+    },
+    {
+      "member": "coeus",
+      "reason": "COEUS-NN-LOSS-GRAD-TABLE (coeus#672, `45141484`): the default tip grows `crates/coeus-nn/tests/nn_ops/losses/nn_loss/binary.rs` from 428 to 541 lines, so the scanner's `newline + 1` count crosses 500 (429 -> 542) and raises `oversized_files` 1 -> 2, which the conformance ratchet rejects; the pin stays at `0ee8fd58`, the last default commit under the threshold",
+      "reopen": "a coeus PR splits `binary.rs` by loss family below 500 lines, the default tip measures 1 again, so the pin advances and this entry is deleted"
     }
   ]
 }
