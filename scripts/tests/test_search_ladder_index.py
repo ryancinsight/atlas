@@ -11,6 +11,7 @@ varint rule surfaces as a decode mismatch.
 from __future__ import annotations
 
 import gzip
+import pathlib
 import unittest
 
 import search_ladder_index as sli
@@ -30,6 +31,23 @@ DOCUMENT = (
 INDEX = (
     b"\x12\x41" + DOCUMENT  # field 2: one document (len 65)
 )
+
+
+class ScipInvocationTestCase(unittest.TestCase):
+    def test_workspace_path_is_a_positional_argument(self) -> None:
+        repo = pathlib.Path("D:/atlas/repos/leto")
+        output = pathlib.Path("D:/atlas/.scip/leto/abc.scip")
+        self.assertEqual(
+            sli.scip_command(repo, output),
+            ["rust-analyzer", "scip", "--output", str(output), str(repo)],
+        )
+
+    def test_output_and_path_are_distinct_operands(self) -> None:
+        # A path-only invocation drops `--output` and writes index.scip into
+        # the workspace; a flag-only invocation omits the required path.
+        argv = sli.scip_command(pathlib.Path("."), pathlib.Path("index.scip"))
+        self.assertEqual(argv[argv.index("--output") + 1], "index.scip")
+        self.assertEqual(argv[-1], ".")
 
 
 class DecodeTestCase(unittest.TestCase):

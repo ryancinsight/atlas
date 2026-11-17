@@ -202,6 +202,16 @@ def format_occurrence(repo: str, relpath: str, line: int, col: int, symbol: str,
     return f"{repo}  {relpath}:{line + 1}:{col + 1}  {role_label(roles):>12}  {symbol}"
 
 
+def scip_command(repo: pathlib.Path, output: pathlib.Path) -> list[str]:
+    """The `rust-analyzer scip` invocation for one member workspace.
+
+    rust-analyzer 1.97 requires the workspace directory as a positional
+    argument; running it with only a cwd fails with `flag is required: path`.
+    Pass the explicit path so the index is independent of the caller's cwd.
+    """
+    return ["rust-analyzer", "scip", "--output", str(output), str(repo)]
+
+
 def generate(selected: list[str], timeout: int) -> int:
     targets = members(selected)
     if not targets:
@@ -215,7 +225,7 @@ def generate(selected: list[str], timeout: int) -> int:
         tmp = target.with_suffix(".tmp")
         try:
             proc = subprocess.run(
-                ["rust-analyzer", "scip", "--output", str(tmp)],
+                scip_command(repo, tmp),
                 cwd=repo,
                 capture_output=True,
                 text=True,
