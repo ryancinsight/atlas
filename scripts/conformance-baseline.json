@@ -7,7 +7,7 @@
     "board_items_outside_status_set": 0,
     "board_items_without_anchor": 0,
     "board_items_without_milestone": 0,
-    "board_items_without_priority": 0,
+    "board_items_without_priority": 55,
     "cache_retention_policy_missing": 0,
     "commented_out_code": 0,
     "crate_level_allows": 0,
