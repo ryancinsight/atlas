@@ -101,3 +101,52 @@ def test_the_audit_subject_is_the_registered_member_set(tmp_path, monkeypatch):
 def test_an_unreadable_member_list_falls_back_to_no_filter(monkeypatch, tmp_path):
     monkeypatch.setattr(audit, "GITMODULES", tmp_path / "absent.gitmodules")
     assert audit.registered_members() == set()
+
+
+def test_primitive_aliases_are_reported_but_associated_types_are_not(tmp_path):
+    aliases, duplicates = audit._scalar_aliases(member(tmp_path, """
+pub type Real = f64;
+
+pub trait Sample {
+    type Output = f64;
+}
+
+impl Sample for f64 {
+    type Output = f64;
+}
+
+pub type Result<T> = std::result::Result<T, ()>;
+"""))
+    assert aliases == ["crates/sample/src/lib.rs:2: type Real = f64;"]
+    assert duplicates == []
+
+
+def test_the_same_alias_in_two_files_is_reported_as_duplicate(tmp_path):
+    root = member(tmp_path, "pub type DevicePtr = u64;\n")
+    (tmp_path / "crates" / "sample" / "src" / "stream.rs").write_text(
+        "pub type DevicePtr = u64;\n", encoding="utf-8")
+    aliases, duplicates = audit._scalar_aliases(root)
+    assert len(aliases) == 2
+    assert duplicates == [
+        "DevicePtr = u64 defined in crates/sample/src/lib.rs, "
+        "crates/sample/src/stream.rs"
+    ]
+
+
+def test_a_test_source_alias_is_not_counted(tmp_path):
+    root = member(tmp_path, "pub type Real = f64;\n")
+    (tmp_path / "crates" / "sample" / "src" / "tests.rs").write_text(
+        "type Fixture = f64;\n", encoding="utf-8")
+    aliases, duplicates = audit._scalar_aliases(root)
+    assert aliases == ["crates/sample/src/lib.rs:1: type Real = f64;"]
+    assert duplicates == []
+
+
+def test_the_member_record_carries_alias_evidence():
+    record = audit.Member(
+        name="sample", scalar_aliases=["src/lib.rs:1: type Real = f64;"],
+        duplicate_aliases=["Real = f64 defined in src/lib.rs, src/x.rs"],
+    )
+    payload = record.as_json()
+    assert payload["scalar_aliases"] == record.scalar_aliases
+    assert payload["duplicate_aliases"] == record.duplicate_aliases
