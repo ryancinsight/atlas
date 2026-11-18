@@ -88,7 +88,7 @@
   eunomia (`9ab3beda7`), helios (`f8ac289f`), hermes (`f3ac58fd`), leto
   (`7d48e391b`, now carrying #431 and #432), mnemosyne (`468650f8`), moirai
   (`c909e4fa3`, now carrying #711's timer-waker isolation), kwavers
-  (`45db5f1d0`) and metis (`d709bf87b`) advance to their own defaults, and
+  (`45db5f1d0`) and metis (`c405b1caa`, now carrying #550's UI arrow wings) advance to their own defaults, and
   asclepius (`1dbc3459`) carries the same sweep's earlier landing; coeus
   (`223a2a43`) already sits on its default through PR #747. Every tip was
   measured against the committed conformance
