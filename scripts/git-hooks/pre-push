@@ -736,11 +736,33 @@ export_revision() (
 # so it spawns none per entry: ages compare against two marker files
 # (`-ot`), and owners and holders read by `read`, which unlike a command
 # substitution keeps the carriage return of a file written on Windows. A marker
-# that could not be written compares false, so a failed `touch` keeps every
-# entry.
+# that could not be timestamped is not published, so an age-marker failure
+# retains every ownerless entry.
 new_run_temp age_marks pl
-touch -d '1 day ago' "$age_marks/day" 2>/dev/null || true
-touch -d '7 days ago' "$age_marks/week" 2>/dev/null || true
+# Set both ages portably: BSD touch has no GNU `-d` relative-date syntax.
+# Without an interpreter or on an I/O error, leave absent markers and retain
+# ownerless entries rather than guessing their age.
+if [ -n "$python_bin" ]; then
+  "$python_bin" - "$age_marks" <<'PY_AGES' 2>/dev/null || true
+import os
+import sys
+import time
+
+now = time.time()
+for name, days in (("day", 1), ("week", 7)):
+    path = os.path.join(sys.argv[1], name)
+    staged = path + ".pending"
+    age = now - days * 86400
+    try:
+        with open(staged, "w"):
+            pass
+        os.utime(staged, (age, age))
+        os.rename(staged, path)
+    except OSError:
+        # Never publish a marker whose timestamp could not be set.
+        pass
+PY_AGES
+fi
 for stale in "$tmp_base"/pre-push-lock.* "$tmp_base"/pre-push-gate.* "$tmp_base"/pl.* "$tmp_base"/pg.* "$tmp_base"/pg-log.* "$tmp_base"/pg-casts.*; do
   [ -e "$stale" ] || continue
   stale_owner=""
@@ -1089,7 +1111,7 @@ budget_args=()
 
 budget_checker="${stack_scripts:+$stack_scripts/atlas-artifact-budget.py}"
 if [ -f "$budget_checker" ] && [ -n "$python_bin" ]; then
-  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev "$range_rev" "${budget_args[@]}"; then
+  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev "$range_rev" ${budget_args[@]+"${budget_args[@]}"}; then
     echo "pre-push: BLOCKED -- a PM board grew past its line budget or a tracked" >&2
     echo "image exceeds the byte budget. Compact the board (done items delete)," >&2
     echo "move evidence captures out of git, and push again." >&2
@@ -1129,7 +1151,7 @@ if [ -z "$member_baseline" ]; then
 fi
 secret_status=0
 "$python_bin" -I "$secret_checker" check --root "$repo_root" --rev "$range_rev" \
-    --allowlist-rev "$member_baseline" "${range_args[@]}" || secret_status=$?
+    --allowlist-rev "$member_baseline" ${range_args[@]+"${range_args[@]}"} || secret_status=$?
 if [ "$secret_status" -eq 1 ]; then
   echo "pre-push: BLOCKED -- the pushed range adds a credential. Remove it from" >&2
   echo "every commit in the range; if it ever reached a remote, rotate it." >&2
@@ -1333,7 +1355,9 @@ gate_root="$tmp_base/pg-$gate_key"
 claim_gate_root() {
   local staged="$gate_root.lock.$$"
   mkdir -p "$staged" && printf '%s\n' "$$" > "$staged/pid" || return 1
-  if mv -T "$staged" "$gate_root.lock" 2>/dev/null; then
+  # Publish without GNU mv -T, preserving a populated incumbent lock.
+  if "$python_bin" -c 'import os, sys; os.rename(sys.argv[1], sys.argv[2])' \
+    "$staged" "$gate_root.lock" 2>/dev/null; then
     run_temps+=("$gate_root.lock")
     return 0
   fi

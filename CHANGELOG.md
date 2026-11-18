@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- [patch] Publish member push-lock directories atomically with Python rename
-  instead of GNU-only `mv -T`, which fails on macOS and falsely reports
-  contention. Preserve populated incumbent locks and fail closed without
+- [patch] Make member push and reusable-export locks portable with atomic
+  Python rename instead of GNU-only `mv -T`. Build cleanup age markers with
+  portable timestamps and pass empty optional argument arrays safely under
+  macOS Bash 3.2. Preserve populated incumbent locks and fail closed without
   Python. Stale-owner reclamation races remain unresolved and separately
   tracked; this portability repair does not establish full lock safety.
 

@@ -70,6 +70,31 @@ class PushLockPortabilityTests(unittest.TestCase):
             self.assertEqual(process.returncode, 0, err)
             self.assertEqual(out.strip(), 'ACQUIRED')
 
+    def test_export_claim_does_not_require_gnu_mv(self):
+        source = HOOK.read_text()
+        start = source.index('claim_gate_root() {')
+        block = source[start:source.index('if ! claim_gate_root;', start)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            # Any mv call fails: atomic publication must not depend on GNU -T
+            # or fall back to mv's directory-nesting semantics.
+            script = '\n'.join([
+                'set -euo pipefail',
+                f'gate_root={shlex.quote(str(root / "export"))}',
+                f'python_bin={shlex.quote(sys.executable)}',
+                'run_temps=()',
+                'mv() { return 64; }',
+                block,
+                'claim_gate_root',
+                'if claim_gate_root; then exit 65; fi',
+                'test "$(cat "$gate_root.lock/pid")" = "$$"',
+            ])
+            result = subprocess.run(['bash', '-c', script], text=True,
+                                    capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            lock = root / 'export.lock'
+            self.assertEqual(list(lock.iterdir()), [lock / 'pid'])
+
     def test_live_incumbent_is_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
