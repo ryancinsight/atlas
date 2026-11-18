@@ -2,22 +2,6 @@
 
 ## Unreleased
 
-- Three more `ATLAS-ARCH-008` deliveries and a ratchet split. kwavers#1109
-  (stacked on #1108) collapses the duplicated partial-pivoting elimination
-  into `analytical/linear_solve::solve_flat`, with the square and rectangular
-  unmixing solutions pinned bit-exactly; gate `kwavers/scattered_containers
-  54 -> 49`, `unwrap_production 183 -> 180`, `allow_sites 298 -> 296`.
-  CFDrs#570 splits `spectral/operators.rs` and puts `RungeKutta`'s Butcher
-  tableau in one row-major block, matched bit for bit by a differential test
-  against the pre-change per-row step (`CFDrs/oversized_files 126 -> 125`,
-  `scattered_containers 24 -> 21`); CFDrs#571 moves the DG integrator
-  configuration into `time_integration/params.rs` as a pure move
-  (`oversized_files 126 -> 124`). gaia#230 fills the polyMesh face list in one
-  buffer at prefix-sum offsets and pins the bucketed face order and both patch
-  ranges (`gaia/scattered_containers 17 -> 16`, `gaia/oversized_files
-  27 -> 23`). No wall-clock claim: every change is an allocation/locality or
-  hierarchy shape.
-
 - Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
   overlay reports **aligned** on the recorded pins — now holds: every
   consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`
@@ -28,13 +12,15 @@
   --pinned` reports "stack aligned: requirements satisfiable and locks match
   the local trees", `scripts/atlas-version-guard-sweep.py` reports the
   toolchain preflight, coherence, governance and provider-integration guards
-  clean, and `scripts/atlas-pin-drift.py` reports 28 members within one sweep
-  with only the ritk waiver. The remaining pin work is the per-sweep advance,
-  not a version-coherence gap.
+  clean, and `scripts/atlas-pin-drift.py` reports no drift outside the one
+  recorded hold (ritk), carried by a waiver with its re-open trigger. The
+  remaining pin work is the per-sweep advance, not a version-coherence gap.
 
 - Admit Leto 0.50.0 across the last three lagging consumers and advance
-  their pins. `asclepius` (`1dbc3459`, asclepius#122) and `metis` (`d3f6c5a7`,
-  metis#544) are lock-only moves — Coeus `7e1ded59` with Apollo `b7bffe1c`,
+  their pins. `asclepius` (`1dbc3459`, asclepius#122) and metis's Leto
+  admission (`d3f6c5a7`, metis#544) were lock-only moves; the current metis
+  pin `e341c29e` also carries metis#547 — Coeus `7e1ded59` with Apollo
+  `b7bffe1c`,
   and Gaia-Mesh `4c69a978`, each onto the default-branch revision whose Leto
   bounds admit 0.50, with Leto itself at `6483eac3` — while `kwavers`
   (`4a8e1aa2`, kwavers#1100) widens its requirement from `>=0.47.1, <0.49.0`
@@ -42,7 +28,8 @@
   delta. `scripts/atlas-stack-overlay.py check --pinned` now reports "stack
   aligned: requirements satisfiable and locks match the local trees", the
   version-guard sweep leaves no requirement that excludes 0.50, and
-  `scripts/atlas-pin-drift.py` reports all 28 members within one sweep.
+  `scripts/atlas-pin-drift.py` reports no drift outside the one recorded hold
+  (ritk).
 
 - Hold the ritk pin at `596b7afc` and retire the metis pin waiver. ritk#943
   grows `crates/ritk-snap/src/presentation/native_session/window_controls/
@@ -54,20 +41,22 @@
   unresolved references, no `checklist.md`), so it was deleted rather than
   renewed.
 
-- Two more `ATLAS-ARCH-008` sites in kwavers. #1107: the IR-drop solver's
-  private `Vec<(usize, f64)>`-per-node power-net graph is one CSR pair
+- Advance the coeus pin to `223a2a43` and retire its waiver. The
+  `binary.rs` split that reopened the hold landed in coeus#678, reducing
+  `crates/coeus-nn/tests/nn_ops/losses/nn_loss/binary.rs` from 541 to 343
+  lines. The current default measures without a conformance regression, so
+  the stale hold is deleted rather than renewed.
+
+- One more `ATLAS-ARCH-008` site in kwavers. kwavers#1107: the IR-drop
+  solver's private `Vec<(usize, f64)>`-per-node power-net graph
+  (`kwavers-driver` `physics/thermal/ir_drop.rs:93`) is one CSR pair
   (neighbour run + conductance run behind an offset table) built in two passes
   from the edge list; each node's edges are inserted in the original order, so
   the Gauss–Seidel summation order is unchanged and the result is pinned
-  bit-exactly (`4591621414013336774`). #1108: `gaussian_elim_flat` and
-  `symmetric_eigenvalues` in `kwavers-physics` now work on one row-major block
-  each (strides `n + 1` and `n`) instead of re-jagging a flat input per solve,
-  with the singular values and L-curve residual/solution norms pinned
-  bit-exactly, and the pivot search's bare `unwrap` replaced by an invariant
-  `expect`. Verified: 5 `ir_drop` tests, 1577 kwavers-physics tests, strict
-  clippy and fmt clean; the push gates measured `kwavers/scattered_containers
-  54 -> 51` then `54 -> 50` and `unwrap_production 183 -> 181`, with 0
-  regressions. No wall-clock claim.
+  bit-exactly (`4591621414013336774`). The pinned census drops that
+  `Vec<Vec<_>>` occurrence; the current pinned census holds 162 production
+  sites. Verified: 5 `ir_drop` tests, strict clippy and fmt clean. No
+  wall-clock claim.
 
 - Hold the genetic search's candidate batches in one buffer and one round-robin
   (CFDrs#569), another `ATLAS-ARCH-008` site. `cfd-optim`
@@ -79,8 +68,39 @@
   appending batch by batch so no jagged intermediate is built, and the one
   helper now serves both walks. The full-optimizer oracle, the mutation and
   crossover validity oracles and `cfd-optim`'s 109 unit tests pass; the push
-  gate measured `CFDrs/scattered_containers 24 -> 18` with 0 regressions. No
-  wall-clock claim.
+  gate measured `CFDrs/scattered_containers 24 -> 18` with 0 regressions on
+  the PR head; the current default, with CFDrs#570 and #571 also landed,
+  measures 17. No wall-clock claim.
+
+- Advance twelve member pins to their current defaults and record the landed
+  `ATLAS-ARCH-008` work. CFDrs (`ec8995c9b`) now carries #569 (one
+  `CandidateBatches` buffer plus offset table for the genetic search), #570
+  (`1ec2a852`: the time integrators move to `operators/time_integration.rs`
+  and `RungeKutta` holds one row-major `stages x stages` Butcher block, so the
+  two per-stage census sites become the one constructor site at
+  `time_integration.rs:50`) and #571 (`ec8995c9b`: the DG configuration moves
+  to `time_integration/params.rs`, taking the parent from 571 to 372 lines);
+  gaia (`ba2bcba5`) carries #230 (`f22ab82f7`: the polyMesh writer fills one
+  contiguous face buffer at prefix-sum offsets, so the per-patch
+  `Vec<[u32; 3]>` site is gone and a new test pins the face body and both
+  patch ranges). consus (`0ad104053`) now carries #219 (zlib framing fix) and
+  #223 (the parquet leaf transpose runs on one flat buffer),
+  eunomia (`9ab3beda7`), helios (`f8ac289f`), hermes (`f3ac58fd`), leto
+  (`7d48e391b`, now carrying #431 and #432), mnemosyne (`468650f8`), moirai
+  (`c909e4fa3`, now carrying #711's timer-waker isolation), kwavers
+  (`45db5f1d0`) and metis (`c405b1caa`, now carrying #550's UI arrow wings) advance to their own defaults, and
+  asclepius (`1dbc3459`) carries the same sweep's earlier landing; coeus
+  (`223a2a43`) already sits on its default through PR #747. Every tip was
+  measured against the committed conformance
+  baseline: no regression, and the tightenings earn
+  `CFDrs/scattered_containers 22 -> 17` and `oversized_files 126 -> 124`,
+  `consus/scattered_containers 14 -> 13` and `oversized_files 76 -> 75`,
+  `gaia/scattered_containers 17 -> 16` and `oversized_files 23 -> 21`,
+  `mnemosyne/oversized_files 1 -> 0`, and `moirai/unwrap_production 114 -> 112`,
+  so the baseline and the ARCH-008 oracle
+  are regenerated in the same change (161 production sites, 159 test/bench,
+  320 total). No wall-clock claim: every delivery is an allocation, locality
+  or hierarchy-shape change.
 
 - Count board items with no `milestone:` assignment once a repository carries a
   `backlog/milestones.md` ladder, closing `ATLAS-BOARD-LINT-MILESTONE`. The
