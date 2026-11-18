@@ -26,7 +26,6 @@ repos/consus/crates/consus-parquet/src/encoding/column.rs:28:15  # consus
 repos/consus/crates/consus-parquet/src/encoding/column.rs:31:17  # consus
 repos/consus/crates/consus-parquet/src/encoding/plain.rs:157:70  # consus
 repos/consus/crates/consus-parquet/src/encoding/plain.rs:193:13  # consus
-repos/consus/crates/consus-parquet/src/writer/encode.rs:804:34  # consus
 repos/consus/crates/consus/src/sync/mod.rs:301:65  # consus
 repos/consus/crates/consus/src/sync/mod.rs:338:73  # consus
 repos/consus/crates/consus/src/sync/mod.rs:344:18  # consus
