@@ -135,4 +135,4 @@
 <a id="atlas-test-maintenance-race"></a>- [ATLAS-TEST-MAINTENANCE-RACE](backlog/atlas-test-maintenance-race.md) — Script-test fixtures that commit or push leave Git's detached maintenance running into teardown [verification] [patch] — todo
 <a id="atlas-hook-test-stage-overrun"></a>- [ATLAS-HOOK-TEST-STAGE-OVERRUN](backlog/atlas-hook-test-stage-overrun.md) — The pre-push test stage ran past 600 s three times on one CFDrs revision [tightening] [patch] — todo
 
-<a id="atlas-push-lock-stale-reclaim"></a>- [ATLAS-PUSH-LOCK-STALE-RECLAIM](backlog/atlas-push-lock-stale-reclaim.md) — Serialize stale push-lock reclamation [patch] — todo
+<a id="atlas-push-lock-stale-reclaim"></a>- [ATLAS-PUSH-LOCK-STALE-RECLAIM](backlog/atlas-push-lock-stale-reclaim.md) — Serialize stale push-lock reclamation [patch] — blocked

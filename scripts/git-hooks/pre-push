@@ -357,6 +357,11 @@ locate_stack() {
 tmp_base="${TMPDIR:-/tmp}"
 run_temps=()
 remove_run_temps() {
+  # Ref locks are shared paths, not private temporary directories. Release
+  # them under the same guard and ownership check used for reclamation.
+  if [ "${push_lock_owned:-0}" -eq 1 ]; then
+    release_push_lock
+  fi
   local temp
   for temp in ${run_temps[@]+"${run_temps[@]}"}; do
     rm -rf "$temp" 2>/dev/null || true
@@ -918,28 +923,68 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
   push_lock_root="$repo_store/atlas-push-locks"
   push_lock="$push_lock_root/$push_lock_key"
   mkdir -p "$push_lock_root"
+  push_lock_guard="$push_lock.reclaim"
+  push_lock_owned=0
+  release_push_lock() {
+    # Never reap this guard: a killed guard owner makes recovery unavailable
+    # until the owner investigates it, rather than recreating the same race.
+    mkdir "$push_lock_guard" 2>/dev/null || return 0
+    local owner=""
+    { read -r owner < "$push_lock/pid"; } 2>/dev/null || true
+    if [ "$owner" = "$$" ]; then
+      rm -rf "$push_lock" 2>/dev/null || true
+    fi
+    rmdir "$push_lock_guard" 2>/dev/null || true
+  }
   claim_push_lock() {
+    # All publishers hold the guard. Preserve empty/ambiguous incumbents;
+    # os.rename alone could replace an existing empty directory.
+    [ ! -e "$push_lock" ] && [ ! -L "$push_lock" ] || return 1
     local staged="$push_lock.$$"
     mkdir "$staged" 2>/dev/null || return 1
-    printf '%s\n' "$$" > "$staged/pid"
+    if ! printf '%s\n' "$$" > "$staged/pid"; then
+      rm -rf "$staged" 2>/dev/null || true
+      return 1
+    fi
     # Rename the populated directory atomically, without mv's GNU-only -T.
     # A live incumbent contains pid, so rename refuses to replace it rather
     # than nesting the staging directory inside it as plain mv would do.
     if "$python_bin" -c 'import os, sys; os.rename(sys.argv[1], sys.argv[2])' \
       "$staged" "$push_lock" 2>/dev/null; then
-      run_temps+=("$push_lock")
+      push_lock_owned=1
       return 0
     fi
     rm -rf "$staged" 2>/dev/null || true
     return 1
   }
+  if ! mkdir "$push_lock_guard" 2>/dev/null; then
+    echo "pre-push: BLOCKED -- another push may own a busy or abandoned push-lock guard: $push_lock_guard" >&2
+    echo "Wait for its owner; an abandoned guard requires owner investigation." >&2
+    exit 1
+  fi
   if ! claim_push_lock; then
     push_holder="$(cat "$push_lock/pid" 2>/dev/null || true)"
-    if [ -n "$push_holder" ] && ! kill -0 "$push_holder" 2>/dev/null; then
-      # A killed gate leaves its lock: its owner is gone, so take it over.
+    # Only ESRCH proves the observed owner is dead. Malformed PIDs, EPERM,
+    # missing interpreters and other errors retain the incumbent. Native
+    # Windows Python cannot probe Git Bash/MSYS $$ in its PID namespace;
+    # retain every Windows incumbent rather than misclassify a live shell.
+    if "$python_bin" -c 'import os, sys
+if os.name == "nt":
+    sys.exit(1)
+try:
+    pid = int(sys.argv[1])
+    if pid <= 0:
+        sys.exit(1)
+    os.kill(pid, 0)
+except ProcessLookupError:
+    sys.exit(0)
+except (ValueError, OverflowError, OSError):
+    pass
+sys.exit(1)' "$push_holder" 2>/dev/null; then
       rm -rf "$push_lock" 2>/dev/null || true
     fi
     if ! claim_push_lock; then
+      rmdir "$push_lock_guard" 2>/dev/null || true
       cat >&2 <<MESSAGE
 
 pre-push: BLOCKED -- another push of ${_push_remote_ref} is already running
@@ -950,6 +995,7 @@ MESSAGE
       exit 1
     fi
   fi
+  rmdir "$push_lock_guard" 2>/dev/null || true
 fi
 prepared_stack_scripts=""
 if [ "$prepared_tools_selected" -eq 1 ]; then
