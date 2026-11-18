@@ -86,7 +86,8 @@
   patch ranges). consus (`0ad104053`) now carries #219 (zlib framing fix) and
   #223 (the parquet leaf transpose runs on one flat buffer),
   eunomia (`9ab3beda7`), helios (`f8ac289f`), hermes (`f3ac58fd`), leto
-  (`5f0c2307`), mnemosyne (`468650f8`), moirai (`207bebe61`), kwavers
+  (`7d48e391b`, now carrying #431 and #432), mnemosyne (`468650f8`), moirai
+  (`c909e4fa3`, now carrying #711's timer-waker isolation), kwavers
   (`45db5f1d0`) and metis (`d709bf87b`) advance to their own defaults, and
   asclepius (`1dbc3459`) carries the same sweep's earlier landing; coeus
   (`223a2a43`) already sits on its default through PR #747. Every tip was
@@ -94,8 +95,9 @@
   baseline: no regression, and the tightenings earn
   `CFDrs/scattered_containers 22 -> 17` and `oversized_files 126 -> 124`,
   `consus/scattered_containers 14 -> 13` and `oversized_files 76 -> 75`,
-  `gaia/scattered_containers 17 -> 16` and `oversized_files 23 -> 21`, and
-  `mnemosyne/oversized_files 1 -> 0`, so the baseline and the ARCH-008 oracle
+  `gaia/scattered_containers 17 -> 16` and `oversized_files 23 -> 21`,
+  `mnemosyne/oversized_files 1 -> 0`, and `moirai/unwrap_production 114 -> 112`,
+  so the baseline and the ARCH-008 oracle
   are regenerated in the same change (161 production sites, 159 test/bench,
   320 total). No wall-clock claim: every delivery is an allocation, locality
   or hierarchy-shape change.
