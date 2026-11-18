@@ -1,0 +1,125 @@
+"""Exercise the owned hook's ref-lock block with real filesystem operations."""
+from __future__ import annotations
+
+from pathlib import Path
+import shlex
+import shutil
+import queue
+import threading
+import subprocess
+import sys
+import tempfile
+import unittest
+
+HOOK = Path(__file__).resolve().parents[1] / 'git-hooks' / 'pre-push'
+
+
+class PushLockPortabilityTests(unittest.TestCase):
+    def run_claim(self, root: Path, python: str = sys.executable, hold: bool = False, no_gnu_mv: bool = False):
+        source = HOOK.read_text()
+        block = source[source.index('# One push of a ref at a time.'):source.index('prepared_stack_scripts=""')]
+        script = '\n'.join([
+            'set -euo pipefail',
+            f'repo_store={shlex.quote(str(root))}',
+            f'python_bin={shlex.quote(python)}',
+            'gate_phase=push',
+            'run_temps=()',
+            'content_lines=("refs/heads/topic abc refs/heads/topic 000")',
+            block,
+            'echo ACQUIRED',
+            'read -r release' if hold else ':',
+        ])
+        environment = None
+        if no_gnu_mv:
+            import os
+            binary = root / 'bin'
+            binary.mkdir()
+            shim = binary / 'mv'
+            real_mv = shutil.which('mv')
+            self.assertIsNotNone(real_mv)
+            shim.write_text('#!/bin/sh\nfor arg do [ "$arg" != "-T" ] || exit 64; done\n'
+                            + f'exec {shlex.quote(real_mv)} "$@"\n')
+            shim.chmod(0o755)
+            environment = dict(os.environ)
+            environment['PATH'] = str(binary) + os.pathsep + environment.get('PATH', '')
+        return subprocess.Popen(['bash', '-c', script], stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                env=environment)
+
+    def announced(self, process):
+        messages = queue.Queue()
+        threading.Thread(target=lambda: messages.put(process.stdout.readline()), daemon=True).start()
+        return messages.get(timeout=10).strip()
+
+    def test_native_atomic_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            process = self.run_claim(root)
+            out, err = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, err)
+            self.assertEqual(out.strip(), 'ACQUIRED')
+            locks = list((root / 'atlas-push-locks').iterdir())
+            self.assertEqual(len(locks), 1)
+            self.assertEqual((locks[0] / 'pid').read_text().strip(), str(process.pid))
+            self.assertEqual(list(locks[0].iterdir()), [locks[0] / 'pid'])
+
+    def test_publication_does_not_require_gnu_mv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            process = self.run_claim(Path(directory), no_gnu_mv=True)
+            out, err = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, err)
+            self.assertEqual(out.strip(), 'ACQUIRED')
+
+    def test_live_incumbent_is_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            incumbent = self.run_claim(root, hold=True)
+            try:
+                self.assertEqual(self.announced(incumbent), 'ACQUIRED')
+                locks = list((root / 'atlas-push-locks').iterdir())
+                before = (locks[0] / 'pid').read_bytes()
+                contender = self.run_claim(root)
+                out, err = contender.communicate(timeout=10)
+                self.assertNotEqual(contender.returncode, 0)
+                self.assertIn('another push', err)
+                self.assertNotIn('ACQUIRED', out)
+                self.assertEqual((locks[0] / 'pid').read_bytes(), before)
+                self.assertEqual(list(locks[0].iterdir()), [locks[0] / 'pid'])
+            finally:
+                incumbent.communicate('release\n', timeout=10)
+
+    def test_two_contenders_publish_only_one_incumbent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contenders = [self.run_claim(root, hold=True) for _ in range(2)]
+            try:
+                messages = [self.announced(process) for process in contenders]
+                self.assertEqual(messages.count('ACQUIRED'), 1)
+                locks = list((root / 'atlas-push-locks').iterdir())
+                self.assertEqual(len(locks), 1)
+                winner = contenders[messages.index('ACQUIRED')]
+                self.assertEqual((locks[0] / 'pid').read_text().strip(), str(winner.pid))
+                loser = contenders[1 - messages.index('ACQUIRED')]
+                _, err = loser.communicate(timeout=10)
+                self.assertNotEqual(loser.returncode, 0)
+                self.assertIn('another push', err)
+                self.assertEqual(list(locks[0].iterdir()), [locks[0] / 'pid'])
+            finally:
+                for process in contenders:
+                    if process.poll() is None:
+                        process.communicate('release\n', timeout=10)
+
+    def test_missing_python_fails_closed_without_claiming_contention(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            process = self.run_claim(root, python='')
+            out, err = process.communicate(timeout=10)
+            self.assertNotEqual(process.returncode, 0)
+            self.assertIn('no python interpreter found', err)
+            self.assertNotIn('another push', err)
+            self.assertNotIn('ACQUIRED', out)
+            self.assertFalse((root / 'atlas-push-locks').exists())
+
+
+if __name__ == '__main__':
+    unittest.main()

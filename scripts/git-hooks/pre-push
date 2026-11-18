@@ -886,6 +886,10 @@ fi
 # after the multi-ref dispatch above, so a batch push's parent holds no ref's
 # lock while its per-ref re-entry takes it.
 if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
+  if [ -z "$python_bin" ]; then
+    echo "pre-push: BLOCKED -- no python interpreter found; cannot acquire the push lock" >&2
+    exit 1
+  fi
   read -r _push_local_ref _push_sha _push_remote_ref _push_remote_sha <<<"${content_lines[0]}"
   push_lock_hash="$(printf '%s' "$_push_remote_ref" | git hash-object --stdin)"
   push_lock_key="${push_lock_hash:0:16}"
@@ -896,7 +900,11 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
     local staged="$push_lock.$$"
     mkdir "$staged" 2>/dev/null || return 1
     printf '%s\n' "$$" > "$staged/pid"
-    if mv -T "$staged" "$push_lock" 2>/dev/null; then
+    # Rename the populated directory atomically, without mv's GNU-only -T.
+    # A live incumbent contains pid, so rename refuses to replace it rather
+    # than nesting the staging directory inside it as plain mv would do.
+    if "$python_bin" -c 'import os, sys; os.rename(sys.argv[1], sys.argv[2])' \
+      "$staged" "$push_lock" 2>/dev/null; then
       run_temps+=("$push_lock")
       return 0
     fi

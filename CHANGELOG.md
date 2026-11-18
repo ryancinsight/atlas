@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- [patch] Publish member push-lock directories atomically with Python rename
+  instead of GNU-only `mv -T`, which fails on macOS and falsely reports
+  contention. Preserve populated incumbent locks and fail closed without
+  Python. Stale-owner reclamation races remain unresolved and separately
+  tracked; this portability repair does not establish full lock safety.
+
 - Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
   overlay reports **aligned** on the recorded pins — now holds: every
   consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`
