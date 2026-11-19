@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Compile the recorded Aequitas consumer against the recorded Eunomia pin."""
+"""Compile the recorded Aequitas consumer with its declared Eunomia source."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import tarfile
 import tempfile
@@ -24,6 +25,8 @@ from atlas_stack import ROOT, member_pins
 
 CONSUMER = "aequitas"
 PROVIDER = "eunomia"
+REGISTRY_PACKAGES = (PROVIDER, "eunomia-derive")
+CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
 PROBE = "atlas-pin-compile-probe"
 GIT_TIMEOUT_SECONDS = 30
 METADATA_TIMEOUT_SECONDS = 60
@@ -71,25 +74,59 @@ def _materialize(repo: Path, member: str, revision: str, destination: Path) -> P
     return destination
 
 
-def _provider_source(manifest: Path) -> str:
+def _read_toml(path: Path) -> dict:
     try:
-        document = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        return tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:
-        raise MeasurementError(f"cannot read consumer manifest: {exc}") from exc
+        raise MeasurementError(f"cannot read {path.name}: {exc}") from exc
+
+
+def _provider_source(manifest: Path) -> str | None:
+    document = _read_toml(manifest)
     dependencies = document.get("dependencies")
     dependency = dependencies.get(PROVIDER) if isinstance(dependencies, dict) else None
-    source = dependency.get("git") if isinstance(dependency, dict) else None
-    if not isinstance(source, str) or not source.strip():
-        raise MeasurementError(f"consumer manifest has no Git source for {PROVIDER}")
-    return source
+    if isinstance(dependency, str) and dependency.strip():
+        return None
+    if isinstance(dependency, dict):
+        if "git" in dependency:
+            git = dependency["git"]
+            if isinstance(git, str) and git.strip():
+                return git
+        else:
+            version = dependency.get("version")
+            if isinstance(version, str) and version.strip() and not (
+                dependency.keys() & {"path", "registry", "registry-index", "workspace"}
+            ):
+                return None
+    raise MeasurementError(f"consumer manifest has no supported source for {PROVIDER}")
+
+
+def _registry_versions(lockfile: Path) -> dict[str, str]:
+    packages = _read_toml(lockfile).get("package", [])
+    if not isinstance(packages, list) or any(not isinstance(package, dict) for package in packages):
+        raise MeasurementError("Cargo.lock has invalid package entries")
+    versions = {}
+    for name in REGISTRY_PACKAGES:
+        entries = [package for package in packages if package.get("name") == name]
+        if len(entries) != 1:
+            raise MeasurementError(f"Cargo.lock has {len(entries)} entries for {name}, expected one")
+        entry = entries[0]
+        version = entry.get("version")
+        checksum = entry.get("checksum")
+        if (
+            entry.get("source") != CRATES_IO
+            or not isinstance(version, str)
+            or not version.strip()
+            or not isinstance(checksum, str)
+            or re.fullmatch(r"[0-9a-f]{64}", checksum) is None
+        ):
+            raise MeasurementError(f"Cargo.lock must record a crates.io version and checksum for {name}")
+        versions[name] = version
+    return versions
 
 
 def _toolchain(consumer: Path) -> str:
-    manifest = consumer / "rust-toolchain.toml"
-    try:
-        document = tomllib.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError) as exc:
-        raise MeasurementError(f"cannot read consumer toolchain: {exc}") from exc
+    document = _read_toml(consumer / "rust-toolchain.toml")
     toolchain = document.get("toolchain")
     channel = toolchain.get("channel") if isinstance(toolchain, dict) else None
     if not isinstance(channel, str) or not channel.strip():
@@ -97,20 +134,76 @@ def _toolchain(consumer: Path) -> str:
     return channel
 
 
-def _selected_provider(metadata: bytes) -> Path:
+def _selected_packages(metadata: bytes, names: tuple[str, ...]) -> dict:
     try:
         document = json.loads(_text(metadata))
     except json.JSONDecodeError as exc:
         raise MeasurementError(f"Cargo metadata is not JSON: {exc}") from exc
-    packages = document.get("packages")
-    selected = [
-        package.get("manifest_path")
-        for package in packages or []
-        if isinstance(package, dict) and package.get("name") == PROVIDER
-    ]
-    if len(selected) != 1 or not isinstance(selected[0], str):
-        raise MeasurementError(f"Cargo selected {len(selected)} {PROVIDER} packages")
-    return Path(selected[0]).resolve()
+    packages = document.get("packages") if isinstance(document, dict) else None
+    if not isinstance(packages, list):
+        raise MeasurementError("Cargo metadata has no package list")
+    selected = {}
+    for name in names:
+        entries = [
+            package for package in packages
+            if isinstance(package, dict) and package.get("name") == name
+        ]
+        if len(entries) != 1:
+            raise MeasurementError(f"Cargo selected {len(entries)} {name} packages, expected one")
+        selected[name] = entries[0]
+    return selected
+
+
+def _cargo_environment(target: Path) -> dict[str, str]:
+    environment = clean_process_env()
+    environment.update(
+        CARGO_INCREMENTAL="0",
+        CARGO_TARGET_DIR=str(target),
+        CARGO_TERM_COLOR="never",
+    )
+    return environment
+
+
+def _metadata(command: list[str], cwd: Path, environment: dict[str, str]) -> bytes:
+    result = _run(command, cwd=cwd, environment=environment, timeout=METADATA_TIMEOUT_SECONDS)
+    if result.returncode:
+        detail = _text(result.stderr).strip() or _text(result.stdout).strip()
+        raise MeasurementError(f"Cargo metadata failed: {detail}")
+    return result.stdout
+
+
+def _compile(
+    command: list[str], cwd: Path, environment: dict[str, str], label: str
+) -> tuple[int, str]:
+    checked = _run(command, cwd=cwd, environment=environment, timeout=COMPILE_TIMEOUT_SECONDS)
+    if checked.returncode:
+        detail = "\n".join(
+            value.strip()
+            for value in (_text(checked.stdout), _text(checked.stderr))
+            if value.strip()
+        )
+        return 1, f"PIN COMPILE FAIL: {label}\n{detail}"
+    return 0, f"PIN COMPILE OK: {label}"
+
+
+def _compile_registry(
+    consumer: Path, revision: str, channel: str, environment: dict[str, str]
+) -> tuple[int, str]:
+    versions = _registry_versions(consumer / "Cargo.lock")
+    cargo = ["cargo", f"+{channel}"]
+    locked = ["--manifest-path", str(consumer / "Cargo.toml"), "--locked"]
+    metadata = _metadata(
+        cargo + ["metadata", "--format-version", "1"] + locked,
+        consumer, environment,
+    )
+    for name, package in _selected_packages(metadata, REGISTRY_PACKAGES).items():
+        if package.get("version") != versions[name] or package.get("source") != CRATES_IO:
+            raise MeasurementError(f"Cargo did not select locked crates.io {name}@{versions[name]}")
+    provider_labels = ", ".join(f"{name}@{version}" for name, version in versions.items())
+    return _compile(
+        cargo + ["check", "--package", CONSUMER, "--lib"] + locked,
+        consumer, environment, f"{CONSUMER}@{revision} -> crates.io {provider_labels}",
+    )
 
 
 def compile_recorded_pair(repo: Path, scratch: Path, target: Path) -> tuple[int, str]:
@@ -121,9 +214,13 @@ def compile_recorded_pair(repo: Path, scratch: Path, target: Path) -> tuple[int,
         raise MeasurementError(f"recorded gitlinks are missing: {', '.join(missing)}")
     label = _pair_label(pins)
     consumer = _materialize(repo, CONSUMER, pins[CONSUMER], scratch / CONSUMER)
-    provider = _materialize(repo, PROVIDER, pins[PROVIDER], scratch / PROVIDER)
     source = _provider_source(consumer / "Cargo.toml")
     channel = _toolchain(consumer)
+    environment = _cargo_environment(target)
+    if source is None:
+        return _compile_registry(consumer, pins[CONSUMER], channel, environment)
+
+    provider = _materialize(repo, PROVIDER, pins[PROVIDER], scratch / PROVIDER)
     probe = scratch / PROBE
     (probe / "src").mkdir(parents=True)
     (probe / "src" / "lib.rs").write_text("", encoding="utf-8")
@@ -147,13 +244,7 @@ def compile_recorded_pair(repo: Path, scratch: Path, target: Path) -> tuple[int,
         f"{PROVIDER} = {{ path = {json.dumps(provider_manifest.parent.as_posix())} }}\n",
         encoding="utf-8",
     )
-    environment = clean_process_env()
-    environment.update(
-        CARGO_INCREMENTAL="0",
-        CARGO_TARGET_DIR=str(target),
-        CARGO_TERM_COLOR="never",
-    )
-    metadata = _run(
+    metadata = _metadata(
         [
             "cargo",
             f"+{channel}",
@@ -165,20 +256,15 @@ def compile_recorded_pair(repo: Path, scratch: Path, target: Path) -> tuple[int,
             "--config",
             str(config),
         ],
-        cwd=probe,
-        environment=environment,
-        timeout=METADATA_TIMEOUT_SECONDS,
+        probe, environment,
     )
-    if metadata.returncode:
-        detail = _text(metadata.stderr).strip() or _text(metadata.stdout).strip()
-        raise MeasurementError(f"Cargo metadata failed: {detail}")
-    selected = _selected_provider(metadata.stdout)
+    selected = _selected_packages(metadata, (PROVIDER,))[PROVIDER].get("manifest_path")
     expected = provider_manifest.resolve()
-    if selected != expected:
+    if not isinstance(selected, str) or Path(selected).resolve() != expected:
         raise MeasurementError(
             f"Cargo selected {selected} instead of archived {expected}"
         )
-    checked = _run(
+    return _compile(
         [
             "cargo",
             f"+{channel}",
@@ -192,18 +278,8 @@ def compile_recorded_pair(repo: Path, scratch: Path, target: Path) -> tuple[int,
             str(config),
             "--locked",
         ],
-        cwd=probe,
-        environment=environment,
-        timeout=COMPILE_TIMEOUT_SECONDS,
+        probe, environment, label,
     )
-    if checked.returncode:
-        detail = "\n".join(
-            value.strip()
-            for value in (_text(checked.stdout), _text(checked.stderr))
-            if value.strip()
-        )
-        return 1, f"PIN COMPILE FAIL: {label}\n{detail}"
-    return 0, f"PIN COMPILE OK: {label}"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

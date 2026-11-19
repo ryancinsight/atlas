@@ -49,13 +49,22 @@ select Aequitas 0.3.2 from Git. Horae reproduced a compile failure where
 its Git Eunomia trait and Aequitas's registry Eunomia trait met at a
 typed time boundary. A standalone candidate using the published Eunomia
 passed 53 Horae tests. The Proteus candidate using the same provider
-passed 77 tests. Leto's workspace check passed with the refreshed lock,
-but its unit test build reproduced the split `UnitScalar` traits.
-Switching consumers back to the published Eunomia 0.12.0 also reproduced
+passed 77 tests. Leto's initial lock refresh reproduced the split
+`UnitScalar` traits. A source preview with Eunomia 0.12.1 and the
+aligned Hermes and Mnemosyne candidates passed all 458 Leto and Leto
+Ops library tests. Release validation still requires real registry
+resolution and locked checkouts.
+
+Switching consumers to the published Eunomia 0.12.0 reproduced
 incorrect complex folds and non-finite results for a finite maximum and
 a bounded negative power. A candidate Eunomia 0.12.1 maintenance release
 preserves the published 0.12 API and passes 237 tests. Atlas #757 remains
 open until the Aequitas cohort passes integration and coherence.
+
+Atlas's scheduled compile probe now builds the declared provider source.
+It still compiles archived Git revisions for the historical Git pairing.
+For crates.io it verifies one locked version and checksum for each
+Eunomia package and checks Aequitas in isolation under `--locked`.
 
 All 15 Moirai 0.12.0 prerequisites are verified on crates.io. Thirteen
 archives use `c909e4fa`. QUIC and runtime use `139c47ac`, which excludes
