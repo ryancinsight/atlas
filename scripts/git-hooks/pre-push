@@ -1515,6 +1515,20 @@ if ! export_revision "$gate_sha" "$gate_export"; then
   fi
 fi
 
+export_base_revision() {
+  [ -z "$base_export" ] || return 0
+  base_export="$gate_parent/base-${repo_root##*/}"
+  mkdir -p "$base_export"
+  base_export="$(cd "$base_export" && { pwd -W 2>/dev/null || pwd; })"
+  if ! export_revision "$gate_base" "$base_export"; then
+    rm -rf "$base_export" && mkdir -p "$base_export"
+    if ! export_revision "$gate_base" "$base_export"; then
+      echo "pre-push: BLOCKED -- could not export the pushed base $gate_base" >&2
+      exit 1
+    fi
+  fi
+}
+
 run_cargo_workspace_gate() {
   local workspace_manifest="$1"
   local gate_changed="$2"
@@ -1630,6 +1644,7 @@ fi
 # workspace graph above. This includes committed fixtures: they are behavioral
 # inputs to the owning package's tests even when no Rust source changed.
 gate_packages=""
+local root_manifest_changed=0
 excluded_manifests=""
 standalone_manifests=""
 while IFS= read -r changed_path; do
@@ -1700,13 +1715,7 @@ while IFS= read -r changed_path; do
   if [ -z "$package_dir" ] && [ "$changed_path" = "Cargo.toml" ] \
     && [ -f "$gate_manifest_path" ] \
     && grep -qE '^\[workspace\]' "$gate_manifest_path" 2>/dev/null; then
-    while IFS=$'\t' read -r _workspace_manifest workspace_package; do
-      [ -n "$workspace_package" ] || continue
-      case " $gate_packages " in
-        *" $workspace_package "*) ;;
-        *) gate_packages="$gate_packages $workspace_package" ;;
-      esac
-    done <<< "$workspace_members"
+    root_manifest_changed=1
     continue
   fi
   if [ -z "$package_dir" ]; then
@@ -1746,6 +1755,48 @@ workspace's configured gate and commit its evidence, or push anyway with
 SKIP_LOCAL_GATE=1 git push.
 MESSAGE
   exit 1
+fi
+
+# Keep independently changed source owners, then add the resolved consumers
+# of a dependency-table-only root edit. Other root or global input changes
+# retain the complete workspace selection.
+if [ "$root_manifest_changed" -eq 1 ]; then
+  local dependency_status=3 dependency_packages=""
+  local dependency_gate="${stack_scripts:+$stack_scripts/atlas_cast_gate.py}"
+  if [ -n "$gate_base" ] && [ -f "$dependency_gate" ]; then
+    export_base_revision
+    dependency_status=0
+    dependency_packages="$(outside_checkout "$python_bin" "$dependency_gate" resolved-changes \
+      --repo "$repo_root" --base "$gate_base" --tip "$gate_sha" \
+      --base-export "$base_export" --tip-export "$gate_export" \
+      --manifest "$workspace_manifest")" || dependency_status=$?
+  fi
+  case "$dependency_status" in
+    0)
+      while IFS= read -r workspace_package; do
+        workspace_package="${workspace_package%$'\r'}"
+        [ -n "$workspace_package" ] || continue
+        case " $gate_packages " in
+          *" $workspace_package "*) ;;
+          *) gate_packages="$gate_packages $workspace_package" ;;
+        esac
+      done <<< "$dependency_packages"
+      ;;
+    3)
+      echo "pre-push: root manifest selection requires every workspace member" >&2
+      while IFS=$'\t' read -r _workspace_manifest workspace_package; do
+        [ -n "$workspace_package" ] || continue
+        case " $gate_packages " in
+          *" $workspace_package "*) ;;
+          *) gate_packages="$gate_packages $workspace_package" ;;
+        esac
+      done <<< "$workspace_members"
+      ;;
+    *)
+      echo "pre-push: BLOCKED -- workspace dependency selection failed (exit $dependency_status)" >&2
+      exit 1
+      ;;
+  esac
 fi
 
 # Bare `as` casts are the one debt the lint table allows while the cast family
@@ -2303,16 +2354,7 @@ if [ -n "$cast_gate" ]; then
   # One base export serves every workspace of this push.
   if [ -n "$base_reasons" ] && [ -z "$base_export" ]; then
     echo "pre-push: cast counts are compared with the pushed base (${base_reasons%%$'\n'*})" >&2
-    base_export="$gate_parent/base-${repo_root##*/}"
-    mkdir -p "$base_export"
-    base_export="$(cd "$base_export" && { pwd -W 2>/dev/null || pwd; })"
-    if ! export_revision "$gate_base" "$base_export"; then
-      rm -rf "$base_export" && mkdir -p "$base_export"
-      if ! export_revision "$gate_base" "$base_export"; then
-        echo "pre-push: BLOCKED -- could not export the pushed base $gate_base for the cast gate" >&2
-        exit 1
-      fi
-    fi
+    export_base_revision
   fi
   if [ -n "${gate_packages// /}" ]; then
     cast_base_step Cargo.toml "$gate_packages"
