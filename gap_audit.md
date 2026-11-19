@@ -57,9 +57,21 @@ resolution and locked checkouts.
 
 Switching consumers to the published Eunomia 0.12.0 reproduced
 incorrect complex folds and non-finite results for a finite maximum and
-a bounded negative power. A candidate Eunomia 0.12.1 maintenance release
-preserves the published 0.12 API and passes 237 tests. Atlas #757 remains
-open until the Aequitas cohort passes integration and coherence.
+a bounded negative power. The Eunomia 0.12.1 maintenance release
+preserves the published 0.12 API and passes 237 tests. Both crates.io
+archives match their checksums and identify `b05dc06`. The standalone
+registry consumer passes the corrected numeric cases and typed SI
+round-trips on Rust 1.95. Aequitas #167 locks both packages and passes
+190 Rust tests and the required hosted checks.
+[Eunomia publish](https://github.com/ryancinsight/eunomia/actions/runs/44627714350)
+and [Aequitas #167](https://github.com/ryancinsight/aequitas/pull/167).
+
+The published Hermes 0.9.2 libraries cap Eunomia below 0.12. Hermes
+re-exports these types and exposes them in backend implementations.
+[Hermes #307](https://github.com/ryancinsight/hermes/pull/307) advances
+the four libraries to 0.10.0 and verifies their shared public provider.
+Atlas #757 remains open until the Aequitas cohort passes integration
+and coherence.
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
