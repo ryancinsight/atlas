@@ -45,7 +45,7 @@ class AtlasWorkflowGateTests(unittest.TestCase):
             "pytest-slow": "python - python -m pytest -v -m slow",
         }
         jobs = self.python_tests["jobs"]
-        self.assertEqual(set(jobs), set(expected))
+        self.assertEqual(set(jobs), set(expected) | {"windows-lock-protocol"})
         for job_name, command in expected.items():
             with self.subTest(job=job_name):
                 step_name = "Run pytest (fast)" if job_name == "pytest-fast" else "Run pytest (slow)"
@@ -55,6 +55,47 @@ class AtlasWorkflowGateTests(unittest.TestCase):
                 self.assertIn("output_mode=process_tree.OutputMode.INHERIT", step["run"])
                 self.assertIn("raise SystemExit(result.returncode)", step["run"])
                 self.assertNotIn("buffer.write", step["run"])
+
+    def test_windows_lock_protocol_is_native_bounded_and_required(self) -> None:
+        job = self.python_tests["jobs"]["windows-lock-protocol"]
+        self.assertEqual(job["runs-on"], "windows-latest")
+        self.assertEqual(job["timeout-minutes"], "5")
+        self.assertEqual(self.python_tests["permissions"], {"contents": "read"})
+        self.assertNotIn("permissions", job)
+        self.assertNotIn("if", job)
+        self.assertNotIn("continue-on-error", job)
+        for step in job["steps"]:
+            self.assertNotIn("continue-on-error", step)
+            self.assertNotIn("if", step)
+        setup = next(step for step in job["steps"] if step["name"] == "Setup native Python 3.11")
+        self.assertEqual(setup["with"]["python-version"], "3.11")
+        select = next(step for step in job["steps"] if step["name"] == "Select Git Bash for fixture subprocesses")
+        self.assertEqual(select["shell"], "pwsh")
+        self.assertIn('Resolve-Path "$env:ProgramFiles/Git/bin/bash.exe" -ErrorAction Stop', select["run"])
+        self.assertIn('"ATLAS_TEST_BASH=$bash"', select["run"])
+        self.assertIn('$env:GITHUB_ENV', select["run"])
+        execute = next(step for step in job["steps"] if step["name"] == "Exercise native Python and Git Bash lock fixtures")
+        self.assertEqual(execute["shell"], "bash")
+        lines = execute["run"].strip().splitlines()
+        self.assertIn('assert os.name == "nt"', lines[0])
+        self.assertIn('os.environ["ATLAS_TEST_BASH"]', lines[0])
+        self.assertIn('subprocess.run([str(bash), "--version"], check=True)', lines[0])
+        # Both real suites must execute; neither a failed first suite nor an
+        # unconditional successful exit may suppress the aggregate failure.
+        self.assertEqual(lines[1:], [
+            "status=0",
+            "python -m unittest discover -s scripts/tests -p test_atlas_push_lock.py -v || status=1",
+            "python -m unittest discover -s scripts/tests -p test_atlas_stale_reclaim.py -v || status=1",
+            'exit "$status"',
+        ])
+        caller = self.conformance["jobs"]["script-tests"]
+        self.assertEqual(caller["uses"], "./.github/workflows/python-tests.yml")
+        self.assertEqual(caller["permissions"], {"contents": "read"})
+        self.assertNotIn("continue-on-error", caller)
+        result = self.conformance["jobs"]["conformance-result"]
+        self.assertIn("script-tests", result["needs"])
+        self.assertEqual(result["steps"][0]["env"]["SCRIPT_TESTS_RESULT"],
+                         "${{ needs.script-tests.result }}")
 
     def test_conformance_calls_script_suite_once(self) -> None:
         jobs = self.conformance["jobs"]
