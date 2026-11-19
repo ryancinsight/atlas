@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- [major] Record the Consus 0.5.0 candidate and seven storage consumers.
-  The overlay resolves the shared MAT reader adopted by Kwavers.
-  Publication follows the existing provider and registry prerequisites.
+- [major] Record released Consus 0.5.0 and seven coordinated storage
+  consumers. The shared MAT reader owns decoding for Kwavers. The release
+  uses published Moirai 0.12.0 and verifies the revised Parquet codecs
+  against standard files and historical codec fixtures.
 
 - [patch] Serialize ref-lock acquisition, stale-owner recovery and
   ownership-checked release. Only ESRCH permits reclamation; ambiguous

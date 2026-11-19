@@ -3,33 +3,36 @@
 <a id="consus-050-adoption"></a>
 ## Consus 0.5.0 adoption
 
-Consus owns Level-5 MAT selection, decompression and decoding. Kwavers
-uses the canonical reader and retains the clinical transform. The child
-gitlinks and root overlay record the Consus 0.5.0 candidate with the
-CFDrs, Gaia, Helios, Kwavers, Metis, RITK and Tyche adopters. The consumer
-locks retain canonical Git source identities and resolve the same
-Consus revision, including the Gaia and Metis fuzz locks.
+[Consus #227](https://github.com/ryancinsight/consus/pull/227) merged at
+`2193675` and uses published Moirai runtime and async 0.12.0. All 17
+Consus 0.5.0 registry archives match the crates.io checksums and identify
+that commit. Raster uses the scoped `rust-release.yml` trusted publisher.
+The hosted cohort published Core and Compression before the first ZIP
+upload. NPY published after Cargo verified ZIP was indexed.
+[Cohort workflow](https://github.com/ryancinsight/consus/actions/runs/44612778448)
+and [NPY workflow](https://github.com/ryancinsight/consus/actions/runs/44613901901).
 
-Local verification covers 2,911 Consus workspace tests and 45 targeted
-downstream tests on the recorded package revisions. The published HDF5
-0.4.0 consumer builds with Moirai 0.10, reproduces the nominal-bound
-failure against Consus 0.5.0, and builds with the 0.12 provider. The
-Parquet API comparison rejects patch classification against 0.4.1.
+Post-merge Consus CI passes. A fresh registry consumer resolves all 17
+packages and only published Moirai 0.12.0 providers. It reads exact Int32
+values from standard GZIP and ZSTD Parquet, rejects the historical codec
+fixtures, and reads an HDF5 signature and group through Moirai async.
+Historical Parquet conversion requires provenance and retained original
+bytes and hashes.
 
-The fifteen-package Moirai prerequisite set packages and verifies at
-`c909e4fa`. The existing registry bindings match the release workflow.
-Moirai's automatic workflow is unarmed, and `moirai-quic` needs its first
-upload before the runtime can resolve from crates.io. Consus checkout
-`25d40197` uses that Moirai source. Its core, compression, and ZIP archives
-package and verify together.
+Atlas records the released Consus revision and the coordinated CFDrs,
+Gaia, Helios, Kwavers, Metis, RITK and Tyche adoption heads. Their workspace
+locks and the Gaia and Metis fuzz locks agree on Consus `2193675`.
+The targeted locked tests pass 109 cases across HDF5, MINC, MAT v5, 3MF,
+raster and archive persistence. Consus owns MAT v5 selection and decoding.
+Kwavers retains the clinical transform.
 
-[Consus #226](https://github.com/ryancinsight/consus/pull/226) installs the
-empty release cohort before any changes to the registry connection for
-`consus-raster`. That is the only missing binding among existing Consus
-crates. The first Consus ZIP upload and clean registry verification
-remain pending. [Consus #227](https://github.com/ryancinsight/consus/pull/227)
-is the versioned draft. Historical Parquet conversion requires provenance
-and retained original bytes and hashes.
+All 15 Moirai 0.12.0 prerequisites are verified on crates.io. Thirteen
+archives use `c909e4fa`. QUIC and runtime use `139c47ac`, which excludes
+tracked measurement archives from the QUIC Cargo package while retaining
+the evidence in Git. The retargeted runtime gate passes and the fresh
+consumer's timer task waits at least 12 ms and returns 2019.
+[Moirai packaging change](https://github.com/ryancinsight/Moirai/pull/716)
+and [runtime release](https://github.com/ryancinsight/Moirai/actions/runs/44606668518).
 
 <a id="board-headroom"></a>
 ## Finding 2026-11-15: the atlas board has no headroom for a new item
