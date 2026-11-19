@@ -16,11 +16,20 @@ downstream tests on the recorded package revisions. The published HDF5
 failure against Consus 0.5.0, and builds with the 0.12 provider. The
 Parquet API comparison rejects patch classification against 0.4.1.
 
-Publication still requires Moirai runtime and async 0.12 registry
-availability, the first Consus ZIP upload, verification of Trusted
-Publishing bindings, and exact-head hosted and clean registry checks.
-Known historical Parquet files require provenance before conversion.
-Retain original bytes and hashes.
+The fifteen-package Moirai prerequisite set packages and verifies at
+`c909e4fa`. The existing registry bindings match the release workflow.
+Moirai's automatic workflow is unarmed, and `moirai-quic` needs its first
+upload before the runtime can resolve from crates.io. Consus checkout
+`25d40197` uses that Moirai source. Its core, compression, and ZIP archives
+package and verify together.
+
+[Consus #226](https://github.com/ryancinsight/consus/pull/226) installs the
+empty release cohort before any changes to the registry connection for
+`consus-raster`. That is the only missing binding among existing Consus
+crates. The first Consus ZIP upload and clean registry verification
+remain pending. [Consus #227](https://github.com/ryancinsight/consus/pull/227)
+is the versioned draft. Historical Parquet conversion requires provenance
+and retained original bytes and hashes.
 
 <a id="board-headroom"></a>
 ## Finding 2026-11-15: the atlas board has no headroom for a new item
