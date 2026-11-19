@@ -75,13 +75,29 @@ checksums and identify merge `a65c6c2`. A registry consumer uses one
 Horae, Proteus, Hyperion, and Mnemosyne also record the published
 0.12.1 provider. [Hermes publisher](https://github.com/ryancinsight/hermes/actions/runs/44631113558).
 
-[Leto #433](https://github.com/ryancinsight/leto/pull/433) advances the
-two Rust packages to 0.51.0. The published Leto 0.50.0 manifest has
-different Aequitas and Eunomia requirements, so the hosted version
-guard requires a new release. Both 0.51.0 archives pass package
-verification against the published Hermes 0.10 family.
-Atlas #757 remains open until the Aequitas cohort passes integration
-and coherence.
+[Leto #433](https://github.com/ryancinsight/leto/pull/433) merged at
+`b65e6e0`. Both 0.51.0 archives match their crates.io checksums and
+identify that commit. Leto Ops was published after Cargo resolved Leto
+0.51.0. A fresh Rust 1.95 registry consumer evaluates the signed
+Laplacian of `x² + 3y²` as exactly −8 at all 16 grid points in both
+precisions and rejects zero physical spacing.
+[Leto publisher](https://github.com/ryancinsight/leto/actions/runs/44634017171)
+and [Leto Ops publisher](https://github.com/ryancinsight/leto/actions/runs/44634643054).
+The default registry graph also resolves Eunomia 0.11.0 through the
+published Mnemosyne allocator. Leto, Leto Ops, Aequitas, and Hermes
+share Eunomia 0.12.1 at the tested quantity and scalar interfaces.
+
+Prometheus #96, Athena #177, Harmonia #101, Gaia #234 and #235,
+Hephaestus #555, and Ares #93 integrate the scalar provider in Git.
+Melinoe #98 aligns its standalone device contract. The Gaia library
+and separate fuzz lock agree on Leto 0.51.0, Aequitas 0.4.0, Eunomia
+0.12.1, and released Consus 0.5.0. All three fuzz targets compile under
+Rust 1.97. Gaia 0.6.10 and Hephaestus 0.28.0 registry archives predate
+these source integrations. Atlas #757 remains open for the remaining
+Aequitas consumer locks and stack coherence checks. The Aequitas
+checkout follows its independently released 0.5.0 default. This
+integration uses the published 0.4.0 dependency across typed interfaces
+that share Leto 0.51.0.
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.

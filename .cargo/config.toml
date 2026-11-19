@@ -148,11 +148,9 @@ strip = "symbols"
 # Check lag:   python scripts/atlas-stack-overlay.py check
 
 [patch."https://github.com/ryancinsight/aequitas"]
-aequitas = { path = "repos/aequitas" }
 aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
 [patch."https://github.com/ryancinsight/aequitas.git"]
-aequitas = { path = "repos/aequitas" }
 aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
 [patch."https://github.com/ryancinsight/asclepius"]
@@ -250,6 +248,14 @@ iris-viz = { path = "repos/iris" }
 
 [patch."https://github.com/ryancinsight/iris.git"]
 iris-viz = { path = "repos/iris" }
+
+[patch."https://github.com/ryancinsight/leto"]
+leto = { path = "repos/leto/crates/leto" }
+leto-ops = { path = "repos/leto/crates/leto-ops" }
+
+[patch."https://github.com/ryancinsight/leto.git"]
+leto = { path = "repos/leto/crates/leto" }
+leto-ops = { path = "repos/leto/crates/leto-ops" }
 
 [patch."https://github.com/ryancinsight/melinoe"]
 melinoe = { path = "repos/melinoe" }
