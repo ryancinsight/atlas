@@ -129,8 +129,11 @@
 <a id="atlas-conformance-landed-rows"></a>- [ATLAS-CONFORMANCE-LANDED-ROWS](backlog/atlas-conformance-landed-rows.md) — Conformance baseline rows sit above the counts that landed members measure [tightening] [patch] — todo
 <a id="atlas-hook-commit-msg"></a>- [ATLAS-HOOK-COMMIT-MSG](backlog/atlas-hook-commit-msg.md) — No commit-msg hook is installed anywhere in the stack [verification] [patch] — todo
 <a id="atlas-hook-provider-bump-gate"></a>- [ATLAS-HOOK-PROVIDER-BUMP-GATE](backlog/atlas-hook-provider-bump-gate.md) — A provider-bump push gates every workspace member, cold-builds each export, and runs past the 600 s deadline [tightening] [patch] — todo
-<a id="atlas-hook-released-gate-changes"></a>- [ATLAS-HOOK-RELEASED-GATE-CHANGES](backlog/atlas-hook-released-gate-changes.md) — Replay the released hook changes of atlas#730 and atlas#731 [patch] — todo
+<a id="atlas-hook-released-gate-changes"></a>- [ATLAS-HOOK-RELEASED-GATE-CHANGES](backlog/atlas-hook-released-gate-changes.md) — Replay released hook changes [patch] — todo
 <a id="atlas-hook-safety-ratchet-name"></a>- [ATLAS-HOOK-SAFETY-RATCHET-NAME](backlog/atlas-hook-safety-ratchet-name.md) — The member pre-push hook runs a SAFETY scan only when it is named `safety_ratchet.py` [verification] [patch] — todo
 <a id="atlas-member-board-schema"></a>- [ATLAS-MEMBER-BOARD-SCHEMA](backlog/atlas-member-board-schema.md) — Fifteen member boards fail the board schema and ten keep a root checklist.md [verification] [patch] — todo
 <a id="atlas-test-maintenance-race"></a>- [ATLAS-TEST-MAINTENANCE-RACE](backlog/atlas-test-maintenance-race.md) — Script-test fixtures that commit or push leave Git's detached maintenance running into teardown [verification] [patch] — todo
 <a id="atlas-hook-test-stage-overrun"></a>- [ATLAS-HOOK-TEST-STAGE-OVERRUN](backlog/atlas-hook-test-stage-overrun.md) — The pre-push test stage ran past 600 s three times on one CFDrs revision [tightening] [patch] — todo
+<a id="atlas-push-lock-stale-reclaim"></a>- [ATLAS-PUSH-LOCK-STALE-RECLAIM](backlog/atlas-push-lock-stale-reclaim.md) — Serialize stale push-lock reclamation [patch] — blocked
+<a id="atlas-sec-chrono-advisory"></a>- [ATLAS-SEC-CHRONO-ADVISORY](backlog/atlas-sec-chrono-advisory.md) — Clear the chrono advisory from every member's audited graph [patch] — todo
+<a id="atlas-lock-restore-proof"></a>- [ATLAS-LOCK-RESTORE-PROOF](backlog/atlas-lock-restore-proof.md) — Restore only proven overlay lock rewrites [patch] — todo

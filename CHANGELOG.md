@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- [patch] Serialize ref-lock acquisition, stale-owner recovery and
+  ownership-checked release. Only ESRCH permits reclamation; ambiguous
+  owners are retained. An abandoned recovery guard fails closed pending
+  owner investigation. Native Windows retains incumbents without probing
+  MSYS PIDs. Export-cache cleanup remains separately unresolved.
+  No installed-hook or delivery hold is lifted by this local repair.
+
+- [patch] Make member push and reusable-export locks portable with atomic
+  Python rename instead of GNU-only `mv -T`. Build cleanup age markers with
+  portable timestamps and pass empty optional argument arrays safely under
+  macOS Bash 3.2. Preserve populated incumbent locks and fail closed without
+  Python. Stale-owner reclamation races remain unresolved and separately
+  tracked; this portability repair does not establish full lock safety.
+
 - Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
   overlay reports **aligned** on the recorded pins — now holds: every
   consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`
@@ -83,12 +97,14 @@
   gaia (`ba2bcba5`) carries #230 (`f22ab82f7`: the polyMesh writer fills one
   contiguous face buffer at prefix-sum offsets, so the per-patch
   `Vec<[u32; 3]>` site is gone and a new test pins the face body and both
-  patch ranges). consus (`0ad104053`) now carries #219 (zlib framing fix) and
-  #223 (the parquet leaf transpose runs on one flat buffer),
+  patch ranges). consus (`aef1e9b26`) now carries #219 (zlib framing fix),
+  #223 (the parquet leaf transpose runs on one flat buffer) and #224 (the
+  HDF5 chunk coordinates are reused),
   eunomia (`9ab3beda7`), helios (`f8ac289f`), hermes (`f3ac58fd`), leto
   (`7d48e391b`, now carrying #431 and #432), mnemosyne (`468650f8`), moirai
   (`c909e4fa3`, now carrying #711's timer-waker isolation), kwavers
-  (`45db5f1d0`) and metis (`c405b1caa`, now carrying #550's UI arrow wings) advance to their own defaults, and
+  (`45db5f1d0`) and metis (`e8a5be431`, now carrying #551's pointer
+  double-click) advance to their own defaults, and
   asclepius (`1dbc3459`) carries the same sweep's earlier landing; coeus
   (`223a2a43`) already sits on its default through PR #747. Every tip was
   measured against the committed conformance
