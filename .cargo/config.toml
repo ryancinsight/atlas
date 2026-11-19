@@ -206,6 +206,7 @@ consus-compression = { path = "repos/consus/crates/consus-compression" }
 consus-core = { path = "repos/consus/crates/consus-core" }
 consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
+consus-mat = { path = "repos/consus/crates/consus-mat" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
 consus-raster = { path = "repos/consus/crates/consus-raster" }
@@ -217,6 +218,7 @@ consus-compression = { path = "repos/consus/crates/consus-compression" }
 consus-core = { path = "repos/consus/crates/consus-core" }
 consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
+consus-mat = { path = "repos/consus/crates/consus-mat" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
 consus-raster = { path = "repos/consus/crates/consus-raster" }

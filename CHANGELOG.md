@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- [major] Record the Consus 0.5.0 candidate and seven storage consumers.
+  The overlay resolves the shared MAT reader adopted by Kwavers.
+  Publication follows the existing provider and registry prerequisites.
+
 - [patch] Serialize ref-lock acquisition, stale-owner recovery and
   ownership-checked release. Only ESRCH permits reclamation; ambiguous
   owners are retained. An abandoned recovery guard fails closed pending

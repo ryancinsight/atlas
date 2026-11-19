@@ -1,5 +1,27 @@
 # atlas — cross-repository integration gap audit
 
+<a id="consus-050-adoption"></a>
+## Consus 0.5.0 adoption
+
+Consus owns Level-5 MAT selection, decompression and decoding. Kwavers
+uses the canonical reader and retains the clinical transform. The child
+gitlinks and root overlay record the Consus 0.5.0 candidate with the
+CFDrs, Gaia, Helios, Kwavers, Metis, RITK and Tyche adopters. The consumer
+locks retain canonical Git source identities and resolve the same
+Consus revision, including the Gaia and Metis fuzz locks.
+
+Local verification covers 2,911 Consus workspace tests and 45 targeted
+downstream tests on the recorded package revisions. The published HDF5
+0.4.0 consumer builds with Moirai 0.10, reproduces the nominal-bound
+failure against Consus 0.5.0, and builds with the 0.12 provider. The
+Parquet API comparison rejects patch classification against 0.4.1.
+
+Publication still requires Moirai runtime and async 0.12 registry
+availability, the first Consus ZIP upload, verification of Trusted
+Publishing bindings, and exact-head hosted and clean registry checks.
+Known historical Parquet files require provenance before conversion.
+Retain original bytes and hashes.
+
 <a id="board-headroom"></a>
 ## Finding 2026-11-15: the atlas board has no headroom for a new item
 
