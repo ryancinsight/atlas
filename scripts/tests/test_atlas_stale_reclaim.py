@@ -18,8 +18,8 @@ class StaleReclaimTests(unittest.TestCase):
         cleanup_code = source[source.index('run_temps=()'):source.index('# Per-step wall-clock')]
         script = '\n'.join([
             'set -euo pipefail', 'exec 3>&1',
-            f'repo_store={shlex.quote(str(root))}',
-            f'python_bin={shlex.quote(sys.executable)}',
+            f'repo_store={shlex.quote(root.as_posix())}',
+            f'python_bin={shlex.quote(Path(sys.executable).as_posix())}',
             'gate_phase=push', 'run_temps=()',
             cleanup_code if cleanup else ':',
             'content_lines=("refs/heads/topic abc refs/heads/topic 000")',
@@ -45,7 +45,7 @@ class StaleReclaimTests(unittest.TestCase):
             key = subprocess.check_output(['git', 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
             lock = root / 'atlas-push-locks' / key
             lock.mkdir(parents=True)
-            dead = subprocess.Popen(['true']); dead.wait()
+            dead = subprocess.Popen([sys.executable, '-c', 'pass']); dead.wait()
             (lock / 'pid').write_text(str(dead.pid) + '\n')
             first = self.start(root)
             second = None

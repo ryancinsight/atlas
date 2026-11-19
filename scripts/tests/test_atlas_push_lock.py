@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import shlex
+import os
 import shutil
 import queue
 import threading
@@ -16,12 +17,18 @@ HOOK = Path(__file__).resolve().parents[1] / 'git-hooks' / 'pre-push'
 
 class PushLockPortabilityTests(unittest.TestCase):
     def run_claim(self, root: Path, python: str = sys.executable, hold: bool = False, no_gnu_mv: bool = False):
+        # Bash/MSYS $$ is not necessarily native Python Popen.pid.
+        # Record it independently before the production block writes its lock.
+        with tempfile.NamedTemporaryFile(dir=root) as witness:
+            shell_pid_path = Path(witness.name)
+        python_path = Path(python).as_posix() if python else ""
         source = HOOK.read_text()
         block = source[source.index('# One push of a ref at a time.'):source.index('prepared_stack_scripts=""')]
         script = '\n'.join([
             'set -euo pipefail',
-            f'repo_store={shlex.quote(str(root))}',
-            f'python_bin={shlex.quote(python)}',
+            f"printf '%s\\n' \"$$\" > {shlex.quote(shell_pid_path.as_posix())}",
+            f'repo_store={shlex.quote(root.as_posix())}',
+            f'python_bin={shlex.quote(python_path)}',
             'gate_phase=push',
             'run_temps=()',
             'content_lines=("refs/heads/topic abc refs/heads/topic 000")',
@@ -31,20 +38,21 @@ class PushLockPortabilityTests(unittest.TestCase):
         ])
         environment = None
         if no_gnu_mv:
-            import os
             binary = root / 'bin'
             binary.mkdir()
             shim = binary / 'mv'
             real_mv = shutil.which('mv')
             self.assertIsNotNone(real_mv)
             shim.write_text('#!/bin/sh\nfor arg do [ "$arg" != "-T" ] || exit 64; done\n'
-                            + f'exec {shlex.quote(real_mv)} "$@"\n')
+                            + f'exec {shlex.quote(Path(real_mv).as_posix())} "$@"\n', newline="\n")
             shim.chmod(0o755)
             environment = dict(os.environ)
             environment['PATH'] = str(binary) + os.pathsep + environment.get('PATH', '')
-        return subprocess.Popen(['bash', '-c', script], stdin=subprocess.PIPE,
+        process = subprocess.Popen(['bash', '-c', script], stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                 env=environment)
+        process.shell_pid_path = shell_pid_path
+        return process
 
     def announced(self, process):
         messages = queue.Queue()
@@ -60,7 +68,7 @@ class PushLockPortabilityTests(unittest.TestCase):
             self.assertEqual(out.strip(), 'ACQUIRED')
             locks = list((root / 'atlas-push-locks').iterdir())
             self.assertEqual(len(locks), 1)
-            self.assertEqual((locks[0] / 'pid').read_text().strip(), str(process.pid))
+            self.assertEqual((locks[0] / 'pid').read_text().strip(), process.shell_pid_path.read_text().strip())
             self.assertEqual(list(locks[0].iterdir()), [locks[0] / 'pid'])
 
     def test_publication_does_not_require_gnu_mv(self):
@@ -80,8 +88,8 @@ class PushLockPortabilityTests(unittest.TestCase):
             # or fall back to mv's directory-nesting semantics.
             script = '\n'.join([
                 'set -euo pipefail',
-                f'gate_root={shlex.quote(str(root / "export"))}',
-                f'python_bin={shlex.quote(sys.executable)}',
+                f'gate_root={shlex.quote((root / "export").as_posix())}',
+                f'python_bin={shlex.quote(Path(sys.executable).as_posix())}',
                 'run_temps=()',
                 'mv() { return 64; }',
                 block,
@@ -123,7 +131,7 @@ class PushLockPortabilityTests(unittest.TestCase):
                 locks = list((root / 'atlas-push-locks').iterdir())
                 self.assertEqual(len(locks), 1)
                 winner = contenders[messages.index('ACQUIRED')]
-                self.assertEqual((locks[0] / 'pid').read_text().strip(), str(winner.pid))
+                self.assertEqual((locks[0] / 'pid').read_text().strip(), winner.shell_pid_path.read_text().strip())
                 loser = contenders[1 - messages.index('ACQUIRED')]
                 _, err = loser.communicate(timeout=10)
                 self.assertNotEqual(loser.returncode, 0)
