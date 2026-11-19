@@ -19,9 +19,10 @@ fixtures, and reads an HDF5 signature and group through Moirai async.
 Historical Parquet conversion requires provenance and retained original
 bytes and hashes.
 
-Atlas records the released Consus revision and the coordinated CFDrs,
-Gaia, Helios, Kwavers, Metis, RITK and Tyche adoption heads. Their workspace
-locks and the Gaia and Metis fuzz locks agree on Consus `2193675`.
+Atlas records the Consus release's documentation closeout at `bab9c35`
+and the coordinated CFDrs, Gaia, Helios, Kwavers, Metis, RITK and Tyche
+adoption heads. Their workspace locks and the Gaia and Metis fuzz locks
+agree on the released Consus commit `2193675`.
 The targeted locked tests pass 109 cases across HDF5, MINC, MAT v5, 3MF,
 raster and archive persistence. Consus owns MAT v5 selection and decoding.
 Kwavers retains the clinical transform.
