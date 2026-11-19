@@ -35,10 +35,14 @@ and [RITK Codecs publish](https://github.com/ryancinsight/ritk/actions/runs/4462
 
 The RITK release planner found 22 approved versions waiting on registry
 Coeus Autograd 0.12.0. The current Autograd dependency graph requires
-Coeus CPU, which has no crates.io entry. Published Coeus Core and Ops
-0.12.0 require Eunomia 0.9, and published Apollo FFT 0.29.4 also excludes
-Eunomia 0.12. Resolve the provider family versions before publishing
-Autograd. DICOM depends on the published RITK Spatial 0.4.0, which
+Coeus CPU, which has no crates.io entry. Cargo packaging reproduces
+that missing dependency after 107 Autograd tests pass with the Apollo
+source candidate. Published Coeus Core and Ops 0.12.0 require Eunomia
+0.9. Apollo #720 passes source CI, but Apollo FFT 0.29.5 fails normalized
+package verification. The published Mnemosyne allocator supplies
+`ScratchElement` for Eunomia 0.11 complex values and Apollo Leto
+Interop 0.20.1 supplies Leto 0.47 views. Align those published
+providers before revalidating Apollo FFT and Coeus Autograd. DICOM depends on the published RITK Spatial 0.4.0, which
 selects Leto 0.46.5. That Leto version excludes the Eunomia line
 required by Aequitas 0.4.0, and registry packaging reaches a Rust trait
 error. The current Spatial source packages with Leto 0.50.0. Its public
@@ -97,7 +101,10 @@ Melinoe #98 aligns its standalone device contract. The Gaia library
 and separate fuzz lock agree on Leto 0.51.0, Aequitas 0.4.0, Eunomia
 0.12.1, and released Consus 0.5.0. All three fuzz targets compile under
 Rust 1.97. Gaia 0.6.10 and Hephaestus 0.28.0 registry archives predate
-these source integrations. Atlas #757 remains open for the remaining
+these source integrations. The same plane constructor compiles and
+returns offset −3 from the merged Gaia and Leto sources. The published
+Gaia 0.6.10 constructor rejects the Leto 0.51 point and vector types
+because its signature uses Leto 0.50. Atlas #757 remains open for the remaining
 Aequitas consumer locks and stack coherence checks. The Aequitas
 checkout follows its independently released 0.5.0 default. This
 integration uses the published 0.4.0 dependency across typed interfaces
