@@ -137,3 +137,4 @@
 <a id="atlas-hook-test-stage-overrun"></a>- [ATLAS-HOOK-TEST-STAGE-OVERRUN](backlog/atlas-hook-test-stage-overrun.md) — The pre-push test stage ran past 600 s three times on one CFDrs revision [tightening] [patch] — todo
 <a id="atlas-push-lock-stale-reclaim"></a>- [ATLAS-PUSH-LOCK-STALE-RECLAIM](backlog/atlas-push-lock-stale-reclaim.md) — Serialize stale push-lock reclamation [patch] — blocked
 <a id="atlas-sec-chrono-advisory"></a>- [ATLAS-SEC-CHRONO-ADVISORY](backlog/atlas-sec-chrono-advisory.md) — Clear the chrono advisory from every member's audited graph [patch] — todo
+<a id="atlas-lock-restore-proof"></a>- [ATLAS-LOCK-RESTORE-PROOF](backlog/atlas-lock-restore-proof.md) — Restore only proven overlay lock rewrites [patch] — todo
