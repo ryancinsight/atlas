@@ -69,7 +69,17 @@ and [Aequitas #167](https://github.com/ryancinsight/aequitas/pull/167).
 The published Hermes 0.9.2 libraries cap Eunomia below 0.12. Hermes
 re-exports these types and exposes them in backend implementations.
 [Hermes #307](https://github.com/ryancinsight/hermes/pull/307) advances
-the four libraries to 0.10.0 and verifies their shared public provider.
+the four libraries to 0.10.0. The archives match their registry
+checksums and identify merge `a65c6c2`. A registry consumer uses one
+`Bf16` type for both the Hermes sum and the Aequitas time conversion.
+Horae, Proteus, Hyperion, and Mnemosyne also record the published
+0.12.1 provider. [Hermes publisher](https://github.com/ryancinsight/hermes/actions/runs/44631113558).
+
+[Leto #433](https://github.com/ryancinsight/leto/pull/433) advances the
+two Rust packages to 0.51.0. The published Leto 0.50.0 manifest has
+different Aequitas and Eunomia requirements, so the hosted version
+guard requires a new release. Both 0.51.0 archives pass package
+verification against the published Hermes 0.10 family.
 Atlas #757 remains open until the Aequitas cohort passes integration
 and coherence.
 

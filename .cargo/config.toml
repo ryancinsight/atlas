@@ -155,18 +155,6 @@ aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 aequitas = { path = "repos/aequitas" }
 aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
-[patch."https://github.com/ryancinsight/apollo"]
-apollo-dctdst-core = { path = "repos/apollo/crates/apollo-dctdst-core" }
-apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
-apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
-apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
-
-[patch."https://github.com/ryancinsight/apollo.git"]
-apollo-dctdst-core = { path = "repos/apollo/crates/apollo-dctdst-core" }
-apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
-apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
-apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
-
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
 asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
@@ -182,24 +170,6 @@ athena-leto = { path = "repos/athena/crates/athena-leto" }
 [patch."https://github.com/ryancinsight/athena.git"]
 athena-core = { path = "repos/athena/crates/athena-core" }
 athena-leto = { path = "repos/athena/crates/athena-leto" }
-
-[patch."https://github.com/ryancinsight/Coeus"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-cpu = { path = "repos/coeus/crates/coeus-cpu" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
-
-[patch."https://github.com/ryancinsight/Coeus.git"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-cpu = { path = "repos/coeus/crates/coeus-cpu" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 
 [patch."https://github.com/ryancinsight/consus"]
 consus-compression = { path = "repos/consus/crates/consus-compression" }
@@ -281,29 +251,11 @@ iris-viz = { path = "repos/iris" }
 [patch."https://github.com/ryancinsight/iris.git"]
 iris-viz = { path = "repos/iris" }
 
-[patch."https://github.com/ryancinsight/leto"]
-leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
-
 [patch."https://github.com/ryancinsight/melinoe"]
 melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "repos/melinoe" }
-
-[patch."https://github.com/ryancinsight/metis"]
-metis-platform = { path = "repos/metis/crates/metis-platform" }
-metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
-metis-web = { path = "repos/metis/crates/metis-web" }
-
-[patch."https://github.com/ryancinsight/metis.git"]
-metis-platform = { path = "repos/metis/crates/metis-platform" }
-metis-ui-lang = { path = "repos/metis/crates/metis-ui-lang" }
-metis-web = { path = "repos/metis/crates/metis-web" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
