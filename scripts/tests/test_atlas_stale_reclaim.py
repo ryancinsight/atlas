@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import queue
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -10,6 +11,19 @@ import threading
 import unittest
 
 HOOK = Path(__file__).resolve().parents[1] / 'git-hooks' / 'pre-push'
+
+# Native Windows CreateProcess can choose System32's WSL bash even when
+# shutil.which found Git Bash. Never pass a bare executable name to it.
+_bash = os.environ.get('ATLAS_TEST_BASH')
+if not _bash and os.name != 'nt':
+    _bash = shutil.which('bash')
+if not _bash or not Path(_bash).is_absolute() or not Path(_bash).is_file():
+    raise RuntimeError('ATLAS_TEST_BASH must name an existing absolute Git Bash executable on Windows')
+BASH = str(Path(_bash).resolve())
+GIT = shutil.which('git')
+if not GIT or not Path(GIT).is_absolute():
+    raise RuntimeError('git must resolve to an absolute executable')
+
 
 class StaleReclaimTests(unittest.TestCase):
     def start(self, root, pause=True, cleanup=False):
@@ -28,7 +42,7 @@ class StaleReclaimTests(unittest.TestCase):
             'cat() { command cat "$@"; if [[ "${1:-}" == "$push_lock/pid" ]]; then echo OBSERVED >&3; read -r resume; fi; }' if pause else ':',
             block, 'echo ACQUIRED', 'read -r release',
         ])
-        return subprocess.Popen(['bash', '-c', script], stdin=subprocess.PIPE,
+        return subprocess.Popen([BASH, '-c', script], stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def line(self, process):
@@ -42,7 +56,7 @@ class StaleReclaimTests(unittest.TestCase):
     def test_delayed_stale_observer_cannot_remove_live_successor(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            key = subprocess.check_output(['git', 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
+            key = subprocess.check_output([GIT, 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
             lock = root / 'atlas-push-locks' / key
             lock.mkdir(parents=True)
             dead = subprocess.Popen([sys.executable, '-c', 'pass']); dead.wait()
@@ -75,7 +89,7 @@ class StaleReclaimTests(unittest.TestCase):
                             process.communicate(timeout=10)
 
     def fixture_lock(self, root):
-        key = subprocess.check_output(['git', 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
+        key = subprocess.check_output([GIT, 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
         lock = root / 'atlas-push-locks' / key
         lock.parent.mkdir(parents=True)
         return lock

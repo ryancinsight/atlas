@@ -213,13 +213,18 @@ jobs:
       - name: Select Git Bash for fixture subprocesses
         shell: pwsh
         run: |
-          # Avoid the Windows System32 WSL launcher named bash.exe.
+          # Native CreateProcess may prefer the WSL launcher despite PATH.
+          $bash = (Resolve-Path "$env:ProgramFiles/Git/bin/bash.exe" -ErrorAction Stop).Path
+          if (-not (Test-Path -LiteralPath $bash -PathType Leaf)) { throw "Git Bash is missing" }
+          "ATLAS_TEST_BASH=$bash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "$env:ProgramFiles/Git/usr/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           "$env:ProgramFiles/Git/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Exercise native Python and Git Bash lock fixtures
         shell: bash
         run: |
-          python -c 'import os, shutil; assert os.name == "nt"; assert "/git/" in shutil.which("bash").replace(chr(92), "/").lower()'
-          python -m unittest discover -s scripts/tests -p test_atlas_push_lock.py -v
-          python -m unittest discover -s scripts/tests -p test_atlas_stale_reclaim.py -v
+          python -c 'import os, pathlib, subprocess; assert os.name == "nt"; bash = pathlib.Path(os.environ["ATLAS_TEST_BASH"]); assert bash.is_absolute() and bash.is_file(); assert "/git/" in bash.as_posix().lower(); subprocess.run([str(bash), "--version"], check=True)'
+          status=0
+          python -m unittest discover -s scripts/tests -p test_atlas_push_lock.py -v || status=1
+          python -m unittest discover -s scripts/tests -p test_atlas_stale_reclaim.py -v || status=1
+          exit "$status"

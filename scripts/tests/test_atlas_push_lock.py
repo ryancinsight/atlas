@@ -14,6 +14,16 @@ import unittest
 
 HOOK = Path(__file__).resolve().parents[1] / 'git-hooks' / 'pre-push'
 
+# Native Windows CreateProcess can choose System32's WSL bash even when
+# shutil.which found Git Bash. Never pass a bare executable name to it.
+_bash = os.environ.get('ATLAS_TEST_BASH')
+if not _bash and os.name != 'nt':
+    _bash = shutil.which('bash')
+if not _bash or not Path(_bash).is_absolute() or not Path(_bash).is_file():
+    raise RuntimeError('ATLAS_TEST_BASH must name an existing absolute Git Bash executable on Windows')
+BASH = str(Path(_bash).resolve())
+
+
 
 class PushLockPortabilityTests(unittest.TestCase):
     def run_claim(self, root: Path, python: str = sys.executable, hold: bool = False, no_gnu_mv: bool = False):
@@ -48,7 +58,7 @@ class PushLockPortabilityTests(unittest.TestCase):
             shim.chmod(0o755)
             environment = dict(os.environ)
             environment['PATH'] = str(binary) + os.pathsep + environment.get('PATH', '')
-        process = subprocess.Popen(['bash', '-c', script], stdin=subprocess.PIPE,
+        process = subprocess.Popen([BASH, '-c', script], stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                 env=environment)
         process.shell_pid_path = shell_pid_path
@@ -97,7 +107,7 @@ class PushLockPortabilityTests(unittest.TestCase):
                 'if claim_gate_root; then exit 65; fi',
                 'test "$(cat "$gate_root.lock/pid")" = "$$"',
             ])
-            result = subprocess.run(['bash', '-c', script], text=True,
+            result = subprocess.run([BASH, '-c', script], text=True,
                                     capture_output=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             lock = root / 'export.lock'
