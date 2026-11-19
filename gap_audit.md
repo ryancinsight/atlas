@@ -27,11 +27,19 @@ The targeted locked tests pass 109 cases across HDF5, MINC, MAT v5, 3MF,
 raster and archive persistence. Consus owns MAT v5 selection and decoding.
 Kwavers retains the clinical transform.
 
-The Consus adoption PRs landed in dependency order. The RITK release
-planner found 22 approved versions waiting on registry Coeus Autograd
-0.12.0. The published RITK Spatial 0.4.0 also selects Leto 0.46.5, whose
-Eunomia requirement excludes the scalar provider required by Aequitas
-0.4.0. A fresh DICOM build reaches the resulting Rust trait error.
+The seven Consus adoption PRs landed in dependency order. The unyanked
+Gaia Mesh 0.6.10 and RITK Codecs 0.8.0 archives match their registry
+checksums and identify `e20ea48` and `cd22744`, respectively.
+[Gaia publish](https://github.com/ryancinsight/gaia/actions/runs/44620322981)
+and [RITK Codecs publish](https://github.com/ryancinsight/ritk/actions/runs/44622303109).
+
+The RITK release planner found 22 approved versions waiting on registry
+Coeus Autograd 0.12.0. DICOM depends on the published RITK Spatial 0.4.0,
+which selects Leto 0.46.5. That Leto version excludes the Eunomia line
+required by Aequitas 0.4.0, and registry packaging reaches a Rust trait
+error. The current Spatial source packages with Leto 0.50.0. Its public
+point, vector, and direction types expose Leto types, so the registry
+repair requires a versioned API migration.
 [RITK registry plan](https://github.com/ryancinsight/ritk/actions/runs/44620954860).
 
 [Aequitas #166](https://github.com/ryancinsight/aequitas/pull/166) corrects
@@ -41,9 +49,13 @@ select Aequitas 0.3.2 from Git. Horae reproduced a compile failure where
 its Git Eunomia trait and Aequitas's registry Eunomia trait met at a
 typed time boundary. A standalone candidate using the published Eunomia
 passed 53 Horae tests. The Proteus candidate using the same provider
-passed 77 tests. Leto compiled with its existing Aequitas version range
-and the refreshed lock. These candidates require their own integration
-checks before advancing the corresponding Atlas gitlinks.
+passed 77 tests. Leto's workspace check passed with the refreshed lock,
+but its unit test build reproduced the split `UnitScalar` traits.
+Switching consumers back to the published Eunomia 0.12.0 also reproduced
+incorrect complex folds and non-finite results for a finite maximum and
+a bounded negative power. A candidate Eunomia 0.12.1 maintenance release
+preserves the published 0.12 API and passes 237 tests. Atlas #757 remains
+open until the Aequitas cohort passes integration and coherence.
 
 All 15 Moirai 0.12.0 prerequisites are verified on crates.io. Thirteen
 archives use `c909e4fa`. QUIC and runtime use `139c47ac`, which excludes
