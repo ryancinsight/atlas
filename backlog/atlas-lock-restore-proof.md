@@ -1,0 +1,8 @@
+<a id="atlas-lock-restore-proof"></a>
+## ATLAS-LOCK-RESTORE-PROOF — Restore only proven overlay lock rewrites [patch] — todo
+- priority: correctness; needs: none; scope: `scripts/atlas-lock-form.py`, `scripts/tests/test_atlas_lock_form.py`
+- outcome: `atlas-lock-form.py restore` reverts a `Cargo.lock` only when the working text is proven to be the actual overlay rewrite of the committed text; it leaves dependency, checksum, package, and other real resolution changes byte-for-byte intact.
+- evidence (basis: 87e190e8b30a2b944ee4877153b5f7994fce7b9d): an immutable-export `runpy` witness returns `True` for `_strip_only(head, head)` and also for the same registry package after changing its checksum from `original` to `changed` and dependencies from `["alpha"]` to `["beta"]`; `_strip_only` retains only name, version, and source for that package, and `cmd_restore` checks out the committed lock when the predicate is true.
+- oracle: known positive—an actual overlay-only rewrite is classified as restorable and restores the committed bytes; known negative—the same name/version/source registry package with changed checksum or dependencies is not restorable and `cmd_restore` leaves its bytes unchanged; value-preserved cases assert every non-overlay field and package occurrence survives classification and command execution.
+- method: characterize the actual generator output from the same committed lock, then derive a sound reproduction proof for only those transformations; preserve the existing provider-version-drift allowance only where that generator reproduces it. No repair algorithm is prescribed here.
+- next step: add the focused predicate and command-level regression cases, then implement the proof they specify.
