@@ -3,6 +3,7 @@
 - Status: Proposed
 - Date: 2026-11-19
 - Item: ATLAS-ADR0069-STAGES
+- Delivering PR: ryancinsight/atlas#758
 - Class: `[arch]`
 - Relates to: [ADR 0005](0005-eunomia-scalar-ssot.md),
   [ADR 0022](0022-horae-athena-provider-extraction.md),
