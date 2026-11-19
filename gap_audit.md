@@ -34,8 +34,12 @@ checksums and identify `e20ea48` and `cd22744`, respectively.
 and [RITK Codecs publish](https://github.com/ryancinsight/ritk/actions/runs/44622303109).
 
 The RITK release planner found 22 approved versions waiting on registry
-Coeus Autograd 0.12.0. DICOM depends on the published RITK Spatial 0.4.0,
-which selects Leto 0.46.5. That Leto version excludes the Eunomia line
+Coeus Autograd 0.12.0. The current Autograd dependency graph requires
+Coeus CPU, which has no crates.io entry. Published Coeus Core and Ops
+0.12.0 require Eunomia 0.9, and published Apollo FFT 0.29.4 also excludes
+Eunomia 0.12. Resolve the provider family versions before publishing
+Autograd. DICOM depends on the published RITK Spatial 0.4.0, which
+selects Leto 0.46.5. That Leto version excludes the Eunomia line
 required by Aequitas 0.4.0, and registry packaging reaches a Rust trait
 error. The current Spatial source packages with Leto 0.50.0. Its public
 point, vector, and direction types expose Leto types, so the registry
