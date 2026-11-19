@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Refuse the two configurations the cast gate cannot measure
+  (`ATLAS-CAST-GATE-CFG-CLIPPY`). A `cfg` predicate naming `clippy` makes code
+  under `cfg(not(clippy))` invisible to the clippy run that is doing the
+  measuring, and a registered cast module mounted from two crate roots is
+  compiled twice while `clippy::duplicate_mod` sees one crate. `check` now
+  faults on both: the first names the file and line (with comments, strings and
+  `cfg_attr` attribute bodies excluded), the second names the package and every
+  mounting root, resolved from the manifest's target paths and Cargo's
+  auto-discovery switches. Verified: ten new tests; the full
+  `test_atlas_cast_gate.py` module passes 237, including both real-clippy slow
+  tests.
+
 - Land the ZST-keyed gradient coefficient cache and ride the ARCH-008 census
   onto the advanced kwavers pin. kwavers#1110 (merge `7681bb35b`) replaces
   `GradientCache`'s `RwLock<Vec<Vec<T>>>` and its per-call `Vec<T>` clone with
