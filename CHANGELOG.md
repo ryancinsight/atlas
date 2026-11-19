@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- [patch] Serialize ref-lock acquisition, stale-owner recovery and
+  ownership-checked release. Only ESRCH permits reclamation; ambiguous
+  owners are retained. An abandoned recovery guard fails closed pending
+  owner investigation. Native Windows retains incumbents without probing
+  MSYS PIDs. Export-cache cleanup remains separately unresolved.
+  No installed-hook or delivery hold is lifted by this local repair.
+
+- [patch] Make member push and reusable-export locks portable with atomic
+  Python rename instead of GNU-only `mv -T`. Build cleanup age markers with
+  portable timestamps and pass empty optional argument arrays safely under
+  macOS Bash 3.2. Preserve populated incumbent locks and fail closed without
+  Python. Stale-owner reclamation races remain unresolved and separately
+  tracked; this portability repair does not establish full lock safety.
+
 - Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
   overlay reports **aligned** on the recorded pins — now holds: every
   consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`
