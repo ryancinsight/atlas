@@ -16,6 +16,24 @@
   Python. Stale-owner reclamation races remain unresolved and separately
   tracked; this portability repair does not establish full lock safety.
 
+- Bound the SemVer comparison test's import-time probes, closing
+  `ATLAS-SEMVER-PR-TEST-IMPORT-BOUND`. `tool_ready()` ran `cargo semver-checks
+  --version` and `rustup toolchain list` with no deadline, and `skipUnless` on
+  `MovedGitDependencyTests` evaluates it while the module is imported, so a
+  stalled shim blocked collection of the whole file before any test budget
+  applied. Both commands now come from one `PROBES` tuple through a single
+  `probe()`, which passes `timeout=PROBE_TIMEOUT_SECONDS` — 60 s, derived from
+  the slower probe's 0.14 s from a freshly copied binary and 1.55 s on the
+  first of fifteen runs here, 23 s at the stack's 15x hosted factor, so 2.6x
+  that and still finite. A timeout, an unstartable binary, a wrong tool version
+  and a missing pinned toolchain all now read as not ready with the reason as
+  the skip text (`READY`, `READY_REASON`), where a missing `rustup` previously
+  raised out of collection. `ReadinessTests` pins the deadline on both probes
+  and on a real child that sleeps 30 s against a 0.2 s deadline, both stall
+  positions, the three other reasons and a probe that cannot start: dropping
+  `timeout=` fails the deadline test, and no longer catching `TimeoutExpired`
+  fails both stall cases.
+
 - Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
   overlay reports **aligned** on the recorded pins — now holds: every
   consumer of the Leto 0.50.0 cohort admits it and locks it. `kwavers`

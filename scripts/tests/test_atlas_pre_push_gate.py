@@ -554,7 +554,7 @@ class GateFixture:
             '  echo "$@" >> "$FIXTURE_ROOT/metadata-calls.log"\n'
             '  case "$*" in */base-*)\n'
             '    if [ -f "$FIXTURE_ROOT/bin/metadata-base.json" ]; then\n'
-            '      cat "$FIXTURE_ROOT/bin/metadata-base.json"; exit 0\n'
+            '      sed "s|@ROOT@|$here|g" "$FIXTURE_ROOT/bin/metadata-base.json"; exit 0\n'
             "    fi ;;\n"
             "  esac\n"
             '  case "$*" in *fuzz/Cargo.toml*)\n'
@@ -967,6 +967,241 @@ class NewBranchRangeTestCase(unittest.TestCase):
 
 class PackageMapperTestCase(unittest.TestCase):
     """Changed paths map to owning packages in both layouts."""
+
+    @staticmethod
+    def _resolution_metadata(version: str) -> dict:
+        """Cargo metadata for one Windows-dependent and one independent member."""
+        windows = f"registry:windows:{version}"
+        foo = "fixture:foo"
+        unrelated = "fixture:unrelated-member"
+        return {
+            "packages": [
+                {
+                    "id": foo,
+                    "name": "foo",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": "@ROOT@/crates/foo/Cargo.toml",
+                    "edition": "2024",
+                    "rust_version": None,
+                    "features": {},
+                    "targets": [],
+                    "dependencies": [],
+                },
+                {
+                    "id": unrelated,
+                    "name": "unrelated-member",
+                    "version": "0.1.0",
+                    "source": None,
+                    "manifest_path": "@ROOT@/crates/unrelated-member/Cargo.toml",
+                    "edition": "2024",
+                    "rust_version": None,
+                    "features": {},
+                    "targets": [],
+                    "dependencies": [],
+                },
+                {
+                    "id": windows,
+                    "name": "windows",
+                    "version": version,
+                    "source": "registry+https://github.com/rust-lang/crates.io-index",
+                    "manifest_path": "@ROOT@/registry/windows/Cargo.toml",
+                    "edition": "2021",
+                    "rust_version": None,
+                    "features": {},
+                    "targets": [],
+                    "dependencies": [],
+                },
+            ],
+            "workspace_members": [foo, unrelated],
+            "workspace_root": "@ROOT@",
+            "target_directory": "@ROOT@/target",
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": foo,
+                        "dependencies": [windows],
+                        "deps": [{
+                            "name": "windows",
+                            "pkg": windows,
+                            "dep_kinds": [{"kind": "dev", "target": "cfg(windows)"}],
+                        }],
+                        "features": [],
+                    },
+                    {
+                        "id": unrelated,
+                        "dependencies": [],
+                        "deps": [],
+                        "features": [],
+                    },
+                    {
+                        "id": windows,
+                        "dependencies": [],
+                        "deps": [],
+                        "features": [],
+                    },
+                ]
+            },
+        }
+
+    def _workspace_dependency_push(
+        self,
+        temp: str,
+        *,
+        source_owner: bool = False,
+        global_change: bool = False,
+        resolved_exit: int | None = None,
+    ) -> GateFixture:
+        fixture = _stacked_fixture(temp)
+        manifest = (
+            '[workspace]\nresolver = "3"\n'
+            'members = ["crates/foo", "crates/unrelated-member"]\n'
+            '[workspace.dependencies]\nwindows = "0.62.1"\n'
+            '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n'
+        )
+        _write(fixture.root / "Cargo.toml", manifest)
+        _write(
+            fixture.root / "crates" / "foo" / "Cargo.toml",
+            '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2024"\n'
+            "[target.'cfg(windows)'.dev-dependencies]\nwindows.workspace = true\n",
+        )
+        _write(
+            fixture.root / "crates" / "unrelated-member" / "Cargo.toml",
+            '[package]\nname = "unrelated-member"\nversion = "0.1.0"\nedition = "2024"\n',
+        )
+        _write(
+            fixture.root / "crates" / "unrelated-member" / "src" / "lib.rs",
+            "pub fn independent() {}\n",
+        )
+        subprocess.run(
+            [
+                "git", "-C", str(fixture.root), *_IDENT, "add", "Cargo.toml",
+                "crates/foo/Cargo.toml", "crates/unrelated-member/Cargo.toml",
+                "crates/unrelated-member/src/lib.rs",
+            ],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "workspace"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "push", "-q", "origin", "HEAD:main"],
+            check=True,
+        )
+        _install_real_identity(fixture.stack)
+        resolution_gate = fixture.stack / "scripts" / "atlas_cast_gate_resolution.py"
+        shutil.copy2(fixture.stack / "scripts" / "atlas_cast_gate.py", resolution_gate)
+        if resolved_exit is None:
+            _write(
+                fixture.stack / "scripts" / "atlas_cast_gate.py",
+                "import pathlib, subprocess, sys\n"
+                "if 'resolved-changes' in sys.argv[1:]:\n"
+                "    gate = pathlib.Path(__file__).with_name('atlas_cast_gate_resolution.py')\n"
+                "    raise SystemExit(subprocess.run([sys.executable, str(gate), *sys.argv[1:]]).returncode)\n"
+                + _PASSTHROUGH_CAST_GATE,
+            )
+        else:
+            diagnostic = f"fixture resolved-changes exit {resolved_exit}"
+            _write(
+                fixture.stack / "scripts" / "atlas_cast_gate.py",
+                "import sys\n"
+                "if 'resolved-changes' in sys.argv[1:]:\n"
+                f"    print({diagnostic!r}, file=sys.stderr)\n"
+                f"    raise SystemExit({resolved_exit})\n"
+                + _PASSTHROUGH_CAST_GATE,
+            )
+        _publish_stack_scripts(fixture.stack)
+        _write(
+            fixture.bin / "metadata-base.json",
+            json.dumps(self._resolution_metadata("0.62.1")),
+        )
+        _write(
+            fixture.bin / "metadata.json",
+            json.dumps(self._resolution_metadata("0.62.2")),
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q", "-b", "feat"],
+            check=True,
+        )
+        tip_manifest = manifest.replace('windows = "0.62.1"', 'windows = "0.62.2"')
+        if global_change:
+            tip_manifest = tip_manifest.replace(
+                'members = ["crates/foo", "crates/unrelated-member"]',
+                'members = ["crates/foo", "crates/unrelated-member"]\nexclude = []',
+            )
+        _write(fixture.root / "Cargo.toml", tip_manifest)
+        paths = ["Cargo.toml"]
+        if source_owner:
+            source = fixture.root / "crates" / "unrelated-member" / "src" / "lib.rs"
+            _write(source, source.read_text(encoding="utf-8") + "pub fn changed() {}\n")
+            paths.append("crates/unrelated-member/src/lib.rs")
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "add", *paths], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "candidate"],
+            check=True,
+        )
+        return fixture
+
+    def _assert_gated_packages(self, stderr: str, expected: set[str]) -> None:
+        selection = next(
+            line.removeprefix("pre-push: gating ").split()
+            for line in stderr.splitlines()
+            if line.startswith("pre-push: gating ")
+        )
+        self.assertEqual(set(selection), expected, stderr)
+
+    def test_workspace_dependency_change_gates_only_resolved_members(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(temp)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("gating foo", stderr)
+            self.assertNotIn("unrelated-member", stderr)
+            self._assert_gated_packages(stderr, {"foo"})
+
+    def test_workspace_dependency_selection_unions_source_owner(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(temp, source_owner=True)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self._assert_gated_packages(stderr, {"foo", "unrelated-member"})
+
+    def test_global_workspace_change_gates_every_member(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(temp, global_change=True)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self._assert_gated_packages(stderr, {"foo", "unrelated-member"})
+
+    def test_resolved_change_fallback_gates_every_member(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(temp, resolved_exit=3)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("fixture resolved-changes exit 3", stderr)
+            self._assert_gated_packages(stderr, {"foo", "unrelated-member"})
+
+    def test_resolved_change_failure_refuses_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(temp, resolved_exit=2)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("fixture resolved-changes exit 2", stderr)
+            calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
+            self.assertNotIn("clippy ", calls)
 
     def test_merged_default_assets_do_not_expand_the_feature_gate(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
