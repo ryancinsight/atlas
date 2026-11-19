@@ -27,6 +27,24 @@ The targeted locked tests pass 109 cases across HDF5, MINC, MAT v5, 3MF,
 raster and archive persistence. Consus owns MAT v5 selection and decoding.
 Kwavers retains the clinical transform.
 
+The Consus adoption PRs landed in dependency order. The RITK release
+planner found 22 approved versions waiting on registry Coeus Autograd
+0.12.0. The published RITK Spatial 0.4.0 also selects Leto 0.46.5, whose
+Eunomia requirement excludes the scalar provider required by Aequitas
+0.4.0. A fresh DICOM build reaches the resulting Rust trait error.
+[RITK registry plan](https://github.com/ryancinsight/ritk/actions/runs/44620954860).
+
+[Aequitas #166](https://github.com/ryancinsight/aequitas/pull/166) corrects
+the SI catalog layout and preserves the 0.4.0 release evidence. The 0.4.0
+release moved Eunomia to crates.io while 18 Atlas member locks still
+select Aequitas 0.3.2 from Git. Horae reproduced a compile failure where
+its Git Eunomia trait and Aequitas's registry Eunomia trait met at a
+typed time boundary. A standalone candidate using the published Eunomia
+passed 53 Horae tests. The Proteus candidate using the same provider
+passed 77 tests. Leto compiled with its existing Aequitas version range
+and the refreshed lock. These candidates require their own integration
+checks before advancing the corresponding Atlas gitlinks.
+
 All 15 Moirai 0.12.0 prerequisites are verified on crates.io. Thirteen
 archives use `c909e4fa`. QUIC and runtime use `139c47ac`, which excludes
 tracked measurement archives from the QUIC Cargo package while retaining
