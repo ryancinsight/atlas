@@ -158,14 +158,16 @@ consumer resolves all 11 with one Aequitas 0.4.0, Eunomia 0.12.1, and
 Leto 0.51.0. Its 2×2 image with values 0, 2, 0, 2 has minimum 0,
 maximum 2, mean 1, and population standard deviation 1.
 [RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44664017931).
-The RITK #1066 release adds 14 verified archives from `49dc944e`,
-including Annotation 0.4.0, Image IO 0.1.0, and nine more versions
-from the authorized list. Including Codecs 0.8.0, 24 of the 26
-authorized versions are verified. The current release publishes IO
-0.6.0. Registration 0.56.0 still needs the first Parcellation 0.2.0
-upload. A fresh registry consumer resolves the 14 packages and passes
-five native DICOM tests, including exact big-endian samples, deflated
-character data, and invalid-transfer-syntax rejection before overwrite.
+The RITK #1066 release adds 16 verified archives from `49dc944e`.
+Including Codecs 0.8.0 and the earlier releases, 31 versions are verified.
+That includes 25 of the 26 authorized versions. IO 0.6.0 supersedes the
+planned IO 0.5.0. The first Parcellation 0.2.0 upload clears the dependency
+for Registration 0.56.0, which publishes on attempt two. A fresh registry
+consumer resolves the native DICOM packages and passes five tests covering
+exact big-endian samples, deflated character data, and invalid-transfer-syntax
+rejection before overwrite. A second consumer resolves Registration and
+Parcellation together. World coordinates (4, 4, 3) map to label 24, and
+the bridge rejects a 23-label buffer for the 24-voxel grid.
 [RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44667442964).
 
 The Aequitas and Leto default branches now declare 0.5.0 and 0.52.0.
@@ -194,6 +196,13 @@ Coeus tape-variable types. The aligned graph passes all 21 locked
 planning tests, including exact and finite-difference gradients.
 [Asclepius #127](https://github.com/ryancinsight/asclepius/pull/127)
 and [Helios #216](https://github.com/ryancinsight/helios/pull/216).
+
+The pinned stack has no unsatisfied Git package requirements and eight
+member lockfiles still select older Mnemosyne versions. Eight member pins
+fall outside the default-branch policy. The hosted scan against provider
+defaults reports 24 incompatible requirements and 15 stale member locks.
+The conformance inventory passes. The Aequitas 0.5 and Leto 0.52
+provider releases and consumer updates remain the merge dependency.
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
