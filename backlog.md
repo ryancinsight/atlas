@@ -17,6 +17,7 @@
 <a id="atlas-code-index-001"></a>- [ATLAS-CODE-INDEX-001](backlog/atlas-code-index-001.md) — Search-ladder infrastructure for context economy [patch] — todo
 <a id="atlas-coeus-cpu-consumer-migration"></a>- [ATLAS-COEUS-CPU-CONSUMER-MIGRATION](backlog/atlas-coeus-cpu-consumer-migration.md) — Migrate out-of-repo coeus-leto consumers to coeus-cpu [major] — todo
 <a id="atlas-coeus-cpu-overlay"></a>- [ATLAS-COEUS-CPU-OVERLAY](backlog/atlas-coeus-cpu-overlay.md) — Commit the stack overlay's coeus-cpu row [patch] — blocked
+<a id="atlas-consus-050"></a>[Consus 0.5 release record](backlog/atlas-consus-050.md)
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — todo
 <a id="atlas-default-branch-reds-2026-09-02"></a>- [ATLAS-DEFAULT-BRANCH-REDS-2026-09-02](backlog/atlas-default-branch-reds-2026-09-02.md) — Member default-branch workflows red with no collector [patch] — todo
 <a id="atlas-dmri-correct-009"></a>- [ATLAS-DMRI-CORRECT-009](backlog/atlas-dmri-correct-009.md) — Motion, eddy-current, and susceptibility correction [minor] — todo

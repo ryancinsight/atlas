@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- [major] Record released Consus 0.5.0 and seven coordinated storage
+  consumers. The shared MAT reader owns decoding for Kwavers. The release
+  uses published Moirai 0.12.0 and verifies the revised Parquet codecs
+  against standard files and historical codec fixtures.
+
+- [patch] Preserve explicit Git revision pins in the stack overlay. The
+  Kwavers Python binding and the Rust application share the published
+  Aequitas 0.5 type identity in Atlas development builds.
+
 - [patch] Serialize ref-lock acquisition, stale-owner recovery and
   ownership-checked release. Only ESRCH permits reclamation; ambiguous
   owners are retained. An abandoned recovery guard fails closed pending
