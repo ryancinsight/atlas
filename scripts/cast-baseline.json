@@ -4,6 +4,11 @@
    "crates/eunomia/src/convert/count.rs"
   ]
  },
+ "cast_modules": {
+  "metis": {
+   "metis-platform": "crates/metis-platform/src/conversion.rs"
+  }
+ },
  "basis": {
   "CFDrs": "790cd7fdfc52f686234844b7a17fca4c5b1e2105",
   "aequitas": "151e51a327a03fed1c1626519c45a19796fc5cc2",

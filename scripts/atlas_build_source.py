@@ -17,6 +17,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from atlas_cargo_home import cargo_home
 from atlas_build_lease import BuildIdentityError
 
 
@@ -484,12 +485,6 @@ def environment_digest(environment: Mapping[str, str] | None = None) -> str:
     )
 
 
-def _cargo_home(environment: Mapping[str, str] | None = None) -> Path:
-    source = os.environ if environment is None else environment
-    configured = source.get("CARGO_HOME")
-    return Path(configured) if configured else Path.home() / ".cargo"
-
-
 def _include_paths(include: object) -> list[str]:
     """The file paths a config's `include` value names, in Cargo's own forms.
 
@@ -665,7 +660,7 @@ def cargo_config_digest(
             break
         directory = parent
         depth += 1
-    home = _cargo_home(environment)
+    home = cargo_home(environment, origin)
     for name in ("config.toml", "config"):
         path = home / name
         if path.is_file():

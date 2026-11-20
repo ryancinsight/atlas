@@ -20,10 +20,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Mapping
 
+from atlas_cargo_home import cargo_home
 from atlas_build_artifacts import UNVERIFIED, artifact_package, metadata_artifact_owners
 from atlas_build_lease import BuildIdentityError
 from atlas_build_snapshot import _cargo_metadata
-from atlas_build_source import _canonical, _cargo_home, _is_within, repository_top
+from atlas_build_source import _canonical, _is_within, repository_top
 
 # A recorded path that names nothing on disk now.
 MISSING = "missing"
@@ -70,7 +71,7 @@ def package_layout(manifest: Path, metadata_cwd: Path, target_dir: Path) -> Pack
         directories,
         metadata_artifact_owners(metadata, manifest),
         tuple(sorted(tops | {workspace_root})),
-        (_canonical(target_dir), _canonical(_cargo_home())),
+        (_canonical(target_dir), _canonical(cargo_home(os.environ, metadata_cwd))),
     )
 
 

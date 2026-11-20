@@ -689,6 +689,7 @@ def _seed_process_tree(stack: pathlib.Path) -> None:
     destination = stack / "scripts"
     destination.mkdir(parents=True, exist_ok=True)
     for name in (
+        "atlas_cargo_inputs.py",
         "pre_push_gate.py",
         "process_tree.py",
         "windows_process.py",
@@ -811,6 +812,7 @@ def _install_real_identity(stack: pathlib.Path) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source / "atlas-build-identity.py", destination)
     shutil.copy2(source / "atlas_claim_log.py", destination)
+    shutil.copy2(source / "atlas_cargo_home.py", destination)
     shutil.copy2(source / "atlas_cast_gate.py", destination)
     for module in source.glob("atlas_build_*.py"):
         shutil.copy2(module, destination)
@@ -3804,6 +3806,7 @@ class DebtRatchetTestCase(unittest.TestCase):
             _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
             _seed_scanner(stack)
             _seed_cast_gate(stack)
+            _seed_process_tree(stack)
             _register_stack(stack)
             subprocess.run(
                 ["git", "-C", str(stack), *_IDENT, "add", ".gitmodules", "scripts"],

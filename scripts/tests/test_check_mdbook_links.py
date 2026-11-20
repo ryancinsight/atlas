@@ -107,6 +107,10 @@ class ExtractLinksTestCase(unittest.TestCase):
         text = "Write `[docs](missing.md)` to link a chapter."
         self.assertEqual(list(cml.extract_links(text)), [])
 
+    def test_indented_continuation_link_is_extracted(self) -> None:
+        text = "Paragraph\n    [broken](missing.md)\n"
+        self.assertEqual(list(cml.extract_links(text)), ["missing.md"])
+
     def test_inline_code_does_not_mask_the_rest_of_the_line(self) -> None:
         text = "Use `cargo build`, then see [chapter](chapter.md)."
         self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
@@ -318,6 +322,111 @@ class CheckBookTestCase(unittest.TestCase):
             )
             self.assertEqual(self._report(book)["anchor_missing"], [])
 
+    def test_local_html_ids_resolve(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "[quoted](#quoted-id) [unquoted](#unquoted-id) "
+                "[entity](#entity%20id)\n\n"
+                '<a id="quoted-id"></a>\n'
+                "<span id=unquoted-id></span>\n"
+                "<i id='entity&#32;id'></i>\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(self._report(book)["anchor_missing"], [])
+
+    def test_cross_file_html_id_resolves(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "See [manual section](README.md#manual-id).\n",
+                encoding="utf-8",
+            )
+            (book / "README.md").write_text(
+                "<section id=manual-id>Manual</section>\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(self._report(book)["anchor_missing"], [])
+
+    def test_non_rendered_html_ids_remain_missing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "[fenced](#fenced) [inline](#inline) [comment](#comment) "
+                "[escaped](#escaped) [absent](#absent)\n\n"
+                "```html\n<a id=fenced></a>\n```\n"
+                "`<a id=inline></a>`\n"
+                "<!-- <a id=comment></a> -->\n"
+                "&lt;a id=escaped&gt;&lt;/a&gt;\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [
+                    ("chapter.md", "#fenced", "fenced"),
+                    ("chapter.md", "#inline", "inline"),
+                    ("chapter.md", "#comment", "comment"),
+                    ("chapter.md", "#escaped", "escaped"),
+                    ("chapter.md", "#absent", "absent"),
+                ],
+            )
+
+    def test_indented_html_id_remains_missing_cross_file(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "See [hidden](README.md#hidden).\n",
+                encoding="utf-8",
+            )
+            (book / "README.md").write_text(
+                '    <a id="hidden"></a>\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [("chapter.md", "README.md#hidden", "hidden")],
+            )
+
+    def test_escaped_html_opening_remains_missing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                '[hidden](#hidden)\n\n\\<a id="hidden"></a>\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [("chapter.md", "#hidden", "hidden")],
+            )
+
+    def test_html_attribute_backticks_are_literal(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "[literal](#before%60literal%60after) "
+                "[space](#before%20after)\n\n"
+                '<a id="before`literal`after"></a>\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [("chapter.md", "#before%20after", "before after")],
+            )
+
+    def test_html_attribute_backslashes_are_literal(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "[literal](#part%5C%2Fdetail) "
+                "[space](#part%20%20detail)\n\n"
+                '<a id="part\\/detail"></a>\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [("chapter.md", "#part%20%20detail", "part  detail")],
+            )
+
     def test_root_absolute_link_resolves_against_the_book_root(self) -> None:
         # mdBook semantics: a leading `/` is book-root-relative. Guards
         # the `Path.__truediv__` trap, where an absolute right operand
@@ -445,6 +554,17 @@ class MainTestCase(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 1)
             self.assertIn(f"{FILE_MISSING_PREFIX}1", result.stdout)
+
+    def test_cli_names_runtime_dependency_when_it_is_absent(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-I", "-S", str(SCRIPT_PATH)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("install scripts/requirements-docs.txt", result.stderr)
 
     def test_main_prints_file_missing_summary(self) -> None:
         with tempfile.TemporaryDirectory(prefix="mdbook-") as book:

@@ -1,15 +1,26 @@
 # Documentation-link validator internals
 
-The standalone entry point is `scripts/check_mdbook_links.py`. Keeping its
-syntax, filters and heading functions together preserves the existing copied
-validator contract and the root-symbol smoke controls. Existing docs workflow
-and pre-commit path filters continue to watch the complete implementation.
+The entry point is `scripts/check_mdbook_links.py`. Its runtime dependency is
+pinned in `scripts/requirements-docs.txt`; the docs workflow installs that
+file, and `scripts/requirements-test.txt` includes it for script tests. A local
+hook without the dependency fails with the installation command instead of
+silently weakening fragment checks.
 
 The October 29 fence repair follows [CommonMark section 4.5](https://spec.commonmark.org/0.31.2/#fenced-code-blocks):
 a closer permits zero to three leading ASCII spaces, the opening character
 repeated at least as many times, and only ASCII spaces or tabs afterward.
 CRLF is supported. Four-space/tab indentation and Unicode padding remain code.
 Real destinations outside the closing fence remain subject to the strict gate.
+
+Fragment lookup combines mdBook heading IDs with raw HTML `id` attributes.
+markdown-it-py 4.3.0 applies the CommonMark block and inline rules and exposes
+only rendered `html_block` and `html_inline` tokens to Python's standard HTML
+parser. The second parser handles quoted and unquoted values and decodes
+entities without changing literal backslashes or backticks. Fenced, indented,
+inline-code, comment-only and escaped markup remain non-destinations. HTML IDs
+compare exactly after URL decoding, while heading links retain the established
+normalization and duplicate-heading behavior. Link extraction keeps its prior
+fence and inline-code mask; HTML parsing does not alter that classification.
 
 This repair does not change inline-link classification, allowlists, heading
 normalization or CLI exit policies. It does not claim complete CommonMark parsing.

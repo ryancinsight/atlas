@@ -12,8 +12,22 @@ import sys
 import re
 import json
 import argparse
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+
+try:
+    from markdown_it import MarkdownIt
+except ModuleNotFoundError as error:
+    print(
+        "ERROR: markdown-it-py is required; install "
+        "scripts/requirements-docs.txt",
+        file=sys.stderr,
+    )
+    raise SystemExit(2) from error
+
+
+MARKDOWN = MarkdownIt("commonmark")
 
 
 PATTERN_F_RE = re.compile(r"^(?:\.\./)+crates/[^/]+/src/[^/]+(?:/[^/]+)*\.rs$")
@@ -73,7 +87,7 @@ INLINE_CODE_RE = re.compile(r"`+[^`\n]*`+")
 
 
 def _mask_fenced(content: str) -> str:
-    """Blank out FENCED code regions only, preserving line structure.
+    """Blank out fenced code blocks.
 
     Used where code-block content must not be seen but inline code spans
     must survive (heading extraction: mdBook keeps inline-code content in
@@ -267,6 +281,55 @@ def heading_ids(content: str) -> list[str]:
     return ids
 
 
+class _HtmlIdParser(HTMLParser):
+    """Collect rendered raw-HTML ``id`` attributes."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.ids: list[str] = []
+
+    def handle_starttag(
+        self, _tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        for name, value in attrs:
+            if name == "id" and value is not None:
+                self.ids.append(value)
+
+
+def html_ids(content: str) -> list[str]:
+    """Return raw-HTML IDs that mdBook renders as fragment destinations.
+
+    CommonMark parsing identifies rendered raw-HTML tokens. ``HTMLParser``
+    then decodes attribute entities and accepts quoted or unquoted values.
+    Token content is not altered, so backslashes and backticks in attribute
+    values remain literal.
+    """
+    parser = _HtmlIdParser()
+    pending = list(reversed(MARKDOWN.parse(content)))
+    while pending:
+        token = pending.pop()
+        if token.type in {"html_block", "html_inline"}:
+            parser.feed(token.content)
+        if token.children:
+            pending.extend(reversed(token.children))
+    parser.close()
+    return parser.ids
+
+
+def _destination_ids(content: str) -> tuple[set[str], set[str]]:
+    headings: set[str] = set()
+    for heading_id in heading_ids(content):
+        headings.add(heading_id)
+        headings.add(heading_id.lower())
+    return headings, set(html_ids(content))
+
+
+def _has_destination(
+    anchor: str, headings: set[str], raw_html_ids: set[str]
+) -> bool:
+    return anchor in raw_html_ids or slugify(anchor) in headings
+
+
 def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
     root = Path(book_root).resolve()
     if not root.exists():
@@ -286,10 +349,7 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
             read_fail.append((md.relative_to(root).as_posix(), str(e)))
             continue
         origin = md.relative_to(root).as_posix()
-        local_anchor_set = set()
-        for hid in heading_ids(content):
-            local_anchor_set.add(hid)
-            local_anchor_set.add(hid.lower())
+        local_headings, local_html_ids = _destination_ids(content)
 
         for href in extract_links(content):
             if not href or is_external(href):
@@ -301,7 +361,9 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
                 anchor = unquote(anchor)
             path_part = unquote(path_part)
             if not path_part:
-                if anchor and slugify(anchor) not in local_anchor_set:
+                if anchor and not _has_destination(
+                    anchor, local_headings, local_html_ids
+                ):
                     anchor_missing.append((origin, href, anchor))
                 continue
             if path_part.startswith("/"):
@@ -317,7 +379,9 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
                 continue
             if anchor:
                 if target.resolve() == md.resolve():
-                    if slugify(anchor) not in local_anchor_set:
+                    if not _has_destination(
+                        anchor, local_headings, local_html_ids
+                    ):
                         anchor_missing.append((origin, href, anchor))
                     continue
                 try:
@@ -325,11 +389,8 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
                 except Exception as e:  # pragma: no cover
                     read_fail.append((origin, href, str(e)))
                     continue
-                t_anchors = set()
-                for hid in heading_ids(tc):
-                    t_anchors.add(hid)
-                    t_anchors.add(hid.lower())
-                if slugify(anchor) not in t_anchors:
+                target_headings, target_html_ids = _destination_ids(tc)
+                if not _has_destination(anchor, target_headings, target_html_ids):
                     anchor_missing.append((origin, href, anchor))
 
     return {

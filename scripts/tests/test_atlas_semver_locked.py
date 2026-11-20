@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,15 @@ from process_tree_support import EXPIRY_HOLD_SECONDS, NEVER_ENDS
 
 
 class NativeContract(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tool_context = MODULE.prepared_checker()
+        cls.checker = cls.tool_context.__enter__()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tool_context.__exit__(None, None, None)
+
     def command(self, argv, cwd):
         result = MODULE.invoke(argv, cwd, dict(os.environ), timeout=120)
         stdout, stderr = MODULE.text(result.stdout), MODULE.text(result.stderr)
@@ -52,20 +62,18 @@ class NativeContract(unittest.TestCase):
         self.assertEqual(args.phase, "release")
 
     def run_contract(self, repo, base, head, report, change="patch", phase="release"):
-        target = next(line[6:] for line in self.command(["rustc", "+1.97.0", "-vV"], repo).stdout.splitlines()
-                      if line.startswith("host: "))
         args = argparse.Namespace(
             repo=repo, base=base, head=head, manifest_path="Cargo.toml",
             packages=[self.package(repo)], toolchain="1.97.0", change_class=change,
             phase=phase,
-            feature_policy="all", features=[], target=target,
+            feature_policy="all", features=[], target="wasm32-unknown-unknown",
             report=report,
         )
         target_dir = os.environ.get("CARGO_TARGET_DIR", str(SCRIPT.parents[1] / "target"))
         previous = os.environ.get("CARGO_TARGET_DIR")
         os.environ["CARGO_TARGET_DIR"] = target_dir
         try:
-            code = MODULE.compare(args)
+            code = MODULE.compare(args, self.checker)
         finally:
             if previous is None:
                 del os.environ["CARGO_TARGET_DIR"]
@@ -86,6 +94,7 @@ class NativeContract(unittest.TestCase):
                 f'[package]\nname="{self.package(repo)}"\nversion="0.1.0"\nedition="2024"\n',
                 encoding="utf-8")
             (repo / "src/lib.rs").write_text(
+                "#![no_std]\n"
                 "pub fn retained(value: usize) -> usize { value + 1 }\n"
                 "pub fn removed(value: usize) -> usize { value * 2 }\n",
                 encoding="utf-8")
@@ -102,7 +111,7 @@ class NativeContract(unittest.TestCase):
                 (0, 2, "compatible", "admissible", "pass"),
             )
             (repo / "src/lib.rs").write_text(
-                "pub fn retained(value: usize) -> usize { value + 1 }\n",
+                "#![no_std]\npub fn retained(value: usize) -> usize { value + 1 }\n",
                 encoding="utf-8")
             head = self.commit(repo, "remove API")
             code, report = self.run_contract(repo, base, head, repo / "deny.json")
@@ -115,6 +124,15 @@ class NativeContract(unittest.TestCase):
             self.assertIn("--baseline-rev", native["command"])
             self.assertEqual(native["command"][native["command"].index("--release-type") + 1], "patch")
             self.assertEqual(report["configuration"]["feature_policy"], "all")
+            self.assertEqual(
+                report["tool"]["source"]["revision"],
+                "09a6b72abe23a0933e3acb998da7abb8b85ee826",
+            )
+            self.assertTrue(Path(report["tool"]["executable"]).is_absolute())
+            installed = shutil.which("cargo-semver-checks")
+            if installed is not None:
+                self.assertNotEqual(Path(report["tool"]["executable"]), Path(installed).resolve())
+            self.assertIn("removed", native["diagnostics"])
 
             code, report = self.run_contract(
                 repo, base, head, repo / "development-major.json", "major", "development",
