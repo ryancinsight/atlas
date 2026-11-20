@@ -121,7 +121,7 @@ on:
         type: string
         default: nightly-2026-08-01
       baseline-source:
-        description: Release baseline — "registry" (latest published version) or "tag" (previous release tag)
+        description: Release baseline — "registry", "locked-registry" (published archive lock), or "tag"
         required: false
         type: string
         default: registry
@@ -367,6 +367,23 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ${{ inputs.apt-packages }}
+      - name: Install the archive comparison tool
+        if: inputs.baseline-source == 'locked-registry' && steps.checkable.outputs.packages != ''
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: cargo-semver-checks@0.51.0
+      - name: Compare the published archive and candidate locks
+        if: inputs.baseline-source == 'locked-registry' && steps.checkable.outputs.packages != ''
+        env:
+          PACKAGE: ${{ steps.checkable.outputs.packages }}
+          MANIFEST: ${{ inputs.manifest-path }}
+          RUSTDOC_TOOLCHAIN: ${{ inputs.rustdoc-toolchain }}
+          RUSTUP_TOOLCHAIN: ${{ inputs.rust-toolchain }}
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$RUSTDOC_TOOLCHAIN" --profile minimal
+          python3 _atlas/scripts/atlas_semver_registry.py --manifest-path "$MANIFEST" \
+            --packages "$PACKAGE" --rustdoc-toolchain "$RUSTDOC_TOOLCHAIN"
       - name: Determine whether a registry baseline exists
         id: baseline-exists
         if: inputs.baseline-source == 'registry'
@@ -444,6 +461,7 @@ jobs:
         # library target whose surface could carry a verdict.
         if: >-
           steps.checkable.outputs.packages != ''
+          && inputs.baseline-source != 'locked-registry'
           && (inputs.baseline-source != 'registry'
           || steps.baseline-exists.outputs.published == 'true')
         with:
@@ -514,6 +532,7 @@ jobs:
           verbose: true
       - name: Render the release verdict
         id: verdict
+        if: inputs.baseline-source != 'locked-registry'
         env:
           COMPARISON: ${{ steps.semver.outcome }}
           ROTTED: ${{ steps.baseline-probe.outputs.rotted }}

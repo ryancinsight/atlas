@@ -68,6 +68,14 @@ RELEASE_STEPS = [
     {"id": "checkable",
      "env": {"PACKAGE": "${{ inputs.package }}", "MANIFEST": "${{ inputs.manifest-path }}"}},
     {"if": "inputs.apt-packages != ''"},
+    {"if": "inputs.baseline-source == 'locked-registry' && steps.checkable.outputs.packages != ''",
+     "uses": "taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9",
+     "with": {"tool": "cargo-semver-checks@0.51.0"}},
+    {"if": "inputs.baseline-source == 'locked-registry' && steps.checkable.outputs.packages != ''",
+     "env": {"PACKAGE": "${{ steps.checkable.outputs.packages }}",
+             "MANIFEST": "${{ inputs.manifest-path }}",
+             "RUSTDOC_TOOLCHAIN": "${{ inputs.rustdoc-toolchain }}",
+             "RUSTUP_TOOLCHAIN": "${{ inputs.rust-toolchain }}"}},
     {"id": "baseline-exists", "if": "inputs.baseline-source == 'registry'",
      "env": {"PACKAGE": "${{ steps.checkable.outputs.packages }}"}},
     {"id": "baseline", "if": "inputs.baseline-source == 'tag'"},
@@ -77,7 +85,8 @@ RELEASE_STEPS = [
     # verdict step renders it and blocks only what the probe does not exonerate.
     {"id": "semver", "continue-on-error": True,
      "uses": "obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239",
-     "if": "steps.checkable.outputs.packages != '' && (inputs.baseline-source != 'registry' "
+     "if": "steps.checkable.outputs.packages != '' && inputs.baseline-source != 'locked-registry' "
+           "&& (inputs.baseline-source != 'registry' "
            "|| steps.baseline-exists.outputs.published == 'true')",
      "with": {
          "package": "${{ inputs.baseline-source == 'registry' && steps.baseline-exists.outputs.packages "
@@ -102,7 +111,7 @@ RELEASE_STEPS = [
          "baseline-rev": "",
          "verbose": True,
      }},
-    {"id": "verdict",
+    {"id": "verdict", "if": "inputs.baseline-source != 'locked-registry'",
      "env": {"COMPARISON": "${{ steps.semver.outcome }}",
              "ROTTED": "${{ steps.baseline-probe.outputs.rotted }}",
              "OTHERS": "${{ steps.baseline-probe.outputs.others }}",
@@ -129,6 +138,13 @@ class ReleaseJobWiringTests(unittest.TestCase):
         self.assertNotIn("continue-on-error", drift)
         self.assertLess(steps.index(drift), next(
             index for index, step in enumerate(steps) if step.get("id") == "semver"))
+
+    def test_locked_archive_comparison_blocks_publication_on_failure(self) -> None:
+        step = next(item for item in job_steps("semver-release")
+                    if item.get("name") == "Compare the published archive and candidate locks")
+        self.assertIn("atlas_semver_registry.py", step["run"])
+        self.assertIn('--packages "$PACKAGE"', step["run"])
+        self.assertNotIn("continue-on-error", step)
 
 
 def job_steps(name: str) -> list[dict]:

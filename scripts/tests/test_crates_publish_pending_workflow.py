@@ -64,9 +64,10 @@ EXPECTED_JOBS = {
                "uses": "ryancinsight/atlas/.github/workflows/semver-gate.yml",
                "permissions": {"contents": "read"},
                "with": {"release-gate": True, "package": "${{ needs.plan.outputs.packages }}",
+                        "baseline-source": "${{ inputs.semver-baseline-source }}",
                         "rust-toolchain": "${{ inputs.semver-toolchain || inputs.rust-toolchain }}",
                         "apt-packages": "${{ inputs.apt-packages }}",
-                        "atlas-ref": "ff7bf4e8f56a55181ca343ae2a580c31b76471bf"}},
+                        "atlas-ref": "4afb6483587438cb41aba1aa11adde826da29bda"}},
     "publish": {"needs": ["plan", "semver"], "if": "needs.plan.outputs.count != '0'",
                 "runs-on": "ubuntu-latest", "timeout-minutes": 30,
                 "concurrency": {"group": "crates-publish-pending-${{ github.repository }}",
@@ -79,6 +80,7 @@ EXPECTED_JOBS = {
 EXPECTED_INPUTS = {
     "rust-toolchain": {"required": True, "type": "string"},
     "semver-toolchain": {"required": False, "default": "", "type": "string"},
+    "semver-baseline-source": {"required": False, "default": "registry", "type": "string"},
     "tag-prefix": {"required": False, "default": "", "type": "string"},
     "owner": {"required": False, "default": "ryancinsight", "type": "string"},
     "cohort-json": {"required": False, "default": "", "type": "string"},
@@ -188,7 +190,8 @@ class PendingWorkflowTests(unittest.TestCase):
             self.skipTest(f"pinned revision {pin} is not in this checkout (an export or shallow clone)")
         for path in (".github/actions/crates-pending/action.yml",
                      ".github/actions/crates-pending/crates_pending.py",
-                     ".github/workflows/semver-gate.yml"):
+                     ".github/workflows/semver-gate.yml",
+                     "scripts/atlas_semver_registry.py"):
             pinned = subprocess.run(["git", "-C", str(ROOT), "show", f"{pin}:{path}"],
                                     check=True, capture_output=True).stdout
             self.assertEqual(pinned.replace(b"\r\n", b"\n"),
