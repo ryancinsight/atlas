@@ -158,10 +158,15 @@ consumer resolves all 11 with one Aequitas 0.4.0, Eunomia 0.12.1, and
 Leto 0.51.0. Its 2×2 image with values 0, 2, 0, 2 has minimum 0,
 maximum 2, mean 1, and population standard deviation 1.
 [RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44664017931).
-Including Codecs 0.8.0, 15 of 26 authorized RITK versions are verified.
-The other 11 await Annotation 0.4.0, Image IO 0.1.0, or Parcellation
-0.2.0. Annotation 0.3.0 still pulls Spatial 0.4.0, while Image IO and
-Parcellation require their first uploads.
+The RITK #1066 release adds 14 verified archives from `49dc944e`,
+including Annotation 0.4.0, Image IO 0.1.0, and nine more versions
+from the authorized list. Including Codecs 0.8.0, 24 of the 26
+authorized versions are verified. The current release publishes IO
+0.6.0. Registration 0.56.0 still needs the first Parcellation 0.2.0
+upload. A fresh registry consumer resolves the 14 packages and passes
+five native DICOM tests, including exact big-endian samples, deflated
+character data, and invalid-transfer-syntax rejection before overwrite.
+[RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44667442964).
 
 The Aequitas and Leto default branches now declare 0.5.0 and 0.52.0.
 The 0.4 release candidates use the published Aequitas 0.4.0 and Leto
@@ -175,8 +180,20 @@ provider. These pins satisfy all declared Git dependency requirements.
 Coeus #684 and Kwavers #1117 close the five backlog conformance
 regressions. Ares #94, Hermes #308, and Tyche #136 resolve
 Mnemosyne Arena 0.7.2 and Memory 0.10.2. Their locked workspace runs
-pass 120, 540, and 58 tests respectively. The Eunomia #220 merge
-contains the exact crate sources shipped in both 0.12.1 archives.
+pass 120, 540, and 58 tests respectively. Moirai #718 also aligns
+those locks and passes 518 tests with allocator features enabled,
+with two cases skipped. The Eunomia #220 merge contains the exact
+crate sources shipped in both 0.12.1 archives. Consus #229 selects
+that published scalar version through Apollo and passes 76 locked
+raster tests, including independent JPEG and analytical transform oracles.
+
+Asclepius Coeus 0.4.0 is verified against the registry checksum and
+release revision. Helios #216 uses that archive with the registry
+Coeus 0.13.0 packages. Updating Asclepius alone exposes distinct
+Coeus tape-variable types. The aligned graph passes all 21 locked
+planning tests, including exact and finite-difference gradients.
+[Asclepius #127](https://github.com/ryancinsight/asclepius/pull/127)
+and [Helios #216](https://github.com/ryancinsight/helios/pull/216).
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.

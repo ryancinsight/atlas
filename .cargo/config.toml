@@ -167,11 +167,9 @@ apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
 
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
-asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 
 [patch."https://github.com/ryancinsight/asclepius.git"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
-asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
 
 [patch."https://github.com/ryancinsight/athena"]
 athena-core = { path = "repos/athena/crates/athena-core" }
