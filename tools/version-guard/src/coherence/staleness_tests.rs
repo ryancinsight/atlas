@@ -55,7 +55,7 @@ fn git_show_sha(repo: &Path, reference: &str) -> Option<String> {
 }
 
 /// A clone that has fetched a commit it does not hold is behind by exactly
-/// that many commits, which is the case the scan must refuse to measure.
+/// that many commits, which the recorded-state scan must report.
 #[test]
 fn a_tree_behind_its_upstream_is_reported() {
     let root = scratch("behind");
@@ -89,7 +89,7 @@ fn a_tree_behind_its_upstream_is_reported() {
     assert_eq!(
         stale[0].upstream_commit.as_deref(),
         Some(upstream_sha.as_str()),
-        "a behind member carries its upstream commit so the scanner can read it"
+        "the staleness report identifies the observed upstream commit"
     );
 
     let _ = std::fs::remove_dir_all(&root);

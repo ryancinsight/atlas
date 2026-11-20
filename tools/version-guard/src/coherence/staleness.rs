@@ -1,19 +1,9 @@
 //! Whether the trees the scan reads still represent what the stack publishes.
 //!
-//! The coherence scan reads checked-in manifests from the members' working
-//! trees. A tree that sits behind its own remote reports the version it had,
-//! not the version the stack publishes, so every requirement is compared
-//! against a stale number. On 2026-09-02 gaia's tree was two commits behind
-//! its own 0.4.0 → 0.5.0 bump; the scan compared four consumers against 0.4.0
-//! and reported clean while none of them could resolve gaia at all.
-//!
-//! The audit's premise is that these trees represent the stack. When the
-//! premise fails a clean result means less than it appears, so behind trees
-//! are named in the report and the clean line says what it is a verdict about.
-//! Staleness is not itself a defect: a submodule checkout sits behind its
-//! remote by design, because the gitlink pins it there, so failing on it alone
-//! would fail every run in CI. Reading a remote-tracking ref is local and
-//! offline; keeping it current is the caller's `git fetch`.
+//! The working-tree view measures the gitlinks Atlas records. A submodule can
+//! therefore sit behind its remote by design. This module reports that gap
+//! without changing the revisions the scan reads; [`View::Remotes`](super::View::Remotes)
+//! performs the separate published-state audit.
 
 use std::path::Path;
 use std::process::Command;
@@ -31,9 +21,7 @@ pub struct StaleMember {
     pub upstream: String,
     /// Commits present on the upstream branch and absent from the tree.
     pub behind: usize,
-    /// The upstream commit the tree is measured against, when known. Used by
-    /// the scanner to read a member's manifests at the ref the stack
-    /// publishes rather than at the possibly-behind working tree.
+    /// The upstream commit observed when measuring the gap, when known.
     pub upstream_commit: Option<String>,
 }
 

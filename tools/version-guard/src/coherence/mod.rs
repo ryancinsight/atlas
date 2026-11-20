@@ -6,10 +6,10 @@
 //! the current first-party package versions. This keeps the check deterministic
 //! and makes those files the single sources of truth.
 //!
-//! Reading trees rather than remotes has one precondition: the trees must be
-//! current. A member behind its own remote carries the version it had, not the
-//! version the stack publishes, so the scan reports such members and declines
-//! to call the result clean.
+//! The working-tree view measures the member manifests materialized on disk,
+//! including local modifications, even when their remotes have advanced. It
+//! reports that movement without substituting remote manifests. The explicit
+//! remote view answers what the member default branches publish.
 
 mod manifest;
 mod member;
@@ -92,10 +92,9 @@ pub struct CoherenceReport {
     pub requirement_count: usize,
     /// Version requirement mismatches.
     pub findings: Vec<CoherenceFinding>,
-    /// Members whose working tree is behind the branch it tracks. Their
-    /// manifests describe an older state than the stack publishes, so any
-    /// verdict about them — clean included — is measured against versions
-    /// that are not what the stack has.
+    /// Members whose working tree is behind the branch it tracks. This is
+    /// informational in [`View::Worktree`]: the scan still measures the
+    /// member manifests materialized on disk.
     pub stale: Vec<StaleMember>,
     /// Directories the walk could not read, and so did not measure. Empty in
     /// the ordinary case; a non-empty list means some tree went unscanned.
@@ -241,8 +240,8 @@ pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Erro
     let mut unmeasured: Vec<String> = Vec::new();
     let mut stale: Vec<StaleMember> = Vec::new();
     // Names, per member root, the commit whose tree the manifest reader must use
-    // instead of the working tree.
-    let origin_ref_of: BTreeMap<PathBuf, String> = match view {
+    // instead of the working tree. Only the explicit remote view supplies it.
+    let revision_of: BTreeMap<PathBuf, String> = match view {
         View::Worktree => {
             for member in &members {
                 let root_manifest = member.path.join("Cargo.toml");
@@ -254,21 +253,9 @@ pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Erro
                 }
                 collect_manifests(&member.path, &mut manifests, &mut unscanned)?;
             }
-            // A behind member's working tree holds the version it had, not the
-            // version the stack publishes, so every requirement compared against
-            // it is measured against a stale number (the gaia 0.4.0 → 0.5.0
-            // case). Read such a member's manifests at its origin tip instead,
-            // so the verdict describes what a consumer would resolve.
             let paths: Vec<&Path> = members.iter().map(|member| member.path.as_path()).collect();
             stale = stale_members(atlas_root, &paths)?;
-            stale
-                .iter()
-                .filter_map(|entry| {
-                    let member_path = atlas_root.join(&entry.member);
-                    let commit = entry.upstream_commit.as_ref()?;
-                    Some((member_path, commit.clone()))
-                })
-                .collect()
+            BTreeMap::new()
         }
         View::Remotes => {
             let mut refs = BTreeMap::new();
@@ -289,7 +276,7 @@ pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Erro
 
     let parsed = manifests
         .iter()
-        .map(|path| read_manifest(path, atlas_root, &origin_ref_of))
+        .map(|path| read_manifest(path, atlas_root, &revision_of))
         .collect::<Result<Vec<_>, _>>()?;
     let packages = package_index(&parsed, &members)?;
     let workspace_deps = workspace_dependency_index(&parsed);
@@ -353,22 +340,19 @@ fn display_member(atlas_root: &Path, path: &Path) -> String {
         .replace('\\', "/")
 }
 
-/// Read and parse one manifest, using the member's origin content when it is
-/// behind its tracked branch.
+/// Read and parse one manifest from its selected stack view.
 ///
-/// `path` lives under a registered member. When that member's origin commit is
-/// present in `origin_ref_of`, the manifest text is read from that commit's
-/// tree (`git show <commit>:<relative-path>`); otherwise it is read from the
-/// working tree. Reading the origin tree keeps the coherence verdict measured
-/// against what the stack publishes even when a checkout is behind its bump.
+/// `path` lives under a registered member. When that member has a commit in
+/// `revision_of`, the manifest text is read from that commit's tree (`git show
+/// <commit>:<relative-path>`); otherwise it is read from the working tree.
 fn read_manifest(
     path: &Path,
     atlas_root: &Path,
-    origin_ref_of: &BTreeMap<PathBuf, String>,
+    revision_of: &BTreeMap<PathBuf, String>,
 ) -> Result<ParsedManifest, Error> {
     // Find the registered member that owns this manifest path (the longest
     // member-root prefix, so a nested crate stays under its member).
-    let Some((member_path, commit)) = origin_ref_of
+    let Some((member_path, commit)) = revision_of
         .iter()
         .filter(|(member, _)| path.starts_with(member))
         .max_by_key(|(member, _)| member.components().count())
@@ -394,9 +378,8 @@ fn read_manifest(
 
 /// Read one file at a revision from a member repository.
 ///
-/// Returns `Ok(None)` when the path does not exist at that revision (a
-/// manifest added since the member's origin tip), so the scan falls back to
-/// the working tree rather than failing.
+/// Returns `Ok(None)` when the path does not exist at that revision, so the
+/// scan falls back to the working tree rather than failing.
 fn git_show(member: &Path, commit: &str, relative: &str) -> Result<Option<String>, Error> {
     let output = Command::new("git")
         .arg("--no-pager")

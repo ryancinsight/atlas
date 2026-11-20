@@ -16,11 +16,10 @@
 //! `git diff <range> -- '*.toml'` (read-only) and parses the resulting diff
 //! text. `coherence` scans checked-in manifests under the Atlas root and
 //! reports first-party requirement/version mismatches, plus any member whose
-//! working tree is behind the branch it tracks — the manifests of such a
-//! member describe an older state than the stack publishes, so a verdict about
-//! it is measured against the wrong versions. Run `git fetch` across the
-//! members first; reading a remote-tracking ref is local. If `--commit-msg
-//! <path>` is supplied, the message body is read from that path; otherwise
+//! working tree is behind the branch it tracks. The working-tree view still
+//! measures the manifests materialized on disk, including local modifications;
+//! it never substitutes newer remote manifests. If `--commit-msg <path>` is
+//! supplied, the message body is read from that path; otherwise
 //! `scan` reads `git log -1 --format=%B <range>` to fetch the commit message
 //! of the head of the range.
 //!
