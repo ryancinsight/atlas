@@ -16,6 +16,19 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+try:
+    from markdown_it import MarkdownIt
+except ModuleNotFoundError as error:
+    print(
+        "ERROR: markdown-it-py is required; install "
+        "scripts/requirements-docs.txt",
+        file=sys.stderr,
+    )
+    raise SystemExit(2) from error
+
+
+MARKDOWN = MarkdownIt("commonmark")
+
 
 PATTERN_F_RE = re.compile(r"^(?:\.\./)+crates/[^/]+/src/[^/]+(?:/[^/]+)*\.rs$")
 PATTERN_C_RE = re.compile(r"^(?:\.\./)+(?:[\w-]+)/docs/book/")
@@ -70,15 +83,11 @@ def is_external(href: str) -> bool:
 
 
 FENCE_OPEN_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})\s*(?P<info>[^`]*)$")
-INDENTED_CODE_RE = re.compile(r"^(?: {4}|\t)")
-BACKSLASH_ESCAPE_RE = re.compile(
-    r"\\[!\"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~]"
-)
-HTML_TAG_START_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?=[\s/>])")
+INLINE_CODE_RE = re.compile(r"`+[^`\n]*`+")
 
 
-def _mask_block_code(content: str) -> str:
-    """Blank out fenced and four-space/tab-indented code blocks.
+def _mask_fenced(content: str) -> str:
+    """Blank out fenced code blocks.
 
     Used where code-block content must not be seen but inline code spans
     must survive (heading extraction: mdBook keeps inline-code content in
@@ -97,9 +106,6 @@ def _mask_block_code(content: str) -> str:
                 )
                 out.append("")
                 continue
-            if INDENTED_CODE_RE.match(line):
-                out.append("")
-                continue
             out.append(line)
             continue
         if closing.fullmatch(line):
@@ -108,80 +114,17 @@ def _mask_block_code(content: str) -> str:
     return "\n".join(out)
 
 
-def _raw_html_end(content: str, start: int) -> int | None:
-    """Return the end of a raw HTML token beginning at ``start``."""
-    if content.startswith("<!--", start):
-        end = content.find("-->", start + 4)
-        return len(content) if end == -1 else end + 3
-
-    match = HTML_TAG_START_RE.match(content, start)
-    if match is None:
-        return None
-
-    quote: str | None = None
-    for index in range(match.end(), len(content)):
-        char = content[index]
-        if quote is not None:
-            if char == quote:
-                quote = None
-        elif char in "\"'":
-            quote = char
-        elif char == ">":
-            return index + 1
-    return None
-
-
-def _mask_inline_code(content: str) -> str:
-    """Blank inline code while preserving higher-precedence raw HTML tags."""
-    masked = list(content)
-    index = 0
-    while index < len(content):
-        if content[index] == "<":
-            html_end = _raw_html_end(content, index)
-            if html_end is not None:
-                index = html_end
-                continue
-
-        if content[index] != "`":
-            index += 1
-            continue
-
-        opening_end = index + 1
-        while opening_end < len(content) and content[opening_end] == "`":
-            opening_end += 1
-        run_length = opening_end - index
-        closing = opening_end
-        while closing < len(content) and content[closing] not in "\r\n":
-            if content[closing] != "`":
-                closing += 1
-                continue
-            closing_end = closing + 1
-            while closing_end < len(content) and content[closing_end] == "`":
-                closing_end += 1
-            if closing_end - closing == run_length:
-                for masked_index in range(index, closing_end):
-                    masked[masked_index] = " "
-                index = closing_end
-                break
-            closing = closing_end
-        else:
-            index = opening_end
-    return "".join(masked)
-
-
 def mask_code(content: str) -> str:
     """Blank out code regions so link syntax inside them is not checked.
 
     mdBook does not resolve links inside code, and book prose routinely
     shows markdown, shell, or TOML snippets containing bracket-paren
     text that is not a link (``[dependencies]``, ``[foo](bar)`` in a
-    markdown example). Block and inline code plus backslash-escaped
-    punctuation are replaced with blanks. Raw HTML tags take precedence over
-    inline-code delimiters. Line structure and character offsets are kept.
+    markdown example). Fenced blocks and inline spans are replaced with
+    blanks. Line structure is preserved so the masked text stays
+    positionally aligned with the original.
     """
-    blocks_masked = _mask_block_code(content)
-    escapes_masked = BACKSLASH_ESCAPE_RE.sub("  ", blocks_masked)
-    return _mask_inline_code(escapes_masked)
+    return INLINE_CODE_RE.sub(" ", _mask_fenced(content))
 
 
 def extract_links(content: str):
@@ -319,7 +262,7 @@ def heading_ids(content: str) -> list[str]:
     content in the rendered heading text (`The `AllocPolicy` trait` →
     `the-allocpolicy-trait`).
     """
-    content = _mask_block_code(content)
+    content = _mask_fenced(content)
     ids: list[str] = []
     auto_seen: dict[str, int] = {}
     for _h, title in re.findall(r"^(#{1,6})\s+(.*?)\s*$", content, re.MULTILINE):
@@ -356,12 +299,19 @@ class _HtmlIdParser(HTMLParser):
 def html_ids(content: str) -> list[str]:
     """Return raw-HTML IDs that mdBook renders as fragment destinations.
 
-    Code is masked before parsing. ``HTMLParser`` decodes attribute entities,
-    accepts quoted and unquoted values, skips comments, and does not treat
-    escaped markup as tags.
+    CommonMark parsing identifies rendered raw-HTML tokens. ``HTMLParser``
+    then decodes attribute entities and accepts quoted or unquoted values.
+    Token content is not altered, so backslashes and backticks in attribute
+    values remain literal.
     """
     parser = _HtmlIdParser()
-    parser.feed(mask_code(content))
+    pending = list(reversed(MARKDOWN.parse(content)))
+    while pending:
+        token = pending.pop()
+        if token.type in {"html_block", "html_inline"}:
+            parser.feed(token.content)
+        if token.children:
+            pending.extend(reversed(token.children))
     parser.close()
     return parser.ids
 

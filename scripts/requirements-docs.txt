@@ -1,0 +1,4 @@
+# Runtime dependency for scripts/check_mdbook_links.py.
+# Keep exact so local hooks and CI apply the same CommonMark token rules.
+markdown-it-py==4.3.0
+mdurl==0.1.2
