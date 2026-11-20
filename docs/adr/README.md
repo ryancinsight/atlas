@@ -79,3 +79,4 @@
 | [0069](0069-locked-source-semver.md) | Treat locked-resolution API coverage as unsupported | Accepted |
 | [0070](0070-native-cargo-package-facts.md) | Cargo owns stack package facts | Accepted |
 | [0071](0071-stack-build-profile-budget.md) | The stack config owns build profiles; optimization raises are named there | Accepted |
+| [0072](0072-eunomia-letectus-vertical-redundancy.md) | EunomiaΓÇôLetoΓÇôCoeus vertical redundancy audit and consolidation sequence | Proposed |
