@@ -51,10 +51,9 @@ pub(crate) fn parse_manifest(path: &Path, atlas_root: &Path) -> Result<ParsedMan
 
 /// Parse a manifest from in-memory content.
 ///
-/// Used by the coherence scan to read a behind member's manifests at the ref
-/// the stack publishes (its origin) rather than at the possibly-stale working
-/// tree. `path` is still the on-disk manifest path — it derives the consumer
-/// and report path — but the parsed content comes from the caller.
+/// Used by the coherence scan to read manifests from an explicitly selected
+/// revision. `path` is still the on-disk manifest path — it derives the
+/// consumer and report path — but the parsed content comes from the caller.
 pub(crate) fn parse_manifest_content(text: &str, path: &Path, atlas_root: &Path) -> ParsedManifest {
     let section = sections(text);
     let package_name = section_value(&section, "package", "name");
@@ -134,7 +133,7 @@ pub(crate) fn package_index(
         });
         if let Some(version) = version {
             // Manifest paths identify their registered tree even when their
-            // contents came from an origin commit newer than the checkout.
+            // contents came from an explicitly selected commit.
             let provider =
                 path_provider(&manifest.path, members, View::Remotes)?.ok_or_else(|| {
                     Error::Manifest {
