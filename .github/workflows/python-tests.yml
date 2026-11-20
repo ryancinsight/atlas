@@ -134,6 +134,7 @@ jobs:
           channel=$(python3 -c 'import tomllib; print(tomllib.load(open("repos/aequitas/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
           channel=$(printf '%s' "$channel" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           rustup toolchain install "$channel" --profile minimal --component clippy --component rustfmt
+          rustup target add --toolchain "$channel" wasm32-unknown-unknown
 
       - name: Install cargo-nextest
         # The build-identity tests run the hook's three steps, one of which is
