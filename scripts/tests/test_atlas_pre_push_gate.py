@@ -689,6 +689,7 @@ def _seed_process_tree(stack: pathlib.Path) -> None:
     destination = stack / "scripts"
     destination.mkdir(parents=True, exist_ok=True)
     for name in (
+        "atlas_cargo_inputs.py",
         "pre_push_gate.py",
         "process_tree.py",
         "windows_process.py",
