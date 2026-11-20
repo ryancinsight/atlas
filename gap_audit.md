@@ -152,7 +152,16 @@ and a fresh consumer verifies the typed point, the SI diffusion
 weight, and PackBits decoding with truncated-input rejection. The locked source
 suites pass 185 tests, with two opt-in cases ignored. The DICOM
 archive resolves Aequitas 0.4.0, Eunomia 0.12.1, and Leto 0.51.0.
-RITK #1065 selects 11 more approved versions for registry verification.
+RITK #1065 publishes 11 more approved packages from `2804d35`. Their
+archives match the crates.io checksums and source revision. A fresh Cargo
+consumer resolves all 11 with one Aequitas 0.4.0, Eunomia 0.12.1, and
+Leto 0.51.0. Its 2×2 image with values 0, 2, 0, 2 has minimum 0,
+maximum 2, mean 1, and population standard deviation 1.
+[RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44664017931).
+Including Codecs 0.8.0, 15 of 26 authorized RITK versions are verified.
+The other 11 await Annotation 0.4.0, Image IO 0.1.0, or Parcellation
+0.2.0. Annotation 0.3.0 still pulls Spatial 0.4.0, while Image IO and
+Parcellation require their first uploads.
 
 The Aequitas and Leto default branches now declare 0.5.0 and 0.52.0.
 The 0.4 release candidates use the published Aequitas 0.4.0 and Leto
@@ -163,7 +172,11 @@ the final pinned Atlas check. All eight repository updates have merged.
 Atlas records the merged Apollo, Coeus, Metis, Asclepius, RITK, CFDrs,
 Helios, and Kwavers revisions along with the published Mnemosyne
 provider. These pins satisfy all declared Git dependency requirements.
-Twelve other member locks still select older provider versions.
+Coeus #684 and Kwavers #1117 close the five backlog conformance
+regressions. Ares #94, Hermes #308, and Tyche #136 resolve
+Mnemosyne Arena 0.7.2 and Memory 0.10.2. Their locked workspace runs
+pass 120, 540, and 58 tests respectively. The Eunomia #220 merge
+contains the exact crate sources shipped in both 0.12.1 archives.
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
