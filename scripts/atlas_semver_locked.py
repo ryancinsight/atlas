@@ -9,11 +9,10 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import tempfile
 import process_tree
 from atlas_git_process import archive, extract_archive, restamp_tree
-TOOL_VERSION = "0.51.0"
+from atlas_semver_tool import prepared_checker
 COMMAND_SECONDS = 600
 KNOWN_RESOLUTION_DIAGNOSTICS = (
     "failed to select a version for the requirement",
@@ -169,14 +168,14 @@ def compiled_packages(manifest: Path, package: str, env: dict[str, str],
     )
 
 
-def native_command(manifest: Path, package: str, baseline: str,
+def native_command(checker, manifest: Path, package: str, baseline: str,
                    config: dict, release_type: str) -> list[str]:
     """Build the native discovery command; policy is evaluated separately."""
-    return [
-        "cargo", "semver-checks", "--manifest-path", str(manifest), "--package", package,
+    return checker.command([
+        "--manifest-path", str(manifest), "--package", package,
         "--baseline-rev", baseline, "--release-type", release_type,
         "--target", config["target"], *semver_features(config["feature_policy"], config["features"]),
-    ]
+    ])
 
 
 def result_record(command: list[str], result) -> dict:
@@ -192,8 +191,11 @@ def result_record(command: list[str], result) -> dict:
     }
 
 
-def attempt(command: list[str], cwd: Path, env: dict[str, str], timeout: float = COMMAND_SECONDS) -> dict:
+def attempt(command: list[str], cwd: Path, env: dict[str, str],
+            timeout: float = COMMAND_SECONDS, checker=None) -> dict:
     """Classify execution and cleanup failures without fabricating a verdict."""
+    if checker is not None:
+        checker.verify()
     try:
         return result_record(command, invoke(command, cwd, env, timeout))
     except process_tree.ProcessTreeTimeout as error:
@@ -206,6 +208,9 @@ def attempt(command: list[str], cwd: Path, env: dict[str, str], timeout: float =
         return {"command": command, "exit_code": None, "status": "cleanup_error",
                 "diagnostics": diagnostics,
                 "diagnostics_sha256": digest_bytes(diagnostics.encode())}
+    finally:
+        if checker is not None:
+            checker.verify()
 
 
 def evaluation(native: dict, severity_check: dict | None, baseline: str, current: str,
@@ -305,8 +310,11 @@ def supplemental(roots: list[Path], manifests: list[Path], locks: list[Path],
     }
 
 
-def compare(args) -> int:
+def compare(args, checker=None) -> int:
     """Attempt every native baseline and write evidence even when one is unavailable."""
+    if checker is None:
+        with prepared_checker() as owned:
+            return compare(args, owned)
     repo = args.repo.resolve()
     env = dict(os.environ, RUSTUP_TOOLCHAIN=args.toolchain)
     target_dir = Path(env.get("CARGO_TARGET_DIR", "")).resolve()
@@ -328,15 +336,9 @@ def compare(args) -> int:
         "target": args.target,
         "toolchain": args.toolchain,
     }
-    tool = shutil.which("cargo-semver-checks")
-    if tool is None:
-        raise RuntimeError("cargo-semver-checks 0.51.0 is not installed")
-    version = text(checked(["cargo", "semver-checks", "--version"], repo, env, 120).stdout).strip()
-    if version != f"cargo-semver-checks {TOOL_VERSION}":
-        raise RuntimeError(f"expected cargo-semver-checks {TOOL_VERSION}, found {version!r}")
     report = {
         "schema": 2, "base": base, "head": head, "configuration": config,
-        "tool": {"version": version, "sha256": digest(Path(tool))}, "packages": [],
+        "tool": checker.provenance, "packages": [],
     }
     exit_code = 0
     args.report.parent.mkdir(parents=True, exist_ok=True)
@@ -353,13 +355,13 @@ def compare(args) -> int:
             inventories, locks = zip(*(inventory(manifest, env) for manifest in manifests))
             for package in args.packages:
                 pair = [inventory_[package] for inventory_ in inventories]
-                command = native_command(repo / relative, package, base, config, "patch")
-                native = attempt(command, repo, env)
+                command = native_command(checker, repo / relative, package, base, config, "patch")
+                native = attempt(command, repo, env, checker=checker)
                 severity_check = None
                 if native["exit_code"] == 100:
                     severity_check = attempt(
-                        native_command(repo / relative, package, base, config, "minor"),
-                        repo, env,
+                        native_command(checker, repo / relative, package, base, config, "minor"),
+                        repo, env, checker=checker,
                     )
                 entry = {
                     "name": package, "versions": [pair[0]["version"], pair[1]["version"]],

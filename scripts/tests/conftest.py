@@ -5,6 +5,7 @@ import os
 import pytest
 
 from atlas_git_process import clean_process_env
+from root_hook_support import shared_target_directory
 
 
 _SLOW_SOURCE_BUILD_PREFIXES = (
@@ -25,3 +26,4 @@ def pytest_collection_modifyitems(items):
 # the caller's repository instead.
 for _key in os.environ.keys() - clean_process_env().keys():
     del os.environ[_key]
+os.environ["CARGO_TARGET_DIR"] = str(shared_target_directory())
