@@ -318,6 +318,55 @@ class CheckBookTestCase(unittest.TestCase):
             )
             self.assertEqual(self._report(book)["anchor_missing"], [])
 
+    def test_local_html_ids_resolve(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "[quoted](#quoted-id) [unquoted](#unquoted-id) "
+                "[entity](#entity%20id)\n\n"
+                '<a id="quoted-id"></a>\n'
+                "<span id=unquoted-id></span>\n"
+                "<i id='entity&#32;id'></i>\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(self._report(book)["anchor_missing"], [])
+
+    def test_cross_file_html_id_resolves(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "See [manual section](README.md#manual-id).\n",
+                encoding="utf-8",
+            )
+            (book / "README.md").write_text(
+                "<section id=manual-id>Manual</section>\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(self._report(book)["anchor_missing"], [])
+
+    def test_non_rendered_html_ids_remain_missing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "[fenced](#fenced) [inline](#inline) [comment](#comment) "
+                "[escaped](#escaped) [absent](#absent)\n\n"
+                "```html\n<a id=fenced></a>\n```\n"
+                "`<a id=inline></a>`\n"
+                "<!-- <a id=comment></a> -->\n"
+                "&lt;a id=escaped&gt;&lt;/a&gt;\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [
+                    ("chapter.md", "#fenced", "fenced"),
+                    ("chapter.md", "#inline", "inline"),
+                    ("chapter.md", "#comment", "comment"),
+                    ("chapter.md", "#escaped", "escaped"),
+                    ("chapter.md", "#absent", "absent"),
+                ],
+            )
+
     def test_root_absolute_link_resolves_against_the_book_root(self) -> None:
         # mdBook semantics: a leading `/` is book-root-relative. Guards
         # the `Path.__truediv__` trap, where an absolute right operand
