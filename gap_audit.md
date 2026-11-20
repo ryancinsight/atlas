@@ -254,13 +254,53 @@ rejects a zero step, and computes exact linear attenuation of 0.5 m⁻¹
 from 0.125 m²/kg and 4 kg/m³. The releases follow the prior provider
 release branches to retain the Git package contracts of active callers.
 
-The published RITK graph still pulls Aequitas 0.4, Leto 0.51, Coeus 0.13,
+The earlier RITK graph pulled Aequitas 0.4, Leto 0.51, Coeus 0.13,
 Gaia 0.7, and Apollo FFT 0.30 through Helios and the other integrators.
-The published dependency scan marks 28 of 31 reachable RITK archives
-for coordinated pre-1.0 minor bumps. The RITK source migration and the
-registry releases must both resolve before promotion of the final
-coherent consumer locks. Atlas #757 remains open for the overlay,
-coherence, and gitlink checks.
+The dependency scan marks 28 of 31 reachable archives for coordinated
+pre-1.0 minor bumps. RITK #1062 merges at `913be32f` after both required
+hosted gates pass. The 28 packages and Model 0.5.0 match the registry
+checksums and source commit. The release uses the local Cargo credential
+for Block Matching, Image I/O, Parcellation, and VTK when the hosted
+publisher cannot upload those versions. A fresh consumer resolves all
+29 checksums and passes six synthetic DICOM and parcellation tests.
+[RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44819699453).
+
+Hephaestus Core, WGPU, and CUDA 0.32.0 use the same quantity and array
+providers with the typed FFT capacity query required by Kwavers. The
+three crates.io archives match the sparse-index checksums and the checked
+release commit `fc9fba13`. A fresh Metal build rejects 65,535 workspace
+bytes, accepts 65,536 bytes, and computes the expected impulse spectrum.
+Kwavers #1123 packs the absorbing PSTD coefficients and spectral symbols
+to fit the tested Metal device's 29 storage bindings.
+[Hephaestus verification](https://github.com/ryancinsight/hephaestus/pull/559).
+
+CFDrs #575 uses the published Consus 0.5, Leto 0.52, and RITK VTK 0.5
+graph. The all-feature build and 55 focused Metal and I/O tests pass.
+The shared Athena and Harmonia lock uses one Athena Core source.
+[CFDrs #575](https://github.com/ryancinsight/CFDrs/pull/575).
+
+Helios #220 adopts the published DICOM and registration providers at
+the 0.2.0 boundary. The all-feature build, 115 focused tests, and all
+six hosted gates pass. Helios #221 binds publication to the exact
+11 approved package versions. The independent allocator uses 0.1.0.
+All 11 registry archives match `86a8de1c` and tag `v0.2.0`. A fresh
+registry consumer preserves the CT grid pose and voxel values −10, 10,
+190, and 2036 HU through the native deflate writer.
+[Helios #220](https://github.com/ryancinsight/helios/pull/220),
+[publisher](https://github.com/ryancinsight/helios/actions/runs/44832659153).
+
+Kwavers #1124 replaces its temporary RITK revision with the published
+0.5-compatible cohort. The locked build and 15 Metal capacity, readback,
+and CPU–GPU parity tests pass. The 22 affected packages are versioned
+together as a source cohort. Its automatic publisher selects zero crates.
+[Kwavers #1124](https://github.com/ryancinsight/kwavers/pull/1124).
+
+The Atlas overlay preserves the private Python binding's explicit Git
+revision. A fresh Cargo probe under the generated overlay resolves the
+binding and its caller to one published Aequitas 0.5 instance and
+compiles the typed length boundary. The integrated overlay, coherence,
+and gitlink checks cover all 28 recorded default revisions.
+[Atlas #757](https://github.com/ryancinsight/atlas/pull/757).
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
