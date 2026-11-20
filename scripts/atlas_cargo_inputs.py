@@ -35,15 +35,11 @@ def _append_unique(values: list[str], value: str) -> None:
         values.append(value)
 
 
-def _manifest_kind(path: Path) -> str | None:
+def _manifest_sections(path: Path) -> tuple[bool, bool] | None:
     if not path.is_file():
         return None
     text = path.read_text(encoding="utf-8")
-    if _PACKAGE.search(text):
-        return "package"
-    if _WORKSPACE.search(text):
-        return "workspace"
-    return None
+    return _PACKAGE.search(text) is not None, _WORKSPACE.search(text) is not None
 
 
 def _skip_non_cargo(repository_path: str) -> bool:
@@ -93,7 +89,7 @@ def cargo_input_owners(
     standalone: list[str] = []
     workspace_prefix = PurePosixPath(workspace_manifest).parent
     gate_manifest = root / "Cargo.toml"
-    gate_kind = _manifest_kind(gate_manifest)
+    gate_sections = _manifest_sections(gate_manifest)
     for changed_path in changed_paths:
         if not changed_path:
             continue
@@ -109,23 +105,29 @@ def cargo_input_owners(
         excluded_manifest: str | None = None
         while directory not in {PurePosixPath("."), PurePosixPath("/")}:
             manifest = root / directory.as_posix() / "Cargo.toml"
-            kind = _manifest_kind(manifest)
-            if kind == "package":
-                package_directory = directory
-                break
-            if kind == "workspace":
-                excluded_manifest = (directory / "Cargo.toml").as_posix()
+            sections = _manifest_sections(manifest)
+            if sections is not None:
+                has_package, has_workspace = sections
+                if has_package:
+                    package_directory = directory
+                elif has_workspace:
+                    excluded_manifest = (directory / "Cargo.toml").as_posix()
                 break
             directory = directory.parent
         if excluded_manifest is not None:
             _append_unique(excluded, excluded_manifest)
             continue
-        if package_directory is None and changed_path == "Cargo.toml" and gate_kind == "workspace":
+        if (
+            package_directory is None
+            and changed_path == "Cargo.toml"
+            and gate_sections is not None
+            and gate_sections[1]
+        ):
             for package in workspace_packages:
                 _append_unique(selected, package)
             continue
         if package_directory is None:
-            if gate_kind != "package":
+            if gate_sections is None or not gate_sections[0]:
                 continue
             package_directory = PurePosixPath(".")
         relative_manifest = (package_directory / "Cargo.toml").as_posix()

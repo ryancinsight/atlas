@@ -101,6 +101,59 @@ def test_virtual_workspace_classifies_members_and_nested_manifests(tmp_path: Pat
     )
 
 
+def test_changed_hybrid_root_manifest_selects_every_member(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    _write(
+        root,
+        "Cargo.toml",
+        '[package]\nname = "metis-ui"\nversion = "0.1.0"\n'
+        '[workspace]\nmembers = ["crates/metis-core"]\n',
+    )
+    _write(
+        root,
+        "crates/metis-core/Cargo.toml",
+        '[package]\nname = "metis-core"\nversion = "0.1.0"\n',
+    )
+    _commit(root, "workspace")
+    metadata = _metadata(
+        root,
+        [
+            ("ui-id", "metis-ui", "Cargo.toml", None),
+            ("core-id", "metis-core", "crates/metis-core/Cargo.toml", None),
+        ],
+    )
+
+    owners = cargo_input_owners(root, "Cargo.toml", metadata, ["Cargo.toml"])
+
+    assert owners.packages == ("metis-ui", "metis-core")
+
+
+def test_unrecognized_nested_manifest_stops_ancestor_walk(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    _write(root, "Cargo.toml", '[workspace]\nmembers = ["crates/foo"]\n')
+    _write(root, "crates/foo/Cargo.toml", '[package]\nname = "foo"\nversion = "0.1.0"\n')
+    _write(
+        root,
+        "crates/foo/fixtures/input/Cargo.toml",
+        '[dependencies]\nserde = "1"\n',
+    )
+    _write(root, "crates/foo/fixtures/input/case.txt", "input\n")
+    _commit(root, "workspace")
+    metadata = _metadata(
+        root,
+        [("foo-id", "foo", "crates/foo/Cargo.toml", None)],
+    )
+
+    owners = cargo_input_owners(
+        root,
+        "Cargo.toml",
+        metadata,
+        ["crates/foo/fixtures/input/case.txt"],
+    )
+
+    assert owners == CargoInputOwners((), (), (), ())
+
+
 @pytest.mark.parametrize("changed", [".config/nextest.toml", "rust-toolchain.toml", ".cargo/config.toml"])
 def test_global_inputs_select_each_workspace_member(tmp_path: Path, changed: str) -> None:
     root = _repo(tmp_path)
