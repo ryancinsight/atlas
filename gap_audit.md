@@ -222,11 +222,45 @@ merge after the hosted gates. Their standalone locks pass 1,253, 91, 53,
 0.4.0 source. Prometheus #98 adopts Aequitas 0.5 and Leto 0.52 and
 passes all 47 tests on its merged revision.
 
-A clean registry consumer using Gaia Mesh 0.7.0, Athena Leto 0.4.0,
-and Asclepius 0.4.0 alongside the new providers resolves both
-Aequitas 0.4.0 and 0.5.0 and both Leto 0.51.0 and 0.52.0. The
-registry rollout needs compatible releases before promoting the final
-consumer locks. Atlas #757 stays open for the integrated provider checks.
+The earlier releases Gaia Mesh 0.7.0, Athena Leto 0.4.0, and
+Asclepius 0.4.0 pulled in both Aequitas 0.4 and 0.5, and Leto 0.51
+and 0.52, when resolved with the new providers. Current releases close
+parts of that boundary in dependency order.
+
+- Apollo #722 publishes 20 archives from `7b70b328`. Archive checksums
+  and source receipts match. A registry-only consumer builds the 20
+  packages and checks a four-sample FFT against a unit spectrum.
+- Coeus #682 publishes eight 0.14.0 archives from `4196389a`. The Core
+  workflow upload succeeds and the remaining uploads use the local
+  Cargo credential after the CPU credential rejection. A fresh Rust
+  1.95 consumer checks a 2 × 3 Leto view, rejects a short buffer, and
+  finds the exact autodiff derivative 6 for x² at x = 3.
+- Gaia #238 publishes Gaia Mesh 0.8.0 from `bdac6214`. A registry-only
+  consumer gives a Leto 0.52 box center (1, 2, 3) and volume 64, and
+  checks inclusion on a boundary and rejection outside it. Métis #583
+  produces the same 960 × 640 PNG and BMP as the Gaia 0.7 base.
+- Athena #181 publishes Krylov, Leto, and Hephaestus 0.5.0 from
+  `2be05424`. All three archive checksums and source receipts match.
+
+Asclepius #124 publishes both 0.5.0 crates from `b21df8fa` with
+matching checksums. Ares #96 uses the same registry Leto 0.52 identity
+as Athena. Updating the adapter alone reproduces incompatible Leto view
+and scalar types. The aligned locked build passes 120 tests on Rust 1.95.
+
+Helios #217 lands native DICOM. Its latest provider candidates use the
+verified Horae Time 0.4.0, Proteus Mat 0.3.0, and Hyperion Transport 0.3.0
+archives. A single fresh lock passes a half-second typed time result,
+rejects a zero step, and computes exact linear attenuation of 0.5 m⁻¹
+from 0.125 m²/kg and 4 kg/m³. The releases follow the prior provider
+release branches to retain the Git package contracts of active callers.
+
+The published RITK graph still pulls Aequitas 0.4, Leto 0.51, Coeus 0.13,
+Gaia 0.7, and Apollo FFT 0.30 through Helios and the other integrators.
+The published dependency scan marks 28 of 31 reachable RITK archives
+for coordinated pre-1.0 minor bumps. The RITK source migration and the
+registry releases must both resolve before promotion of the final
+coherent consumer locks. Atlas #757 remains open for the overlay,
+coherence, and gitlink checks.
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
