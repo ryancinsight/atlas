@@ -389,11 +389,11 @@ def _gate_version_count(root: Path, content: Path, members: list[Path]) -> int:
         raise RuntimeError(ref.stderr.decode("utf-8", errors="replace").strip())
 
     history = git_output(
-        "--no-replace-objects", "rev-list", "--objects", "--full-history", default,
-        "--", gate, cwd=root,
+        "--no-replace-objects", "log", "--format=format:-", "--raw", "--root", "--no-abbrev",
+        "--no-renames", "--full-history", "--diff-merges=separate", default, "--", gate, cwd=root,
     )
-    suffix = f" {gate}"
-    blobs = {line.removesuffix(suffix) for line in history.splitlines() if line.endswith(suffix)}
+    blobs = {oid for line in history.splitlines() if line.startswith(":")
+             for oid in line.split("\t", 1)[0].split()[2:4] if set(oid) != {"0"}}
     algorithm = git_output("rev-parse", "--show-object-format", cwd=root).strip()
 
     def recorded(data: bytes) -> bool:

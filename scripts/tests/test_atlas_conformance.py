@@ -1719,6 +1719,94 @@ class AtlasConformanceTestCase(unittest.TestCase):
                     recorded = conformance.scan_stack(root, "HEAD")["<meta>"]
                     self.assertEqual(recorded["member_gate_versions"], expected)
 
+    def test_gate_history_query_preserves_exact_path_blob_set(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-history-") as temp:
+            root = Path(temp)
+            gate = "scripts/git-hooks/pre-push"
+            member = root / "repos/alpha"
+            _git(root, "init", "-q", "-b", "main")
+            _git(root, "config", "log.showRoot", "false")
+            _write(root, gate, "root\n")
+            _git(root, "add", gate)
+            _git(root, "commit", "-q", "-m", "create gate")
+            expected = {_git(root, "rev-parse", f"HEAD:{gate}")}
+            _git(root, "branch", "side")
+            _write(root, "main-only", "main\n")
+            _git(root, "add", "main-only")
+            _git(root, "commit", "-q", "-m", "advance main")
+            _git(root, "switch", "-q", "side")
+            _write(root, gate, "side\n")
+            _git(root, "commit", "-qam", "change gate on side")
+            expected.add(_git(root, "rev-parse", f"HEAD:{gate}"))
+            _git(root, "switch", "-q", "main")
+            _git(root, "merge", "-q", "--no-commit", "--no-ff", "side")
+            _write(root, gate, "merge-only\n")
+            _git(root, "add", gate)
+            _git(root, "commit", "-q", "-m", "resolve gate in merge")
+            expected.add(_git(root, "rev-parse", f"HEAD:{gate}"))
+            _write(root, gate, "main\n")
+            _git(root, "commit", "-qam", "change gate on main")
+            expected.add(_git(root, "rev-parse", f"HEAD:{gate}"))
+            _git(root, "rm", "-q", gate)
+            _git(root, "commit", "-q", "-m", "delete gate")
+            _write(root, gate, "side\n")
+            _git(root, "add", gate)
+            _git(root, "commit", "-q", "-m", "restore repeated gate")
+            _git(root, "mv", gate, "renamed-hook")
+            _git(root, "commit", "-q", "-m", "rename gate away")
+            _write(root, "renamed-hook", "renamed-only\n")
+            _git(root, "commit", "-qam", "change renamed hook")
+            excluded = _git(root, "rev-parse", "HEAD:renamed-hook")
+            _write(root, gate, "readded\n")
+            _git(root, "add", gate)
+            _git(root, "commit", "-q", "-m", "readd gate")
+            expected.add(_git(root, "rev-parse", f"HEAD:{gate}"))
+            _git(root, "update-ref", "refs/remotes/origin/main", "HEAD")
+            _write(member, ".githooks/pre-push", "unknown\n")
+
+            legacy = _historical_path_blobs(root, gate)
+            observed: list[str] = []
+            read_blobs = conformance.read_blobs
+
+            def capture(repo: Path, blobs: list[str]):
+                observed.extend(blobs)
+                return read_blobs(repo, blobs)
+
+            with patch.object(conformance, "read_blobs", side_effect=capture):
+                self.assertEqual(conformance._gate_version_count(root, root, [member]), 2)
+            self.assertEqual(set(observed), legacy)
+            self.assertEqual(legacy, expected)
+            self.assertNotIn(excluded, legacy)
+
+    def test_gate_history_query_includes_configured_root_commit(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-root-") as temp:
+            root = Path(temp)
+            gate = "scripts/git-hooks/pre-push"
+            member = root / "repos/alpha"
+            unknown = root / "repos/beta"
+            _git(root, "init", "-q", "-b", "main")
+            _git(root, "config", "log.showRoot", "false")
+            _write(root, gate, "root-only\n")
+            _git(root, "add", gate)
+            _git(root, "commit", "-q", "-m", "create gate at root")
+            _git(root, "update-ref", "refs/remotes/origin/main", "HEAD")
+            expected = {_git(root, "rev-parse", f"HEAD:{gate}")}
+            _write(root, gate, "candidate\n")
+            _write(member, ".githooks/pre-push", "root-only\n")
+            _write(unknown, ".githooks/pre-push", "unknown\n")
+            observed: list[str] = []
+            read_blobs = conformance.read_blobs
+
+            def capture(repo: Path, blobs: list[str]):
+                observed.extend(blobs)
+                return read_blobs(repo, blobs)
+
+            with patch.object(conformance, "read_blobs", side_effect=capture):
+                self.assertEqual(conformance._gate_version_count(root, root, [member, unknown]), 2)
+            legacy = _historical_path_blobs(root, gate)
+            self.assertEqual(set(observed), legacy)
+            self.assertEqual(legacy, expected)
+
     def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
         """An empty gitlink directory cannot masquerade as a clean provider."""
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
@@ -2852,8 +2940,20 @@ def _git(repo: Path, *argv: str) -> str:
     return subprocess.run(
         ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t",
          "-c", "core.autocrlf=false", *argv],
-        check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True, timeout=10,
     ).stdout.strip()
+
+
+def _historical_path_blobs(repo: Path, path: str) -> set[str]:
+    suffix = f" {path}"
+    return {
+        line.removesuffix(suffix)
+        for line in _git(
+            repo, "--no-replace-objects", "rev-list", "--objects", "--full-history",
+            "refs/remotes/origin/main", "--", path,
+        ).splitlines()
+        if line.endswith(suffix)
+    }
 
 
 def _member_repo(root: Path) -> Path:
