@@ -19,6 +19,7 @@ SCANNER_RUNTIME = (
     "darwin_process.py",
     "windows_process.py",
 )
+MEMBER_GATE_RUNTIME = (*SCANNER_RUNTIME, "atlas_cargo_inputs.py")
 MEMBER_HOOK = ROOT / "scripts" / "git-hooks" / "pre-push"
 ZERO = "0" * 40
 
@@ -43,9 +44,13 @@ def write_file(path, content):
     path.chmod(path.stat().st_mode | 0o755)
 
 
-def copy_scanner_runtime(destination):
-    for name in SCANNER_RUNTIME:
+def copy_runtime(destination, names):
+    for name in names:
         shutil.copyfile(ROOT / "scripts" / name, destination / name)
+
+
+def copy_scanner_runtime(destination):
+    copy_runtime(destination, SCANNER_RUNTIME)
 
 
 class RescuePushHookTests(unittest.TestCase):
@@ -80,7 +85,7 @@ class RescuePushHookTests(unittest.TestCase):
         root = stack / "repos" / "member"
         (stack / "scripts").mkdir(parents=True)
         root.mkdir(parents=True)
-        copy_scanner_runtime(stack / "scripts")
+        copy_runtime(stack / "scripts", MEMBER_GATE_RUNTIME)
         write_file(
             stack / "scripts" / "atlas-build-identity.py", PASSTHROUGH_IDENTITY
         )
