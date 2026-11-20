@@ -38,12 +38,18 @@ Coeus Autograd 0.12.0. The current Autograd dependency graph requires
 Coeus CPU, which has no crates.io entry. Cargo packaging reproduces
 that missing dependency after 107 Autograd tests pass with the Apollo
 source candidate. Published Coeus Core and Ops 0.12.0 require Eunomia
-0.9. Apollo #720 passes source CI, but Apollo FFT 0.29.5 fails normalized
-package verification. The published Mnemosyne allocator supplies
-`ScratchElement` for Eunomia 0.11 complex values and Apollo Leto
-Interop 0.20.1 supplies Leto 0.47 views. Align those published
-providers before revalidating Apollo FFT and Coeus Autograd. DICOM depends on the published RITK Spatial 0.4.0, which
-selects Leto 0.46.5. That Leto version excludes the Eunomia line
+0.9. Apollo #720 passes source CI. Its FFT 0.29.5 package verification
+reproduced incompatible Eunomia 0.11 scratch types and Leto 0.47 views.
+Mnemosyne #276 has since released Arena 0.7.2 and Memory 0.10.2 from
+`b81d685a`. The registry tarballs match that revision and their index
+checksums. Apollo Leto Interop 0.20.1 still exposes Leto 0.47 views.
+Align the Interop and Hephaestus requirements before revalidating
+Apollo FFT and Coeus Autograd.
+[Mnemosyne #276](https://github.com/ryancinsight/mnemosyne/pull/276)
+and [Apollo #720](https://github.com/ryancinsight/apollo/pull/720).
+
+DICOM depends on the published RITK Spatial 0.4.0, which selects Leto
+0.46.5. That Leto version excludes the Eunomia line
 required by Aequitas 0.4.0, and registry packaging reaches a Rust trait
 error. The current Spatial source packages with Leto 0.50.0. Its public
 point, vector, and direction types expose Leto types, so the registry
@@ -91,8 +97,8 @@ Laplacian of `x² + 3y²` as exactly −8 at all 16 grid points in both
 precisions and rejects zero physical spacing.
 [Leto publisher](https://github.com/ryancinsight/leto/actions/runs/44634017171)
 and [Leto Ops publisher](https://github.com/ryancinsight/leto/actions/runs/44634643054).
-The default registry graph also resolves Eunomia 0.11.0 through the
-published Mnemosyne allocator. Leto, Leto Ops, Aequitas, and Hermes
+The initial Leto release probe also resolved Eunomia 0.11.0 through
+the prior published Mnemosyne allocator. Leto, Leto Ops, Aequitas, and Hermes
 share Eunomia 0.12.1 at the tested quantity and scalar interfaces.
 
 Prometheus #96, Athena #177, Harmonia #101, Gaia #234 and #235,
@@ -104,8 +110,27 @@ Rust 1.97. Gaia 0.6.10 and Hephaestus 0.28.0 registry archives predate
 these source integrations. The same plane constructor compiles and
 returns offset −3 from the merged Gaia and Leto sources. The published
 Gaia 0.6.10 constructor rejects the Leto 0.51 point and vector types
-because its signature uses Leto 0.50. Atlas #757 remains open for the remaining
-Aequitas consumer locks and stack coherence checks. The Aequitas
+because its signature uses Leto 0.50.
+
+Gaia #236 publishes Gaia Mesh 0.7.0 from `ee119e3`. A fresh crates.io
+consumer constructs the plane through `(0,0,3)` with offset −3 and
+exports a triangle in the three expected 3MF parts via Consus 0.5.
+Hephaestus #556 publishes its six 0.29.0 libraries from `e499d489`.
+A fresh Rust 1.95 consumer resolves all six and obtains −8 at all 16
+grid points through both Hephaestus Host and Leto Ops. A short output
+buffer returns an error. Each archive matches its registry checksum
+and exact merge revision. The CUDA, ROCm, software WGPU, and native Metal
+checks pass on the Hephaestus release revision.
+[Gaia publisher](https://github.com/ryancinsight/gaia/actions/runs/44642096363)
+and [Hephaestus publisher](https://github.com/ryancinsight/hephaestus/actions/runs/44644599072).
+
+Athena #178 adopts both Hephaestus 0.29.0 dependencies at the release
+revision. The locked migration passes 16 Core unit tests and 23
+Hephaestus integration tests, including on-device residual, spectral,
+and preconditioner cases. [Athena #178](https://github.com/ryancinsight/athena/pull/178).
+
+Atlas #757 remains open for the remaining Aequitas consumer locks and
+stack coherence checks. The Aequitas
 checkout follows its independently released 0.5.0 default. This
 integration uses the published 0.4.0 dependency across typed interfaces
 that share Leto 0.51.0.
