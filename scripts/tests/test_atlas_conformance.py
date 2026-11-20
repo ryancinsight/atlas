@@ -1665,11 +1665,13 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertEqual(recorded["member_gate_versions"], 1)
             self.assertEqual(live["member_gate_versions"], 2)
 
-    def test_stack_scan_distinguishes_landed_gate_history_from_branch_only_hooks(self) -> None:
+    def test_stack_scan_preserves_upstream_first_hook_order(self) -> None:
+        """Only member hook bytes absent from landed Atlas history add drift."""
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
-            member = root / "repos" / "alpha"
-            member.mkdir(parents=True)
+            members = {name: root / "repos" / name for name in ("alpha", "beta")}
+            for member in members.values():
+                member.mkdir(parents=True)
             gate = "scripts/git-hooks/pre-push"
             ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
 
@@ -1680,8 +1682,14 @@ class AtlasConformanceTestCase(unittest.TestCase):
                 ).stdout.strip()
 
             git(root, "init", "-q", "-b", "main")
-            git(member, "init", "-q", "-b", "main")
-            _write(root, ".gitmodules", '[submodule "alpha"]\n path = repos/alpha\n')
+            for member in members.values():
+                git(member, "init", "-q", "-b", "main")
+            _write(
+                root,
+                ".gitmodules",
+                '[submodule "alpha"]\n path = repos/alpha\n'
+                '[submodule "beta"]\n path = repos/beta\n',
+            )
             git(root, "config", "core.autocrlf", "false")
             _write(root, gate, "landed\nsource\n")
             (root / gate).write_bytes(b"landed\r\nsource\n")
@@ -1693,13 +1701,20 @@ class AtlasConformanceTestCase(unittest.TestCase):
             _write(root, gate, "current\n")
             git(root, "commit", "-qam", "current branch source")
 
-            for copy, expected in (("landed\nsource", 1), ("branch-only", 2), ("current", 1)):
-                with self.subTest(copy=copy):
-                    _write(member, ".githooks/pre-push", copy + "\n")
-                    git(member, "add", ".githooks/pre-push")
-                    git(member, "commit", "-q", "-m", "member hook")
-                    pin = git(member, "rev-parse", "HEAD")
-                    git(root, "update-index", "--add", "--cacheinfo", f"160000,{pin},repos/alpha")
+            cases = (
+                ("older landed fleet", ("landed\nsource", "landed\nsource"), 1),
+                ("unanimous unknown fleet", ("branch-only", "branch-only"), 2),
+                ("one unknown member", ("landed\nsource", "branch-only"), 2),
+                ("current fleet", ("current", "current"), 1),
+            )
+            for case, copies, expected in cases:
+                with self.subTest(case=case):
+                    for (name, member), copy in zip(members.items(), copies, strict=True):
+                        _write(member, ".githooks/pre-push", copy + "\n")
+                        git(member, "add", ".githooks/pre-push")
+                        git(member, "commit", "-q", "--allow-empty", "-m", "member hook")
+                        pin = git(member, "rev-parse", "HEAD")
+                        git(root, "update-index", "--add", "--cacheinfo", f"160000,{pin},repos/{name}")
                     git(root, "commit", "-q", "-m", "member pin")
                     recorded = conformance.scan_stack(root, "HEAD")["<meta>"]
                     self.assertEqual(recorded["member_gate_versions"], expected)
