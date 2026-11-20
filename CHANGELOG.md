@@ -2,6 +2,57 @@
 
 ## Unreleased
 
+- Refuse the two configurations the cast gate cannot measure
+  (`ATLAS-CAST-GATE-CFG-CLIPPY`). A `cfg` predicate naming `clippy` makes code
+  under `cfg(not(clippy))` invisible to the clippy run that is doing the
+  measuring, and a registered cast module mounted from two crate roots is
+  compiled twice while `clippy::duplicate_mod` sees one crate. `check` now
+  faults on both: the first names the file and line (with comments, strings and
+  `cfg_attr` attribute bodies excluded), the second names the package and every
+  mounting root, resolved from the manifest's target paths and Cargo's
+  auto-discovery switches. Verified: ten new tests; the full
+  `test_atlas_cast_gate.py` module passes 237, including both real-clippy slow
+  tests.
+
+- Land the ZST-keyed gradient coefficient cache and ride the ARCH-008 census
+  onto the advanced kwavers pin. kwavers#1110 (merge `7681bb35b`) replaces
+  `GradientCache`'s `RwLock<Vec<Vec<T>>>` and its per-call `Vec<T>` clone with
+  `[OnceLock<Box<[T]>>; FdAccuracyOrder::COUNT]`, one explicit
+  `FdAccuracyOrder::index()` mapping, and `AtomicUsize` hit/miss counters; a
+  hit borrows `&[T]`, and the counting-allocator oracle pins one allocation on
+  first use and zero on each of eight later hits. The pinned census drops
+  161 -> 160 production sites (160 test/bench, 320 total);
+  `scripts/oracles/arch-008-production-sites.txt` is regenerated and
+  `--pinned --verify-oracle` passes. The same PR cleared the stack gate's debt
+  on its rebased base (triplet-pulse tests under the 500-line file budget, the
+  delivered board items retired upstream, and the completed-work note removed
+  from `gap_audit.md`). No wall-clock claim.
+
+- Derive every workflow step bound, closing
+  `ATLAS-WORKFLOW-STEP-BOUND-DERIVATIONS`. The sweep that required a written
+  derivation above each job bound now requires one above every
+  `timeout-minutes`, jobs and steps alike, and reads the comment at the bound's
+  own indent, so a step comment cannot satisfy a job's bound or the reverse.
+  Each of the sixteen bare step numbers now says what the step runs: the three
+  `rustup toolchain install` steps in `python-tests.yml` and the two in
+  `atlas-conformance.yml` cite one measured install bound (#708's 3) instead of
+  restating a total; `atlas-pin-drift.py --timeout 20 --jobs 8` derives 5 from
+  28 recorded members in 4 waves of 8, each member at most three bounded git
+  calls of 20 s, 240 s; `atlas-pin-compile.py`'s 6 is its own deadlines, 30 +
+  30 + 60 + 180 s, plus a minute for probe setup; the `semver-pr` steps derive
+  2 from local commands measured here (0.08 s scope diff, 0.12 s `cargo
+  metadata`, 1.2 and 1.8 s at the stack's 15x hosted factor), 5 from the stack's
+  one-download floor, 3 from #708, and 25 from the 10.7 of measured build
+  pieces that was already there. The job comment keeps only the arithmetic it
+  must — `5 + 2 + 2 + 5 + 3 + 5 + 25 + 2 + 2 = 51`, plus 9 min (18%) of
+  overhead — because each step now carries its own derivation rather than the
+  job comment restating all nine. `scripts/tests/test_workflow_bounds.py` (the
+  renamed job-bound module) sweeps every bound, requires a comment quoting
+  `N min` to quote its own, requires each job's step bounds to fit inside the
+  job bound, and requires its count to match what YAML sees. Deleting one
+  step's comment fails the first check; moving a bound without its comment
+  fails the second.
+
 - [patch] Serialize ref-lock acquisition, stale-owner recovery and
   ownership-checked release. Only ESRCH permits reclamation; ambiguous
   owners are retained. An abandoned recovery guard fails closed pending
@@ -15,6 +66,62 @@
   macOS Bash 3.2. Preserve populated incumbent locks and fail closed without
   Python. Stale-owner reclamation races remain unresolved and separately
   tracked; this portability repair does not establish full lock safety.
+
+- Derive every workflow job bound. Auditing the workflows after the `semver-pr`
+  job got its derivation found 25 more job bounds in 16 files that were bare
+  numbers — 5, 10, 15, 20, 30, 45 min with nothing saying where they came from.
+  Each now carries the comment above it in the form the three already-derived
+  jobs used: what the job runs, the piece that dominates, and the factor or
+  floor that reaches the number. Three are measured here this turn —
+  `adr-index.py check` 8.9 s (5 min is 34x), `lockfile.py --check` 22.8 s (5
+  min is 13x), `atlas-stack-overlay.py check` 4.9 s (5 min is 60x) — and the
+  rest say what the number covers rather than inventing a figure no desktop
+  checkout can produce: a Pages deployment queue, crates.io lookups one per
+  crate, fleet-wide API pagination, a cold maturin build per target, the
+  registry probe that has no published version to read. Where a job already had
+  its derivation it was left alone. `scripts/tests/test_workflow_bounds.py`
+  holds the sweep: it fails on any bounded job whose line has no comment
+  directly above it, and fails where a comment quoting `N min` quotes a number
+  that is not its own job's, so a bound moved without its derivation is caught
+  rather than drifting. Removing one comment fails the first test; moving
+  `build-abi3` from 30 to 45 without its comment fails the second.
+
+- Bound every step of the `semver-pr` job and derived the job bound from those
+  bounds, closing `ATLAS-SEMVER-PR-STEP-BOUNDS`. `tool` and `atlas` carried no
+  `timeout-minutes`, so a stuck install or checkout ran to the job bound; the
+  job's own 30 had no written derivation, and the `semver` step's 5x cold build
+  did not count the two toolchain installs it runs first. The nine steps are
+  now bound 5, 2, 2, 5, 3, 5, 25, 2, 2 — 51 min, with the job at 60 for 9 min
+  (18%) of runner assignment, teardown and summary publication. The derivation
+  sits above the job bound and states its rule: a step running one local
+  command gets 2 min, at least 60x its length here (`cargo metadata` 0.12 s, 1.8
+  s at the stack's 15x hosted factor; the scope diff 0.08 s), one that
+  downloads gets 5, the stack's floor for a job whose single step downloads,
+  the tool install keeps #708's measured 3, and the comparison's 25 is now 2x
+  its measured pieces: 4.7 min of cold builds plus 6 for the two installs that
+  `python-tests.yml` bounds at 3 each. `BoundTests` recomputes that arithmetic
+  from the comment text, so the bounds and their derivation cannot drift apart:
+  dropping a step bound fails three tests, raising a step bound without its
+  comment fails one, lowering the job bound without its comment fails two, and
+  describing the installs out of the `semver` derivation fails the fourth.
+
+- Bound the SemVer comparison test's import-time probes, closing
+  `ATLAS-SEMVER-PR-TEST-IMPORT-BOUND`. `tool_ready()` ran `cargo semver-checks
+  --version` and `rustup toolchain list` with no deadline, and `skipUnless` on
+  `MovedGitDependencyTests` evaluates it while the module is imported, so a
+  stalled shim blocked collection of the whole file before any test budget
+  applied. Both commands now come from one `PROBES` tuple through a single
+  `probe()`, which passes `timeout=PROBE_TIMEOUT_SECONDS` — 60 s, derived from
+  the slower probe's 0.14 s from a freshly copied binary and 1.55 s on the
+  first of fifteen runs here, 23 s at the stack's 15x hosted factor, so 2.6x
+  that and still finite. A timeout, an unstartable binary, a wrong tool version
+  and a missing pinned toolchain all now read as not ready with the reason as
+  the skip text (`READY`, `READY_REASON`), where a missing `rustup` previously
+  raised out of collection. `ReadinessTests` pins the deadline on both probes
+  and on a real child that sleeps 30 s against a 0.2 s deadline, both stall
+  positions, the three other reasons and a probe that cannot start: dropping
+  `timeout=` fails the deadline test, and no longer catching `TimeoutExpired`
+  fails both stall cases.
 
 - Close `ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30`. Its outcome — the
   overlay reports **aligned** on the recorded pins — now holds: every

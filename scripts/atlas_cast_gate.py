@@ -86,6 +86,7 @@ import argparse
 import json
 import os
 import pathlib
+import posixpath
 import re
 import shutil
 import subprocess
@@ -102,6 +103,22 @@ HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
 HISTORICAL_CAST_PROFILE = "cast-history"
 HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+# `cfg(...)` and `cfg_attr(...)` name their predicate in the first argument.
+# `clippy` is a real cfg set by clippy-driver and not by rustc, so code under
+# `cfg(not(clippy))` compiles only in the clippy run -- which then skips it --
+# and code under `cfg(clippy)` compiles only where the gate is looking. Both
+# are unmeasurable, and a gate that cannot see a cast must refuse the push
+# rather than count the rest of the package and pass.
+CFG_PREDICATE = re.compile(r"\b(cfg|cfg_attr)\s*\(")
+CLIPPY_PREDICATE = re.compile(r"\bclippy\b")
+CFG_CLIPPY_HINT = r"cfg(_attr)?[[:space:]]*\([^)]*clippy"
+# A crate root mounts a module with `mod name;` or, under any name, with a
+# `#[path = "..."]` attribute. A cast module mounted from two crate roots is
+# compiled twice, and `clippy::duplicate_mod` is per crate, so neither the
+# count nor that lint sees the second mount.
+MOD_DECL = re.compile(
+    r"\b(?:pub(?:\s*\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;"
+)
 
 
 @dataclass(frozen=True, order=True)
@@ -412,6 +429,274 @@ def pushed_additions(repo: pathlib.Path, base: str | None, tip: str) -> dict[str
     # Bytes, decoded without newline translation: text mode would turn a
     # carriage return inside a source line into a line break.
     return added_lines(diff.decode("utf-8", errors="replace"))
+
+
+def code_without_comments_or_strings(text: str) -> str:
+    """`text` with comments and literals blanked, newlines kept in place.
+
+    A `cfg` predicate inside a comment or a string is not code, so it must not
+    be read as one. Offsets and line breaks survive the blanking so a fault can
+    name the line the predicate is written on.
+    """
+    out: list[str] = []
+    index = 0
+    while index < len(text):
+        if text.startswith("/*", index):
+            start, depth, index = index, 1, index + 2
+            while depth:
+                close, opened = text.find("*/", index), text.find("/*", index)
+                if close < 0:
+                    raise ValueError("an unclosed block comment")
+                depth, index = ((depth + 1, opened + 2) if 0 <= opened < close
+                                else (depth - 1, close + 2))
+            out.append(re.sub(r"[^\n]", " ", text[start:index]))
+            continue
+        match = TOKEN.match(text, index)
+        if match is None:
+            out.append(text[index])
+            index += 1
+            continue
+        kind, chunk = match.lastgroup, match.group()
+        out.append(re.sub(r"[^\n]", " ", chunk) if kind in ("comment", "string", "char")
+                   else chunk)
+        index = match.end()
+    return "".join(out)
+
+
+def matching_paren(code: str, opening: int) -> int:
+    """The index of the `)` closing the `(` at `opening`; unclosed raises."""
+    depth = 0
+    for index in range(opening, len(code)):
+        if code[index] == "(":
+            depth += 1
+        elif code[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise ValueError("an unclosed `cfg` predicate")
+
+
+def cfg_predicate(code: str, name: str, opening: int, closing: int) -> str:
+    """The predicate text of one `cfg`/`cfg_attr`; only the first argument of
+    `cfg_attr` is its predicate -- the rest is the attribute it applies."""
+    inner = code[opening + 1:closing]
+    if name == "cfg":
+        return inner
+    depth = 0
+    for index, char in enumerate(inner):
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif char == "," and depth == 0:
+            return inner[:index]
+    return inner
+
+
+def cfg_clippy_lines(text: str) -> list[int]:
+    """Lines whose `cfg`/`cfg_attr` predicate names `clippy`."""
+    code = code_without_comments_or_strings(text)
+    found: list[int] = []
+    for match in CFG_PREDICATE.finditer(code):
+        opening = code.find("(", match.start())
+        closing = matching_paren(code, opening)
+        if CLIPPY_PREDICATE.search(cfg_predicate(code, match.group(1), opening, closing)):
+            found.append(code.count("\n", 0, match.start()) + 1)
+    return found
+
+
+def tip_paths(repo: pathlib.Path, tip: str) -> list[str]:
+    """Every tracked path at `tip`."""
+    return subprocess.run(
+        ["git", "-C", str(repo), "ls-tree", "-r", "--name-only", tip],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+    ).stdout.splitlines()
+
+
+def package_manifest_dir(repo: pathlib.Path, tip: str, package: str) -> str | None:
+    """Directory of the manifest declaring `package` at `tip`, ``""`` for root."""
+    for path in tip_paths(repo, tip):
+        if path != "Cargo.toml" and not path.endswith("/Cargo.toml"):
+            continue
+        text = git_file(repo, tip, path)
+        if text is None:
+            continue
+        try:
+            if package_name(tomllib.loads(text)) == package:
+                return "" if path == "Cargo.toml" else path[: -len("/Cargo.toml")]
+        except tomllib.TOMLDecodeError:
+            continue
+    return None
+
+
+def target_roots(manifest: dict, directory: str, tree: list[str]) -> list[str]:
+    """The crate-root files of one package: lib, bins, tests, examples, benches.
+
+    Explicit `[lib]`/`[[bin]]`/`[[test]]`/`[[example]]`/`[[bench]]` paths are
+    included, and auto-discovery follows Cargo's own switches. Only paths that
+    exist at the tip are returned.
+    """
+    prefix = f"{directory}/" if directory else ""
+    package = manifest.get("package")
+    package = package if isinstance(package, dict) else {}
+    candidates = [prefix + "src/lib.rs"]
+    if package.get("autobins", True) is not False:
+        candidates.append(prefix + "src/main.rs")
+        for path in tree:
+            if not path.startswith(prefix + "src/bin/"):
+                continue
+            rest = path[len(prefix + "src/bin/"):]
+            if rest.endswith(".rs") and ("/" not in rest or rest.endswith("/main.rs")):
+                candidates.append(path)
+    lib = manifest.get("lib")
+    if isinstance(lib, dict) and isinstance(lib.get("path"), str):
+        candidates.append(prefix + lib["path"])
+    for key, auto, folder in (("bin", "autobins", None), ("test", "autotests", "tests"),
+                              ("example", "autoexamples", "examples"),
+                              ("bench", "autobenches", "benches")):
+        entries = manifest.get(key, [])
+        if isinstance(entries, list):
+            for entry in entries:
+                if isinstance(entry, dict) and isinstance(entry.get("path"), str):
+                    candidates.append(prefix + entry["path"])
+        if folder and package.get(auto, True) is not False:
+            depth = prefix.count("/") + 1
+            candidates.extend(
+                path for path in tree
+                if path.startswith(f"{prefix}{folder}/") and path.endswith(".rs")
+                and path.count("/") == depth
+            )
+    seen: set[str] = set()
+    roots: list[str] = []
+    for path in candidates:
+        if path in tree and path not in seen:
+            seen.add(path)
+            roots.append(path)
+    return roots
+
+
+def path_mount_targets(text: str) -> list[str]:
+    """The `#[path = "..."]` targets of `mod` declarations in one file.
+
+    The path lives in a string literal, so it is read from the token stream
+    rather than from blanked code; comments are already gone there.
+    """
+    try:
+        tokens = lex(text)
+        spans = attributes(tokens)
+    except ValueError:
+        return []
+    targets: list[str] = []
+    for start, end, inner, path in spans:
+        if inner or path != "path":
+            continue
+        value = next(
+            (tokens[index + 2][1] for index in range(start, end - 2)
+             if tokens[index:index + 2] == [("word", "path"), ("punct", "=")]
+             and tokens[index + 2][0] == "string"),
+            None,
+        )
+        if value is None:
+            continue
+        for index in range(end, len(tokens) - 2):
+            if tokens[index] == ("word", "mod"):
+                if tokens[index + 1][0] == "word" and tokens[index + 2] == ("punct", ";"):
+                    targets.append(literal(value))
+                break
+    return targets
+
+
+def mounts_cast_module(text: str, root: str, cast_path: str) -> bool:
+    """Whether the crate root `root` declares `cast_path` as a module."""
+    directory = root.rpartition("/")[0]
+    for target in path_mount_targets(text):
+        if posixpath.normpath(posixpath.join(directory, target)) == cast_path:
+            return True
+    code = code_without_comments_or_strings(text)
+    stem = pathlib.PurePosixPath(cast_path).stem
+    return any(match.group(1) == stem for match in MOD_DECL.finditer(code))
+
+
+def pushed_package_roots(repo: pathlib.Path, tip: str,
+                         packages: Iterable[str]) -> list[str]:
+    """Directories of the named packages at `tip`, ``""`` for the root one."""
+    wanted = frozenset(packages)
+    if not wanted:
+        return []
+    roots: list[str] = []
+    listing = tip_paths(repo, tip)
+    for path in listing:
+        if path != "Cargo.toml" and not path.endswith("/Cargo.toml"):
+            continue
+        text = git_file(repo, tip, path)
+        if text is None:
+            continue
+        try:
+            if package_name(tomllib.loads(text)) in wanted:
+                roots.append("" if path == "Cargo.toml" else path[: -len("/Cargo.toml")])
+        except tomllib.TOMLDecodeError:
+            continue
+    return roots
+
+
+def cfg_clippy_problems(repo: pathlib.Path, tip: str,
+                        packages: Iterable[str]) -> list[str]:
+    """One problem per `cfg` predicate naming `clippy` in a pushed package.
+
+    `git grep` narrows the search to files that could hold one on a single
+    line; the lexer then decides whether the hit is code and whether the
+    predicate -- not a `cfg_attr` body -- names `clippy`.
+    """
+    roots = pushed_package_roots(repo, tip, packages)
+    if not roots and not list(packages):
+        return []
+    command = ["git", "-C", str(repo), "grep", "-n", "-I", "-E", CFG_CLIPPY_HINT, tip]
+    if roots and "" not in roots:
+        command += ["--", *roots]
+    run = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
+                         errors="replace")
+    if run.returncode not in (0, 1):  # 1: no hit, not a failure
+        raise subprocess.CalledProcessError(run.returncode, command,
+                                            output=run.stdout, stderr=run.stderr)
+    paths = sorted({fields[1] for line in run.stdout.splitlines()
+                    if len(fields := line.split(":", 2)) == 3})
+    problems: list[str] = []
+    for path in paths:
+        for line in cfg_clippy_lines(git_file(repo, tip, path) or ""):
+            problems.append(
+                f"{path}:{line}: a `cfg` predicate names `clippy`, which clippy-driver "
+                "sets and rustc does not, so the gate cannot count the code it guards"
+            )
+    return problems
+
+
+def second_target_problem(repo: pathlib.Path, tip: str, package: str,
+                          cast_path: str) -> str | None:
+    """Why `package` compiles its cast module from more than one crate target."""
+    directory = package_manifest_dir(repo, tip, package)
+    if directory is None:
+        return None
+    manifest_path = f"{directory}/Cargo.toml" if directory else "Cargo.toml"
+    text = git_file(repo, tip, manifest_path)
+    if text is None:
+        return None
+    try:
+        manifest = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None
+    tree = tip_paths(repo, tip)
+    mounting = []
+    for root in target_roots(manifest, directory, tree):
+        body = git_file(repo, tip, root)
+        if body is not None and mounts_cast_module(body, root, cast_path):
+            mounting.append(root)
+    if len(mounting) < 2:
+        return None
+    return (
+        f"{package}: cast module {cast_path} is compiled by more than one crate "
+        f"target ({', '.join(mounting)}); clippy::duplicate_mod cannot see a "
+        "second target"
+    )
 
 
 def pushed_diff(repo: pathlib.Path, base: str | None, tip: str, form: list[str]) -> bytes:
@@ -1237,6 +1522,12 @@ def check(args: argparse.Namespace) -> int:
         modules[package] = (path, fault)
     problems = violations(args.member, found, added, args.package, baseline, base,
                           held, modules)
+    problems += cfg_clippy_problems(repo, args.tip, args.package)
+    for package, (path, _) in sorted(modules.items()):
+        if path:
+            problem = second_target_problem(repo, args.tip, package, path)
+            if problem:
+                problems.append(problem)
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:
