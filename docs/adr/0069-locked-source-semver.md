@@ -10,7 +10,10 @@
   compares locked rustdoc with no native run or disposition authority. Why: native
   `--baseline-rev` reruns `cargo update` in a placeholder, so a git dependency past
   the base requirement fails it. Evidence: hephaestus PR 537, job 132284946092,
-  `MovedGitDependencyTests`; member rustdoc moves to `nightly-2026-08-01`.
+  `MovedGitDependencyTests`; member rustdoc moves to the nightly pinned in
+  `scripts/semver-rustdoc-toolchain.txt`.
+- Revision: 2026-11-19 — Bind native discovery to the exact repaired upstream
+  source, lock, compiler, configuration, and fresh executable lifetime.
 
 ## Context
 
@@ -97,8 +100,18 @@ messages, or unavailable evidence fail. The report sets `api_comparison` to
 coverage. Unknown errors, timeouts, schema and compilation failures fail.
 
 Atlas never injects `RUSTC_BOOTSTRAP`. Outside the informational pull-request job it
-does not substitute artifacts for native discovery. For separate development
-evidence use fresh `--locked` Rustdoc JSON from `nightly-2026-08-01`, schema 61.
+does not substitute artifacts for native discovery. Native discovery builds the
+unmodified [upstream repair commit](https://github.com/obi1kenobi/cargo-semver-checks/commit/09a6b72abe23a0933e3acb998da7abb8b85ee826)
+from its complete lock with Rust 1.97.0, the generated patch-free Atlas
+configuration as Cargo's sole configuration, and release LTO disabled. A fresh
+owned install supplies the absolute executable; its
+source, lock, tools, configuration, and bytes are measured before use, and the bytes
+are rechecked after every native run. The released 0.51.0 executable, PATH, receipts,
+and version strings provide no admission. This commit is quarantined until an official
+stable tag containing it passes the same WASM fixture and every caller migrates.
+
+For separate development evidence use fresh `--locked` Rustdoc JSON from the nightly
+pinned in `scripts/semver-rustdoc-toolchain.txt`, schema 61.
 Bind each artifact to its tools, manifest, lock, graph, features, target and
 configuration. Authenticate source by exact commit/tree or by archive checksum and
 bundled lock. Verify identities and acquired digests before and after comparison.

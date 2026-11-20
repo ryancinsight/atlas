@@ -1,0 +1,7 @@
+repository = "https://github.com/obi1kenobi/cargo-semver-checks.git"
+revision = "09a6b72abe23a0933e3acb998da7abb8b85ee826"
+tree = "5f078e302a0df3db53dbf0f6b5c1d87f7cc46068"
+package = "cargo-semver-checks"
+version = "0.51.0"
+rust_version = "1.93"
+toolchain = "1.97.0"
