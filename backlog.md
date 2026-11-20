@@ -1,8 +1,5 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
-<a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
-<a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
-<a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — todo
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
 <a id="atlas-bench-budget-001"></a>- [ATLAS-BENCH-BUDGET-001](backlog/atlas-bench-budget-001.md) — Wall-clock budgets for benches and examples [patch] — todo
@@ -35,7 +32,6 @@
 <a id="atlas-identity-lease-starvation"></a>- [ATLAS-IDENTITY-LEASE-STARVATION](backlog/atlas-identity-lease-starvation.md) — Gated pushes starve on the 900 s identity-lease wait [verification] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
-<a id="atlas-identity-suite-runtime"></a>- [ATLAS-IDENTITY-SUITE-RUNTIME](backlog/atlas-identity-suite-runtime.md) — Five build-identity tests run for minutes against a 60 s budget [tightening] [patch] — todo
 <a id="atlas-jfnk-matrix-free-gmres-001"></a>- [ATLAS-JFNK-MATRIX-FREE-GMRES-001](backlog/atlas-jfnk-matrix-free-gmres-001.md) — Converge CFDrs's iterative solvers onto Athena [minor] — todo
 <a id="atlas-kwavers-alloc-probe-deny-docs-2026-08-21"></a>- [ATLAS-KWAVERS-ALLOC-PROBE-DENY-DOCS-2026-08-21](backlog/atlas-kwavers-alloc-probe-deny-docs-2026-08-21.md) — Pilot deny(missing_docs) [patch] — todo
 <a id="atlas-kwavers-book-fence-2026-08-19"></a>- [ATLAS-KWAVERS-BOOK-FENCE-2026-08-19](backlog/atlas-kwavers-book-fence-2026-08-19.md) — restore truthful mdBook fence semantics [patch] — todo
@@ -78,7 +74,6 @@
 <a id="atlas-standalone-crates-build"></a>- [ATLAS-STANDALONE-CRATES-BUILD](backlog/atlas-standalone-crates-build.md) — Make the five unbuildable standalone crates compile [patch] — todo
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
 <a id="atlas-target-001"></a>- [ATLAS-TARGET-001](backlog/atlas-target-001.md) — One build cache, one debug budget [patch] — todo
-<a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
 <a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
@@ -118,9 +113,6 @@
 <a id="atlas-semver-pr-job-wiring-strength"></a>- [ATLAS-SEMVER-PR-JOB-WIRING-STRENGTH](backlog/atlas-semver-pr-job-wiring-strength.md) — The PR SemVer job's wiring test passes mutants that void the comparison [patch] — todo
 <a id="atlas-cast-gate-standalone-owners-caller"></a>- [ATLAS-CAST-GATE-STANDALONE-OWNERS-CALLER](backlog/atlas-cast-gate-standalone-owners-caller.md) — `new-standalone-owners` and `--zero-base-package` have no hook caller [patch] — todo
 <a id="atlas-semver-nightly-pin-sources"></a>- [ATLAS-SEMVER-NIGHTLY-PIN-SOURCES](backlog/atlas-semver-nightly-pin-sources.md) — The SemVer rustdoc nightly pin is written in four files [patch] — todo
-<a id="atlas-semver-pr-step-bounds"></a>- [ATLAS-SEMVER-PR-STEP-BOUNDS](backlog/atlas-semver-pr-step-bounds.md) — The `semver-pr` job's `tool` and `atlas` steps carry no bound and its job bound has no derivation [patch] — todo
-<a id="atlas-semver-pr-test-import-bound"></a>- [ATLAS-SEMVER-PR-TEST-IMPORT-BOUND](backlog/atlas-semver-pr-test-import-bound.md) — The SemVer PR test's `tool_ready()` runs two commands at import with no deadline [patch] — todo
-<a id="atlas-cast-gate-cfg-clippy"></a>- [ATLAS-CAST-GATE-CFG-CLIPPY](backlog/atlas-cast-gate-cfg-clippy.md) — The cast gate exits 0 on code it cannot see: `cfg(not(clippy))` and a second crate target [patch] — todo
 <a id="atlas-artifact-budget-vacuous-root"></a>- [ATLAS-ARTIFACT-BUDGET-VACUOUS-ROOT](backlog/atlas-artifact-budget-vacuous-root.md) — `atlas-artifact-budget.py` reports "within budget" for a revision it cannot read [patch] — todo
 <a id="atlas-export-tree-freshness-residuals"></a>- [ATLAS-EXPORT-TREE-FRESHNESS-RESIDUALS](backlog/atlas-export-tree-freshness-residuals.md) — Four residuals of the fresh-export fix: a chance-passing test, an unstamped auditor export, a peel rule in two places, a peer build that still masks a failing SemVer side [verification] — todo
 <a id="atlas-overlay-satisfies-ranges-001"></a>- [ATLAS-OVERLAY-SATISFIES-RANGES-001](backlog/atlas-overlay-satisfies-ranges-001.md) — Overlay requirement-lag check passes every range requirement [patch] — todo

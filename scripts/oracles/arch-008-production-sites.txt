@@ -56,7 +56,6 @@ repos/kwavers/crates/kwavers-driver/src/place/sexpr.rs:69:20  # kwavers
 repos/kwavers/crates/kwavers-driver/src/route/pathfinder.rs:103:26  # kwavers
 repos/kwavers/crates/kwavers-gpu/src/gpu/multi_gpu/context.rs:25:25  # kwavers
 repos/kwavers/crates/kwavers-gpu/src/gpu/multi_gpu/types.rs:16:17  # kwavers
-repos/kwavers/crates/kwavers-grid/src/operators/gradient_optimized/cache.rs:15:43  # kwavers
 repos/kwavers/crates/kwavers-medium/src/absorption/relaxation_fit.rs:943:28  # kwavers
 repos/kwavers/crates/kwavers-mesh/src/tetrahedral/mesh.rs:27:20  # kwavers
 repos/kwavers/crates/kwavers-physics/src/acoustics/bubble_dynamics/bubble_field/core/model.rs:55:25  # kwavers

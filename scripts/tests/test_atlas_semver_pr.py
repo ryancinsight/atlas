@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import types
 import unittest
 from pathlib import Path
@@ -123,18 +125,119 @@ class SummaryTests(unittest.TestCase):
 
 
 PINNED = "nightly-2026-08-01"
+SEMVER_CHECKS_TOOL = "cargo-semver-checks 0.51.0"
+# `skipUnless` below is evaluated when the module is imported, so a probe that
+# stalls here blocks collection of the whole file before any test's own budget
+# applies. The slower probe, `cargo semver-checks --version` through the rustup
+# shim, took 0.14 s from a freshly copied binary and 1.55 s on the first of
+# fifteen runs on a development host; a hosted runner is about 15x slower, 23 s,
+# so 60 s is 2.6x that and still finite (ATLAS-SEMVER-PR-TEST-IMPORT-BOUND).
+PROBE_TIMEOUT_SECONDS = 60
+TOOLS = ("cargo", "git", "cargo-semver-checks", "rustup")
+PROBES = (["cargo", "semver-checks", "--version"], ["rustup", "toolchain", "list"])
 
 
-def tool_ready() -> bool:
-    if not all(shutil.which(tool) for tool in ("cargo", "git", "cargo-semver-checks")):
-        return False
-    version = subprocess.run(["cargo", "semver-checks", "--version"], capture_output=True, text=True)
-    installed = subprocess.run(["rustup", "toolchain", "list"], capture_output=True, text=True)
-    return version.stdout.strip() == "cargo-semver-checks 0.51.0" and PINNED in installed.stdout
+def probe(argv: list[str]) -> tuple[str | None, str]:
+    """The probe's stdout, or why it did not answer: a stall is not a verdict."""
+    try:
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=PROBE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        return None, f"`{' '.join(argv)}` did not answer within {PROBE_TIMEOUT_SECONDS:g} s"
+    except OSError as error:
+        return None, f"`{' '.join(argv)}` could not run: {error.strerror}"
+    return done.stdout, ""
+
+
+def tool_ready() -> tuple[bool, str]:
+    """Whether this host can run the slow test, and the reason when it cannot."""
+    missing = [tool for tool in TOOLS if not shutil.which(tool)]
+    if missing:
+        return False, f"needs {', '.join(TOOLS)}; not on PATH: {', '.join(missing)}"
+    version, reason = probe(PROBES[0])
+    if reason:
+        return False, reason
+    installed, reason = probe(PROBES[1])
+    if reason:
+        return False, reason
+    if version.strip() != SEMVER_CHECKS_TOOL:
+        return False, f"needs {SEMVER_CHECKS_TOOL}, found {version.strip() or 'no version'}"
+    if PINNED not in installed:
+        return False, f"needs the pinned toolchain {PINNED}"
+    return True, ""
+
+
+READY, READY_REASON = tool_ready()
+
+
+class ReadinessTests(unittest.TestCase):
+    """The import-time probe is bounded, so collecting this file cannot hang."""
+
+    def readiness(self, run, which=lambda tool: f"/bin/{tool}"):
+        """`tool_ready()` with the host replaced: no probe here touches the tools."""
+        with mock.patch.object(subprocess, "run", run), mock.patch.object(shutil, "which", which):
+            return tool_ready()
+
+    def test_each_probe_carries_the_one_deadline(self) -> None:
+        calls = []
+
+        def run(argv, **kwargs):
+            calls.append((argv, kwargs))
+            answer = SEMVER_CHECKS_TOOL if argv == PROBES[0] else PINNED
+            return types.SimpleNamespace(stdout=answer + "\n")
+
+        self.assertEqual(self.readiness(run), (True, ""))
+        self.assertEqual([kwargs.get("timeout") for _, kwargs in calls],
+                         [PROBE_TIMEOUT_SECONDS] * len(PROBES))
+        self.assertEqual([argv for argv, _ in calls], list(PROBES))
+
+    def test_a_stalled_probe_is_not_ready_and_names_itself(self) -> None:
+        for stalled in PROBES:
+            with self.subTest(probe=" ".join(stalled)):
+                def run(argv, **kwargs):
+                    if argv == stalled:
+                        raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+                    return types.SimpleNamespace(stdout="")
+                ready, reason = self.readiness(run)
+                self.assertFalse(ready)
+                self.assertIn(f"`{' '.join(stalled)}` did not answer within", reason)
+
+    def test_the_deadline_ends_a_child_that_does_not_answer(self) -> None:
+        started = time.monotonic()
+        with mock.patch.object(sys.modules[__name__], "PROBE_TIMEOUT_SECONDS", 0.2):
+            stdout, reason = probe([sys.executable, "-c", "import time; time.sleep(30)"])
+        self.assertIsNone(stdout)
+        self.assertIn("did not answer within 0.2 s", reason)
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_every_other_not_ready_answer_says_why(self) -> None:
+        def answer(version=SEMVER_CHECKS_TOOL, installed=PINNED):
+            return lambda argv, **kwargs: types.SimpleNamespace(
+                stdout=(version if argv == PROBES[0] else installed) + "\n")
+
+        cases = {
+            "not on PATH: rustup": (
+                answer(), lambda tool: None if tool == "rustup" else "/bin/x"),
+            "found cargo-semver-checks 0.50.0": (
+                answer(version="cargo-semver-checks 0.50.0"), None),
+            f"pinned toolchain {PINNED}": (
+                answer(installed="stable-x86_64-unknown-linux-gnu"), None),
+        }
+        for expected, (run, which) in cases.items():
+            with self.subTest(expected):
+                ready, reason = self.readiness(run, which) if which else self.readiness(run)
+                self.assertFalse(ready)
+                self.assertIn(expected, reason)
+
+    def test_a_probe_that_cannot_start_is_not_ready(self) -> None:
+        def run(argv, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory", argv[0])
+        ready, reason = self.readiness(run)
+        self.assertFalse(ready)
+        self.assertIn("could not run", reason)
 
 
 @pytest.mark.slow
-@unittest.skipUnless(tool_ready(), "needs git, cargo, cargo-semver-checks 0.51.0 and the pinned nightly")
+@unittest.skipUnless(READY, READY_REASON)
 class MovedGitDependencyTests(unittest.TestCase):
     """The base requires `^0.11.0` of a git dependency whose head is now 0.12.0."""
 
