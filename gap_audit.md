@@ -204,6 +204,30 @@ defaults reports 24 incompatible requirements and 15 stale member locks.
 The conformance inventory passes. The Aequitas 0.5 and Leto 0.52
 provider releases and consumer updates remain the merge dependency.
 
+### Aequitas 0.5 and Leto 0.52 rollout
+
+Hephaestus #557 merges as `2cb352c52b0a908ef343dd3844248a372ac6506d`.
+All six Hephaestus 0.30.0 archives and release tags match that commit.
+Host verification, native Metal, software WGPU, and the adapterless CUDA
+and ROCm checks pass. The NVIDIA and AMD hardware lanes report skipped.
+The release API gate passes against 0.29.0. A fresh Rust 1.95 consumer
+resolves one Aequitas 0.5.0, Eunomia 0.12.1, and Leto 0.52.0 provider
+set. Host and Leto Ops return −8 at all 16 points for the negative
+Laplacian of x² + 3y². Host rejects a buffer with 15 output slots.
+[Hephaestus publisher](https://github.com/ryancinsight/hephaestus/actions/runs/44781764295).
+
+Leto #435, Harmonia #103, Horae #137, Hyperion #113, and Proteus #119
+merge after the hosted gates. Their standalone locks pass 1,253, 91, 53,
+37, and 77 tests respectively. Harmonia uses the current Athena Core
+0.4.0 source. Prometheus #98 adopts Aequitas 0.5 and Leto 0.52 and
+passes all 47 tests on its merged revision.
+
+A clean registry consumer using Gaia Mesh 0.7.0, Athena Leto 0.4.0,
+and Asclepius 0.4.0 alongside the new providers resolves both
+Aequitas 0.4.0 and 0.5.0 and both Leto 0.51.0 and 0.52.0. The
+registry rollout needs compatible releases before promoting the final
+consumer locks. Atlas #757 stays open for the integrated provider checks.
+
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
 For crates.io it verifies one locked version and checksum for each
