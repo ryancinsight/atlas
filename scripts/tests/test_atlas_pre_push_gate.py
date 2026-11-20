@@ -3805,6 +3805,7 @@ class DebtRatchetTestCase(unittest.TestCase):
             _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
             _seed_scanner(stack)
             _seed_cast_gate(stack)
+            _seed_process_tree(stack)
             _register_stack(stack)
             subprocess.run(
                 ["git", "-C", str(stack), *_IDENT, "add", ".gitmodules", "scripts"],
