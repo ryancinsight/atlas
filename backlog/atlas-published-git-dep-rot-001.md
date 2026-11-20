@@ -6,3 +6,7 @@
 - recommended option: members' manifests declare first-party deps as registry requirements (version-only); local development redirects them through the overlay (`[patch.crates-io]` sections — the generator gains that section form alongside the git-URL patches it already emits). Rejected: `rev =` pins (quarantine per pin discipline, and they orphan under rebase merges the same way the semver baselines did); rejected: verifying consumers' tarballs against the member's own lock (masks the rot the real consumer hits).
 - next: the wave's owners take the convention decision (ADR draft with the recommendation above); the migration is dependency-ordered per member — manifest edit + lock regeneration + the overlay generator, each member a green increment.
 - acceptance: `cargo package`'s tarball verification passes fresh for every published member; apollo's pending pipeline (the current red) goes green; the semver gate's baseline probe no longer finds rotted baselines for post-migration releases.
+- Release comparison: Apollo's old NTT archive builds with its shipped lock
+  while fresh baseline resolution fails in Leto. The `locked-registry` release
+  check compares the authenticated archive and candidate under their own locks.
+  The publisher still verifies fresh package resolution before comparing APIs.
