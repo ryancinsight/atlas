@@ -13,11 +13,13 @@ Real destinations outside the closing fence remain subject to the strict gate.
 
 Fragment lookup combines mdBook heading IDs with raw HTML `id` attributes.
 Python's standard HTML parser handles quoted and unquoted attribute values and
-decodes entity references. The existing code mask runs first, so IDs inside
-fenced or inline code do not become destinations; HTML comments and escaped
-markup also remain non-destinations. HTML IDs compare exactly after URL
-decoding, while heading links retain the established normalization and
-duplicate-heading behavior.
+decodes entity references. The shared mask removes fenced and indented code
+and backslash-escaped punctuation. Its inline-code scan recognizes a raw HTML
+tag first, matching CommonMark precedence: backticks inside an attribute stay
+literal, while an entire tag inside a code span stays hidden. HTML comments
+and escaped markup also remain non-destinations. HTML IDs compare exactly
+after URL decoding, while heading links retain the established normalization
+and duplicate-heading behavior.
 
 This repair does not change inline-link classification, allowlists, heading
 normalization or CLI exit policies. It does not claim complete CommonMark parsing.

@@ -107,6 +107,18 @@ class ExtractLinksTestCase(unittest.TestCase):
         text = "Write `[docs](missing.md)` to link a chapter."
         self.assertEqual(list(cml.extract_links(text)), [])
 
+    def test_ignores_indented_code_link(self) -> None:
+        text = "    See [docs](missing.md) in the example."
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_ignores_backslash_escaped_link(self) -> None:
+        text = r"\[docs](missing.md) is illustrative text."
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_html_attribute_backticks_do_not_mask_following_link(self) -> None:
+        text = '<a id="before`literal`after"></a> [docs](chapter.md)'
+        self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
+
     def test_inline_code_does_not_mask_the_rest_of_the_line(self) -> None:
         text = "Use `cargo build`, then see [chapter](chapter.md)."
         self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
@@ -365,6 +377,48 @@ class CheckBookTestCase(unittest.TestCase):
                     ("chapter.md", "#escaped", "escaped"),
                     ("chapter.md", "#absent", "absent"),
                 ],
+            )
+
+    def test_indented_html_id_remains_missing_cross_file(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "See [hidden](README.md#hidden).\n",
+                encoding="utf-8",
+            )
+            (book / "README.md").write_text(
+                '    <a id="hidden"></a>\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [("chapter.md", "README.md#hidden", "hidden")],
+            )
+
+    def test_escaped_html_opening_remains_missing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                '[hidden](#hidden)\n\n\\<a id="hidden"></a>\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [("chapter.md", "#hidden", "hidden")],
+            )
+
+    def test_html_attribute_backticks_are_literal(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "[literal](#before%60literal%60after) "
+                "[space](#before%20after)\n\n"
+                '<a id="before`literal`after"></a>\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                self._report(book)["anchor_missing"],
+                [("chapter.md", "#before%20after", "before after")],
             )
 
     def test_root_absolute_link_resolves_against_the_book_root(self) -> None:
