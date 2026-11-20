@@ -159,9 +159,11 @@ The 0.4 release candidates use the published Aequitas 0.4.0 and Leto
 0.51.0 identities. The default-branch scan after Coeus #681 reports
 56 incompatible requirements in 11 repositories and lock version drift
 in 22 repositories. Reconcile the provider and consumer defaults for
-the final pinned Atlas check. Metis #574, Asclepius #125, and
-Helios #214 have merged. CFDrs #573 and Kwavers #1116 use the merged
-provider locks and remain in verification.
+the final pinned Atlas check. All eight repository updates have merged.
+Atlas records the merged Apollo, Coeus, Metis, Asclepius, RITK, CFDrs,
+Helios, and Kwavers revisions along with the published Mnemosyne
+provider. These pins satisfy all declared Git dependency requirements.
+Twelve other member locks still select older provider versions.
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
