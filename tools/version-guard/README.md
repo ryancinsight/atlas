@@ -4,6 +4,11 @@ The `scan` command checks declared version movement in one member's diff.
 The `coherence` command compares version requirements with package manifests
 from the repositories registered in Atlas's `.gitmodules`.
 
+By default, `coherence` reads each member manifest as materialized on disk,
+including local modifications. It reports a checkout that trails its remote
+but does not substitute remote manifests. `--against-remotes` is the explicit
+published-state view; it refreshes and reads each member's remote default tip.
+
 ## Coherence identity
 
 The package index uses **(registered provider, package name)**. A provider's

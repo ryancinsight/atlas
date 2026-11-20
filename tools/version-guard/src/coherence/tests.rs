@@ -43,9 +43,8 @@ fn injected_backward_fixture_is_reported() {
 fn remotes_view_sees_a_provider_bump_the_pinned_trees_hide() {
     // The failure this view exists for: a provider publishes a break on its
     // default branch while every gitlink-pinned checkout still satisfies the
-    // consumer's requirement, so the working-tree scan is clean. A submodule
-    // cloned at a gitlink has no `origin/HEAD`, which is exactly why
-    // `stale_members` cannot fall back to the remote there.
+    // consumer's requirement, so the working-tree scan is clean. The fixture
+    // keeps origin/HEAD visible, matching a hosted submodule checkout.
     let temp = scratch("remotes");
     let root = temp.join("atlas");
 
@@ -80,30 +79,10 @@ fn remotes_view_sees_a_provider_bump_the_pinned_trees_hide() {
     )
     .expect("gitmodules");
 
-    // Both members are gitlink-shaped: fetch the tip, check out a detached
-    // commit, and never create `origin/HEAD`.
-    let provider = root.join("repos").join("provider");
-    std::fs::create_dir_all(&provider).expect("provider dir");
-    git(&provider, &["init", "-b", "main"]);
-    git(
-        &provider,
-        &["remote", "add", "origin", &file_url(&provider_upstream)],
-    );
-    git(&provider, &["fetch", "--quiet", "origin", "main"]);
-    git(&provider, &["checkout", "--quiet", "--detach", &pinned]);
-
-    let consumer = root.join("repos").join("consumer");
-    std::fs::create_dir_all(&consumer).expect("consumer dir");
-    git(&consumer, &["init", "-b", "main"]);
-    git(
-        &consumer,
-        &["remote", "add", "origin", &file_url(&consumer_upstream)],
-    );
-    git(&consumer, &["fetch", "--quiet", "origin", "main"]);
-    let _ = git(
-        &consumer,
-        &["checkout", "--quiet", "--detach", "origin/main"],
-    );
+    // Both members are gitlink-shaped: fetch the tip, retain origin/HEAD, and
+    // check out the immutable revision the meta-repository records.
+    let provider = checkout_member(&root, "provider", &provider_upstream, &pinned);
+    let _consumer = checkout_member(&root, "consumer", &consumer_upstream, "origin/main");
 
     // The recorded state is coherent: the pinned provider satisfies ^0.5.0.
     let worktree = scan_atlas(&root, View::Worktree).expect("worktree scan");
@@ -112,6 +91,15 @@ fn remotes_view_sees_a_provider_bump_the_pinned_trees_hide() {
         0,
         "the pinned trees satisfy the requirement, so the working-tree view is clean"
     );
+    assert_eq!(worktree.stale.len(), 1, "the provider movement is reported");
+
+    // The worktree view is literal: local manifest changes are inputs, even
+    // though remote movement alone never replaces the checked-out content.
+    write_package(&provider, "provider", "0.7.0");
+    let dirty = scan_atlas(&root, View::Worktree).expect("dirty worktree scan");
+    assert_eq!(dirty.findings.len(), 1);
+    assert_eq!(dirty.findings[0].actual, "0.7.0");
+    assert_eq!(dirty.findings[0].required, "0.5.0");
 
     // The published state is not: the provider now publishes 0.6.0.
     let remotes = scan_atlas(&root, View::Remotes).expect("remotes scan");
@@ -145,13 +133,34 @@ fn file_url(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
+fn checkout_member(root: &Path, name: &str, upstream: &Path, revision: &str) -> PathBuf {
+    let member = root.join("repos").join(name);
+    std::fs::create_dir_all(&member).expect("member dir");
+    git(&member, &["init", "-b", "main"]).expect("initialize member");
+    git(&member, &["remote", "add", "origin", &file_url(upstream)]).expect("add member origin");
+    git(&member, &["fetch", "--quiet", "origin", "main"]).expect("fetch member origin");
+    git(
+        &member,
+        &[
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/main",
+        ],
+    )
+    .expect("set member origin/HEAD");
+    assert_eq!(
+        git(&member, &["symbolic-ref", "refs/remotes/origin/HEAD"],).as_deref(),
+        Some("refs/remotes/origin/main")
+    );
+    git(&member, &["checkout", "--quiet", "--detach", revision])
+        .expect("check out recorded member revision");
+    member
+}
+
 #[test]
-fn read_manifest_prefers_origin_over_a_stale_working_tree() {
-    // The gaia 0.4.0 → 0.5.0 case: the bump sits on origin while a checkout
-    // is still behind. read_manifest, given the member's origin commit,
-    // must parse the origin manifest (0.5.0), not the stale worktree
-    // (0.4.0) — a coherence verdict against the worktree would compare
-    // against a version the stack no longer publishes.
+fn read_manifest_uses_an_explicitly_selected_revision() {
+    // The remote view supplies a commit explicitly. The reader must use that
+    // commit, while an empty revision map keeps the worktree view on disk.
     let temp = scratch("origin-read");
     let upstream = temp.join("upstream");
     std::fs::create_dir_all(&upstream).expect("upstream dir");
@@ -172,15 +181,13 @@ fn read_manifest_prefers_origin_over_a_stale_working_tree() {
     let origin_commit = git(&member, &["rev-parse", "origin/main"]).expect("origin tip");
 
     let manifest_path = member.join("Cargo.toml");
-    let mut origin_map = BTreeMap::new();
-    origin_map.insert(member.clone(), origin_commit);
+    let mut revision_map = BTreeMap::new();
+    revision_map.insert(member.clone(), origin_commit);
 
-    let parsed = read_manifest(&manifest_path, &temp, &origin_map).expect("read manifest");
-    // origin publishes 0.5.0, so the parsed package version is 0.5.0 — not
-    // the stale 0.4.0 the working tree carries.
+    let parsed = read_manifest(&manifest_path, &temp, &revision_map).expect("read manifest");
     assert_eq!(parsed.package_version.as_deref(), Some("0.5.0"));
 
-    // Without the origin map the same manifest reads the stale worktree.
+    // Without a selected revision the same manifest reads the worktree.
     let parsed = read_manifest(&manifest_path, &temp, &BTreeMap::new()).expect("read manifest");
     assert_eq!(parsed.package_version.as_deref(), Some("0.4.0"));
 
