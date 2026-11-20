@@ -70,11 +70,15 @@ def is_external(href: str) -> bool:
 
 
 FENCE_OPEN_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})\s*(?P<info>[^`]*)$")
-INLINE_CODE_RE = re.compile(r"`+[^`\n]*`+")
+INDENTED_CODE_RE = re.compile(r"^(?: {4}|\t)")
+BACKSLASH_ESCAPE_RE = re.compile(
+    r"\\[!\"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~]"
+)
+HTML_TAG_START_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?=[\s/>])")
 
 
-def _mask_fenced(content: str) -> str:
-    """Blank out FENCED code regions only, preserving line structure.
+def _mask_block_code(content: str) -> str:
+    """Blank out fenced and four-space/tab-indented code blocks.
 
     Used where code-block content must not be seen but inline code spans
     must survive (heading extraction: mdBook keeps inline-code content in
@@ -93,6 +97,9 @@ def _mask_fenced(content: str) -> str:
                 )
                 out.append("")
                 continue
+            if INDENTED_CODE_RE.match(line):
+                out.append("")
+                continue
             out.append(line)
             continue
         if closing.fullmatch(line):
@@ -101,17 +108,80 @@ def _mask_fenced(content: str) -> str:
     return "\n".join(out)
 
 
+def _raw_html_end(content: str, start: int) -> int | None:
+    """Return the end of a raw HTML token beginning at ``start``."""
+    if content.startswith("<!--", start):
+        end = content.find("-->", start + 4)
+        return len(content) if end == -1 else end + 3
+
+    match = HTML_TAG_START_RE.match(content, start)
+    if match is None:
+        return None
+
+    quote: str | None = None
+    for index in range(match.end(), len(content)):
+        char = content[index]
+        if quote is not None:
+            if char == quote:
+                quote = None
+        elif char in "\"'":
+            quote = char
+        elif char == ">":
+            return index + 1
+    return None
+
+
+def _mask_inline_code(content: str) -> str:
+    """Blank inline code while preserving higher-precedence raw HTML tags."""
+    masked = list(content)
+    index = 0
+    while index < len(content):
+        if content[index] == "<":
+            html_end = _raw_html_end(content, index)
+            if html_end is not None:
+                index = html_end
+                continue
+
+        if content[index] != "`":
+            index += 1
+            continue
+
+        opening_end = index + 1
+        while opening_end < len(content) and content[opening_end] == "`":
+            opening_end += 1
+        run_length = opening_end - index
+        closing = opening_end
+        while closing < len(content) and content[closing] not in "\r\n":
+            if content[closing] != "`":
+                closing += 1
+                continue
+            closing_end = closing + 1
+            while closing_end < len(content) and content[closing_end] == "`":
+                closing_end += 1
+            if closing_end - closing == run_length:
+                for masked_index in range(index, closing_end):
+                    masked[masked_index] = " "
+                index = closing_end
+                break
+            closing = closing_end
+        else:
+            index = opening_end
+    return "".join(masked)
+
+
 def mask_code(content: str) -> str:
     """Blank out code regions so link syntax inside them is not checked.
 
     mdBook does not resolve links inside code, and book prose routinely
     shows markdown, shell, or TOML snippets containing bracket-paren
     text that is not a link (``[dependencies]``, ``[foo](bar)`` in a
-    markdown example). Fenced blocks and inline spans are replaced with
-    blanks. Line structure is preserved so the masked text stays
-    positionally aligned with the original.
+    markdown example). Block and inline code plus backslash-escaped
+    punctuation are replaced with blanks. Raw HTML tags take precedence over
+    inline-code delimiters. Line structure and character offsets are kept.
     """
-    return INLINE_CODE_RE.sub(" ", _mask_fenced(content))
+    blocks_masked = _mask_block_code(content)
+    escapes_masked = BACKSLASH_ESCAPE_RE.sub("  ", blocks_masked)
+    return _mask_inline_code(escapes_masked)
 
 
 def extract_links(content: str):
@@ -249,7 +319,7 @@ def heading_ids(content: str) -> list[str]:
     content in the rendered heading text (`The `AllocPolicy` trait` →
     `the-allocpolicy-trait`).
     """
-    content = _mask_fenced(content)
+    content = _mask_block_code(content)
     ids: list[str] = []
     auto_seen: dict[str, int] = {}
     for _h, title in re.findall(r"^(#{1,6})\s+(.*?)\s*$", content, re.MULTILINE):
