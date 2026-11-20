@@ -55,6 +55,16 @@ class AtlasWorkflowGateTests(unittest.TestCase):
                 self.assertIn("output_mode=process_tree.OutputMode.INHERIT", step["run"])
                 self.assertIn("raise SystemExit(result.returncode)", step["run"])
                 self.assertNotIn("buffer.write", step["run"])
+        self.assertEqual(jobs["pytest-fast"]["timeout-minutes"], "10")
+        self.assertEqual(jobs["pytest-slow"]["timeout-minutes"], "15")
+        setup = next(
+            step for step in jobs["pytest-slow"]["steps"]
+            if step["name"] == "Setup recorded consumer toolchain"
+        )
+        self.assertIn(
+            'rustup target add --toolchain "$channel" wasm32-unknown-unknown',
+            setup["run"],
+        )
 
     def test_windows_lock_protocol_is_native_bounded_and_required(self) -> None:
         job = self.python_tests["jobs"]["windows-lock-protocol"]
