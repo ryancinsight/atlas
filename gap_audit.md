@@ -130,10 +130,38 @@ Hephaestus integration tests, including on-device residual, spectral,
 and preconditioner cases. [Athena #178](https://github.com/ryancinsight/athena/pull/178).
 
 Atlas #757 remains open for the remaining Aequitas consumer locks and
-stack coherence checks. The Aequitas
-checkout follows its independently released 0.5.0 default. This
-integration uses the published 0.4.0 dependency across typed interfaces
-that share Leto 0.51.0.
+stack coherence checks. Apollo #720 is merged. Apollo #723 uses the
+archived registry lockfiles to recover the release check that failed
+while resolving the older NTT baseline. Apollo #723 merged as `7a8b226`.
+All 20 Apollo archives match the registry checksums and source revision.
+A fresh consumer verifies the Leto-backed impulse transform and the
+documented frequency bins. Coeus #681 merged as
+`7091030` and limits publication to eight CPU and tensor packages at
+0.13.0. Core and CPU are indexed with matching archive checksums and
+source revisions. A fresh Rust 1.95 consumer verifies the typed Leto view,
+its final element, and the rejection of a short buffer. The Autograd
+unit suite passes 107 tests. Coeus #683 adopted the archived-lock API
+gate and published the remaining six packages from `998e244`. All
+eight archives match the registry checksums and their source revisions.
+A fresh registry-only Rust 1.95 consumer builds the eight packages and
+computes the derivative of x² at x = 3 as exactly 6.
+
+RITK #1061 published Spatial 0.5.0, Diffusion Scheme 0.4.0, and
+DICOM 0.4.0 from `4c37314`. The archived checksums match crates.io,
+and a fresh consumer verifies the typed point, the SI diffusion
+weight, and PackBits decoding with truncated-input rejection. The locked source
+suites pass 185 tests, with two opt-in cases ignored. The DICOM
+archive resolves Aequitas 0.4.0, Eunomia 0.12.1, and Leto 0.51.0.
+RITK #1065 selects 11 more approved versions for registry verification.
+
+The Aequitas and Leto default branches now declare 0.5.0 and 0.52.0.
+The 0.4 release candidates use the published Aequitas 0.4.0 and Leto
+0.51.0 identities. The default-branch scan after Coeus #681 reports
+56 incompatible requirements in 11 repositories and lock version drift
+in 22 repositories. Reconcile the provider and consumer defaults for
+the final pinned Atlas check. Metis #574, Asclepius #125, and
+Helios #214 have merged. CFDrs #573 and Kwavers #1116 use the merged
+provider locks and remain in verification.
 
 Atlas's scheduled compile probe now builds the declared provider source.
 It still compiles archived Git revisions for the historical Git pairing.
