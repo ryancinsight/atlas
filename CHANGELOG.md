@@ -5,7 +5,8 @@
 - [patch] Pin Kwavers to the verified 4.0.0 registry cohort, including
   Driver 0.4.0's package exclusions from [Kwavers #1125](https://github.com/ryancinsight/kwavers/pull/1125).
   The release contains 22 verified archives and uses the published
-  Aequitas 0.5 and Leto 0.52 stack.
+  Aequitas 0.5 and Leto 0.52 stack. Advance the Aequitas pin through
+  the Python packaging metadata in [Aequitas #169](https://github.com/ryancinsight/aequitas/pull/169).
 
 - [major] Record released Consus 0.5.0 and seven coordinated storage
   consumers. The shared MAT reader owns decoding for Kwavers. The release
