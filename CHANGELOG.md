@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- [patch] Advance the Kwavers checkout to its default branch after
+  [the Python adapter cutover](https://github.com/ryancinsight/kwavers/pull/1130).
+  The checked-in lock selects crates.io Aequitas 0.5.0, Aequitas Python
+  0.1.0 and one Eunomia 0.12.1.
+
 - [patch] Pin Kwavers to the verified 4.0.0 registry cohort, including
   Driver 0.4.0's package exclusions from [Kwavers #1125](https://github.com/ryancinsight/kwavers/pull/1125).
   The release contains 22 verified archives and uses the published
