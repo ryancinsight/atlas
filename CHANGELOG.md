@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- [patch] Advance the Metis checkout through the browser startup fix in
+  [Metis #586](https://github.com/ryancinsight/metis/pull/586). Its lock
+  selects crates.io Aequitas 0.5.0 and one Eunomia 0.12.1.
+
+- [patch] Advance the Kwavers checkout to its default branch after
+  [the Python adapter cutover](https://github.com/ryancinsight/kwavers/pull/1130).
+  The checked-in lock selects crates.io Aequitas 0.5.0, Aequitas Python
+  0.1.0 and one Eunomia 0.12.1.
+
+- [patch] Pin Kwavers to the verified 4.0.0 registry cohort, including
+  Driver 0.4.0's package exclusions from [Kwavers #1125](https://github.com/ryancinsight/kwavers/pull/1125).
+  The release contains 22 verified archives and uses the published
+  Aequitas 0.5 and Leto 0.52 stack.
+
+- [major] Record released Consus 0.5.0 and seven coordinated storage
+  consumers. The shared MAT reader owns decoding for Kwavers. The release
+  uses published Moirai 0.12.0 and verifies the revised Parquet codecs
+  against standard files and historical codec fixtures.
+
+- [patch] Preserve explicit Git revision pins in the stack overlay. The
+  Kwavers Python binding and the Rust application share the published
+  Aequitas 0.5 type identity in Atlas development builds.
+
 - [patch] Serialize ref-lock acquisition, stale-owner recovery and
   ownership-checked release. Only ESRCH permits reclamation; ambiguous
   owners are retained. An abandoned recovery guard fails closed pending

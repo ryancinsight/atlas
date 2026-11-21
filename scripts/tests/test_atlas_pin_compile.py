@@ -131,8 +131,33 @@ class PinCompileTestCase(unittest.TestCase):
         status, output = self.compile(ROOT, "current")
         self.assertEqual(status, 0, output)
         self.assertIn("PIN COMPILE OK:", output)
+        archived = self.root / "current" / pin_compile.CONSUMER
+        if pin_compile._provider_source(archived / "Cargo.toml") is None:
+            versions = pin_compile._registry_versions(archived / "Cargo.lock")
+            self.assertIn("-> crates.io", output)
+            for name, version in versions.items():
+                self.assertIn(f"{name}@{version}", output)
         for member, state in before.items():
             self.assertEqual(self.member_state(member), state)
+
+    def test_registry_lock_rejects_duplicate_provider_and_missing_checksum(self) -> None:
+        lock = self.root / "registry-lock.toml"
+        entries = [
+            f'[[package]]\nname = "{name}"\nversion = "0.12.0"\n'
+            f'source = "{pin_compile.CRATES_IO}"\nchecksum = "{"0" * 64}"\n'
+            for name in pin_compile.REGISTRY_PACKAGES
+        ]
+        lock.write_text("".join(entries), encoding="utf-8")
+        self.assertEqual(
+            pin_compile._registry_versions(lock),
+            {"eunomia": "0.12.0", "eunomia-derive": "0.12.0"},
+        )
+        lock.write_text("".join(entries + entries[:1]), encoding="utf-8")
+        with self.assertRaisesRegex(pin_compile.MeasurementError, "2 entries for eunomia"):
+            pin_compile._registry_versions(lock)
+        lock.write_text("".join(entries[:-1]) + entries[-1].split("checksum")[0], encoding="utf-8")
+        with self.assertRaisesRegex(pin_compile.MeasurementError, "checksum for eunomia-derive"):
+            pin_compile._registry_versions(lock)
 
     @pytest.mark.slow
     def test_historical_rename_pair_fails_and_names_the_api(self) -> None:

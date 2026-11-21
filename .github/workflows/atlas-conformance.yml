@@ -413,7 +413,7 @@ jobs:
           fi
           exit "$status"
 
-      - name: Compile recorded Aequitas -> Eunomia pins
+      - name: Compile recorded Aequitas with its Eunomia dependency
         if: always() && steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
         timeout-minutes: 6
         shell: bash
@@ -424,7 +424,7 @@ jobs:
           set -e
           cat "$RUNNER_TEMP/pin-compile.log"
           if [ "$status" -eq 2 ]; then
-            echo "::error::The recorded Aequitas/Eunomia pair could not be measured; the compile gate did not pass."
+            echo "::error::The recorded Aequitas build and its Eunomia source could not be measured."
           elif [ "$status" -ne 0 ]; then
             echo "::error::The recorded Aequitas/Eunomia pair is compile-incompatible."
           fi

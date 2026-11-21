@@ -13,9 +13,24 @@
   },
   "waivers": [
     {
+      "member": "CFDrs",
+      "reason": "The 3246a715 pin is the checked Consus, RITK, and Aequitas integration revision. CFDrs #576 changes public blood constants to quantities and removes scalar constants after that verification.",
+      "reopen": "Qualify the typed-constants revision with its updated callers and rerun the Atlas provider and consumer checks."
+    },
+    {
+      "member": "aequitas",
+      "reason": "Aequitas #169 adds the AEQ-PY-RUST-REGISTRY backlog entry without the required status, anchor, priority, and milestone. At ab760295 the Atlas conformance ratchet rejects all four regressions.",
+      "reopen": "Correct or close AEQ-PY-RUST-REGISTRY on Aequitas main and verify the proposed pin passes Atlas conformance and the Aequitas-Eunomia compile check."
+    },
+    {
+      "member": "kwavers",
+      "reason": "The d5853a77 pin carries the verified Kwavers 4.0.0 cohort and Driver archive repair. Kwavers #1127 changes the public coupling API after that release.",
+      "reopen": "The Kwavers coupling API change ships in a published, versioned cohort and the Atlas consumer and overlay checks pass on its source revision."
+    },
+    {
       "member": "ritk",
-      "reason": "RITK-SNAP-SCOPED-ANONYMIZATION (ritk#943): the default tip grows `crates/ritk-snap/src/presentation/native_session/window_controls/layout/construction.rs` from 498 to 507 lines, raising `oversized_files` 38 -> 39, which the conformance ratchet rejects; the pin stays at `596b7afc`, the last default commit under the threshold",
-      "reopen": "a ritk PR splits `construction.rs` below 500 lines along the construction-helper seam, the default tip measures 38 again, so the pin advances and this entry is deleted"
+      "reason": "The 913be32f pin carries the verified Aequitas 0.5 provider cohort. RITK #1094 changes native DICOM geometry resolution after the releases used by Kwavers and the other Atlas consumers.",
+      "reopen": "Qualify the new DICOM geometry revision with the Atlas clinical consumers and verify the pinned overlay and registry provider graph."
     }
   ]
 }

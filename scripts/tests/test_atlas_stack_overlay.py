@@ -38,6 +38,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                 "https://github.com/ryancinsight/ritk",
                 "^0.3.0",
                 Path("repos/kwavers/Cargo.toml"),
+                False,
             )
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
@@ -57,6 +58,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                 "https://github.com/ryancinsight/ritk",
                 "^0.4.0",
                 Path("repos/kwavers/Cargo.toml"),
+                False,
             )
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
@@ -77,12 +79,14 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                 "https://github.com/ryancinsight/ritk",
                 "^0.4.0",
                 Path("repos/helios/Cargo.toml"),
+                False,
             ),
             (
                 "ritk-image",
                 "https://github.com/ryancinsight/ritk",
                 "^0.3.0",
                 Path("repos/kwavers/Cargo.toml"),
+                False,
             ),
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
@@ -101,12 +105,14 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                 "https://github.com/ryancinsight/ritk",
                 "^0.4.0",
                 Path("repos/helios/Cargo.toml"),
+                False,
             ),
             (
                 "ritk-image",
                 "https://github.com/ryancinsight/ritk",
                 "^0.3.0",
                 Path("repos/kwavers/Cargo.toml"),
+                False,
             ),
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
@@ -119,8 +125,8 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
         packages = {"provider": (Path("repos/provider"), "0.6.0")}
         current = "https://github.com/ryancinsight/Provider"
         previous = "https://github.com/ryancinsight/provider"
-        dependencies = [("provider", current, "^0.6", Path("repos/current/Cargo.toml")),
-                        ("provider", previous, "^0.5", Path("repos/previous/Cargo.toml"))]
+        dependencies = [("provider", current, "^0.6", Path("repos/current/Cargo.toml"), False),
+                        ("provider", previous, "^0.5", Path("repos/previous/Cargo.toml"), False)]
         with patch.object(_overlay, "collect_first_party_deps", return_value=dependencies):
             block, missing, lag = _overlay.build_overlay(packages, [])
         self.assertIn(f'[patch."{current}"]', block)
@@ -128,6 +134,32 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
         self.assertEqual(missing, [])
         self.assertEqual(len(lag), 1)
         self.assertIn(previous, lag[0])
+
+    def test_generate_preserves_a_pinned_revision_across_git_url_spellings(self) -> None:
+        provider = "https://github.com/ryancinsight/provider"
+        packages = {
+            "binding": (Path("repos/provider/crates/binding"), "0.1.0"),
+            "core": (Path("repos/provider"), "0.5.0"),
+        }
+        manifests = [
+            (
+                Path("repos/consumer/Cargo.toml"),
+                f'''[dependencies]
+binding = {{ git = "{provider}", version = "0.1.0", rev = "{'a' * 40}" }}
+''',
+            ),
+            (
+                Path("repos/other/Cargo.toml"),
+                f'''[dependencies]
+binding = {{ git = "{provider}.git", version = "0.1.0" }}
+core = {{ git = "{provider}", version = "0.5.0" }}
+''',
+            ),
+        ]
+        block, missing, lag = _overlay.build_overlay(packages, manifests)
+        self.assertEqual((missing, lag), ([], []))
+        self.assertNotIn("binding = {", block)
+        self.assertEqual(block.count('core = { path = "repos/provider" }'), 2)
 
     def test_generate_missing_package_still_reported(self) -> None:
         packages: dict[str, tuple[Path, str | None]] = {}
@@ -137,6 +169,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                 "https://github.com/ryancinsight/ritk",
                 "^0.4.0",
                 Path("repos/helios/Cargo.toml"),
+                False,
             )
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
@@ -177,6 +210,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
                     "https://github.com/ryancinsight/consumer",
                     "^1.0.0",
                     consumer,
+                    False,
                 )
             ]
             manifests = [
@@ -214,9 +248,9 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             fixture = _fixture.CargoOverlayFixture(root)
             packages = {f"overlay-{name}": (Path(f"repos/provider/{name}"), "0.6.0")
                         for name in ("core", "transport")}
-            dependencies = [("overlay-core", fixture.url, "^0.5", fixture.consumer / "Cargo.toml"),
-                            ("overlay-core", fixture.url, "^0.6", fixture.consumer / "Cargo.toml"),
-                            ("overlay-transport", fixture.url, "^0.6", fixture.consumer / "Cargo.toml")]
+            dependencies = [("overlay-core", fixture.url, "^0.5", fixture.consumer / "Cargo.toml", False),
+                            ("overlay-core", fixture.url, "^0.6", fixture.consumer / "Cargo.toml", False),
+                            ("overlay-transport", fixture.url, "^0.6", fixture.consumer / "Cargo.toml", False)]
             with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
                 _overlay, "collect_first_party_deps", return_value=dependencies
             ):

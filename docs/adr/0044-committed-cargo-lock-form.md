@@ -10,8 +10,14 @@
 
 ## Context
 
-The development overlay redirects first-party Git dependencies to local paths.
-Cargo can then remove their Git sources from working locks and add
+The development overlay redirects compatible first-party Git dependencies to
+local paths. A package with an explicit Git revision retains that source
+across URL spellings. Cargo applies a patch to every revision of a Git
+source. Patching a revision-pinned binding can select its local workspace
+dependency and give the same public type a second Cargo identity.
+
+When Cargo selects a local patch, it removes that dependency's Git source
+from the working lock and can add
 `[[patch.unused]]` entries. Those locks describe the overlay, while standalone
 consumers and CI resolve without it. Local build success cannot establish
 standalone lock correctness.

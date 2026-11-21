@@ -1,5 +1,325 @@
 # atlas — cross-repository integration gap audit
 
+<a id="consus-050-adoption"></a>
+## Consus 0.5.0 adoption
+
+[Consus #227](https://github.com/ryancinsight/consus/pull/227) merged at
+`2193675` and uses published Moirai runtime and async 0.12.0. All 17
+Consus 0.5.0 registry archives match the crates.io checksums and identify
+that commit. Raster uses the scoped `rust-release.yml` trusted publisher.
+The hosted cohort published Core and Compression before the first ZIP
+upload. NPY published after Cargo verified ZIP was indexed.
+[Cohort workflow](https://github.com/ryancinsight/consus/actions/runs/44612778448)
+and [NPY workflow](https://github.com/ryancinsight/consus/actions/runs/44613901901).
+
+Post-merge Consus CI passes. A fresh registry consumer resolves all 17
+packages and only published Moirai 0.12.0 providers. It reads exact Int32
+values from standard GZIP and ZSTD Parquet, rejects the historical codec
+fixtures, and reads an HDF5 signature and group through Moirai async.
+Historical Parquet conversion requires provenance and retained original
+bytes and hashes.
+
+Atlas records the Consus release's documentation closeout at `bab9c35`
+and the coordinated CFDrs, Gaia, Helios, Kwavers, Metis, RITK and Tyche
+adoption heads. Their workspace locks and the Gaia and Metis fuzz locks
+agree on the released Consus commit `2193675`.
+The targeted locked tests pass 109 cases across HDF5, MINC, MAT v5, 3MF,
+raster and archive persistence. Consus owns MAT v5 selection and decoding.
+Kwavers retains the clinical transform.
+
+The seven Consus adoption PRs landed in dependency order. The unyanked
+Gaia Mesh 0.6.10 and RITK Codecs 0.8.0 archives match their registry
+checksums and identify `e20ea48` and `cd22744`, respectively.
+[Gaia publish](https://github.com/ryancinsight/gaia/actions/runs/44620322981)
+and [RITK Codecs publish](https://github.com/ryancinsight/ritk/actions/runs/44622303109).
+
+The RITK release planner found 22 approved versions waiting on registry
+Coeus Autograd 0.12.0. The current Autograd dependency graph requires
+Coeus CPU, which has no crates.io entry. Cargo packaging reproduces
+that missing dependency after 107 Autograd tests pass with the Apollo
+source candidate. Published Coeus Core and Ops 0.12.0 require Eunomia
+0.9. Apollo #720 passes source CI. Its FFT 0.29.5 package verification
+reproduced incompatible Eunomia 0.11 scratch types and Leto 0.47 views.
+Mnemosyne #276 has since released Arena 0.7.2 and Memory 0.10.2 from
+`b81d685a`. The registry tarballs match that revision and their index
+checksums. Apollo Leto Interop 0.20.1 still exposes Leto 0.47 views.
+Align the Interop and Hephaestus requirements before revalidating
+Apollo FFT and Coeus Autograd.
+[Mnemosyne #276](https://github.com/ryancinsight/mnemosyne/pull/276)
+and [Apollo #720](https://github.com/ryancinsight/apollo/pull/720).
+
+DICOM depends on the published RITK Spatial 0.4.0, which selects Leto
+0.46.5. That Leto version excludes the Eunomia line
+required by Aequitas 0.4.0, and registry packaging reaches a Rust trait
+error. The current Spatial source packages with Leto 0.50.0. Its public
+point, vector, and direction types expose Leto types, so the registry
+repair requires a versioned API migration.
+[RITK registry plan](https://github.com/ryancinsight/ritk/actions/runs/44620954860).
+
+[Aequitas #166](https://github.com/ryancinsight/aequitas/pull/166) corrects
+the SI catalog layout and preserves the 0.4.0 release evidence. The 0.4.0
+release moved Eunomia to crates.io while 18 Atlas member locks still
+select Aequitas 0.3.2 from Git. Horae reproduced a compile failure where
+its Git Eunomia trait and Aequitas's registry Eunomia trait met at a
+typed time boundary. A standalone candidate using the published Eunomia
+passed 53 Horae tests. The Proteus candidate using the same provider
+passed 77 tests. Leto's initial lock refresh reproduced the split
+`UnitScalar` traits. A source preview with Eunomia 0.12.1 and the
+aligned Hermes and Mnemosyne candidates passed all 458 Leto and Leto
+Ops library tests. Release validation still requires real registry
+resolution and locked checkouts.
+
+Switching consumers to the published Eunomia 0.12.0 reproduced
+incorrect complex folds and non-finite results for a finite maximum and
+a bounded negative power. The Eunomia 0.12.1 maintenance release
+preserves the published 0.12 API and passes 237 tests. Both crates.io
+archives match their checksums and identify `b05dc06`. The standalone
+registry consumer passes the corrected numeric cases and typed SI
+round-trips on Rust 1.95. Aequitas #167 locks both packages and passes
+190 Rust tests and the required hosted checks.
+[Eunomia publish](https://github.com/ryancinsight/eunomia/actions/runs/44627714350)
+and [Aequitas #167](https://github.com/ryancinsight/aequitas/pull/167).
+
+The published Hermes 0.9.2 libraries cap Eunomia below 0.12. Hermes
+re-exports these types and exposes them in backend implementations.
+[Hermes #307](https://github.com/ryancinsight/hermes/pull/307) advances
+the four libraries to 0.10.0. The archives match their registry
+checksums and identify merge `a65c6c2`. A registry consumer uses one
+`Bf16` type for both the Hermes sum and the Aequitas time conversion.
+Horae, Proteus, Hyperion, and Mnemosyne also record the published
+0.12.1 provider. [Hermes publisher](https://github.com/ryancinsight/hermes/actions/runs/44631113558).
+
+[Leto #433](https://github.com/ryancinsight/leto/pull/433) merged at
+`b65e6e0`. Both 0.51.0 archives match their crates.io checksums and
+identify that commit. Leto Ops was published after Cargo resolved Leto
+0.51.0. A fresh Rust 1.95 registry consumer evaluates the signed
+Laplacian of `x² + 3y²` as exactly −8 at all 16 grid points in both
+precisions and rejects zero physical spacing.
+[Leto publisher](https://github.com/ryancinsight/leto/actions/runs/44634017171)
+and [Leto Ops publisher](https://github.com/ryancinsight/leto/actions/runs/44634643054).
+The initial Leto release probe also resolved Eunomia 0.11.0 through
+the prior published Mnemosyne allocator. Leto, Leto Ops, Aequitas, and Hermes
+share Eunomia 0.12.1 at the tested quantity and scalar interfaces.
+
+Prometheus #96, Athena #177, Harmonia #101, Gaia #234 and #235,
+Hephaestus #555, and Ares #93 integrate the scalar provider in Git.
+Melinoe #98 aligns its standalone device contract. The Gaia library
+and separate fuzz lock agree on Leto 0.51.0, Aequitas 0.4.0, Eunomia
+0.12.1, and released Consus 0.5.0. All three fuzz targets compile under
+Rust 1.97. Gaia 0.6.10 and Hephaestus 0.28.0 registry archives predate
+these source integrations. The same plane constructor compiles and
+returns offset −3 from the merged Gaia and Leto sources. The published
+Gaia 0.6.10 constructor rejects the Leto 0.51 point and vector types
+because its signature uses Leto 0.50.
+
+Gaia #236 publishes Gaia Mesh 0.7.0 from `ee119e3`. A fresh crates.io
+consumer constructs the plane through `(0,0,3)` with offset −3 and
+exports a triangle in the three expected 3MF parts via Consus 0.5.
+Hephaestus #556 publishes its six 0.29.0 libraries from `e499d489`.
+A fresh Rust 1.95 consumer resolves all six and obtains −8 at all 16
+grid points through both Hephaestus Host and Leto Ops. A short output
+buffer returns an error. Each archive matches its registry checksum
+and exact merge revision. The CUDA, ROCm, software WGPU, and native Metal
+checks pass on the Hephaestus release revision.
+[Gaia publisher](https://github.com/ryancinsight/gaia/actions/runs/44642096363)
+and [Hephaestus publisher](https://github.com/ryancinsight/hephaestus/actions/runs/44644599072).
+
+Athena #178 adopts both Hephaestus 0.29.0 dependencies at the release
+revision. The locked migration passes 16 Core unit tests and 23
+Hephaestus integration tests, including on-device residual, spectral,
+and preconditioner cases. [Athena #178](https://github.com/ryancinsight/athena/pull/178).
+
+Atlas #757 remains open for the remaining Aequitas consumer locks and
+stack coherence checks. Apollo #720 is merged. Apollo #723 uses the
+archived registry lockfiles to recover the release check that failed
+while resolving the older NTT baseline. Apollo #723 merged as `7a8b226`.
+All 20 Apollo archives match the registry checksums and source revision.
+A fresh consumer verifies the Leto-backed impulse transform and the
+documented frequency bins. Coeus #681 merged as
+`7091030` and limits publication to eight CPU and tensor packages at
+0.13.0. Core and CPU are indexed with matching archive checksums and
+source revisions. A fresh Rust 1.95 consumer verifies the typed Leto view,
+its final element, and the rejection of a short buffer. The Autograd
+unit suite passes 107 tests. Coeus #683 adopted the archived-lock API
+gate and published the remaining six packages from `998e244`. All
+eight archives match the registry checksums and their source revisions.
+A fresh registry-only Rust 1.95 consumer builds the eight packages and
+computes the derivative of x² at x = 3 as exactly 6.
+
+RITK #1061 published Spatial 0.5.0, Diffusion Scheme 0.4.0, and
+DICOM 0.4.0 from `4c37314`. The archived checksums match crates.io,
+and a fresh consumer verifies the typed point, the SI diffusion
+weight, and PackBits decoding with truncated-input rejection. The locked source
+suites pass 185 tests, with two opt-in cases ignored. The DICOM
+archive resolves Aequitas 0.4.0, Eunomia 0.12.1, and Leto 0.51.0.
+RITK #1065 publishes 11 more approved packages from `2804d35`. Their
+archives match the crates.io checksums and source revision. A fresh Cargo
+consumer resolves all 11 with one Aequitas 0.4.0, Eunomia 0.12.1, and
+Leto 0.51.0. Its 2×2 image with values 0, 2, 0, 2 has minimum 0,
+maximum 2, mean 1, and population standard deviation 1.
+[RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44664017931).
+The RITK #1066 release adds 16 verified archives from `49dc944e`.
+Including Codecs 0.8.0 and the earlier releases, 31 versions are verified.
+That includes 25 of the 26 authorized versions. IO 0.6.0 supersedes the
+planned IO 0.5.0. The first Parcellation 0.2.0 upload clears the dependency
+for Registration 0.56.0, which publishes on attempt two. A fresh registry
+consumer resolves the native DICOM packages and passes five tests covering
+exact big-endian samples, deflated character data, and invalid-transfer-syntax
+rejection before overwrite. A second consumer resolves Registration and
+Parcellation together. World coordinates (4, 4, 3) map to label 24, and
+the bridge rejects a 23-label buffer for the 24-voxel grid.
+[RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44667442964).
+
+The Aequitas and Leto default branches now declare 0.5.0 and 0.52.0.
+The 0.4 release candidates use the published Aequitas 0.4.0 and Leto
+0.51.0 identities. The default-branch scan after Coeus #681 reports
+56 incompatible requirements in 11 repositories and lock version drift
+in 22 repositories. Reconcile the provider and consumer defaults for
+the final pinned Atlas check. All eight repository updates have merged.
+Atlas records the merged Apollo, Coeus, Metis, Asclepius, RITK, CFDrs,
+Helios, and Kwavers revisions along with the published Mnemosyne
+provider. These pins satisfy all declared Git dependency requirements.
+Coeus #684 and Kwavers #1117 close the five backlog conformance
+regressions. Ares #94, Hermes #308, and Tyche #136 resolve
+Mnemosyne Arena 0.7.2 and Memory 0.10.2. Their locked workspace runs
+pass 120, 540, and 58 tests respectively. Moirai #718 also aligns
+those locks and passes 518 tests with allocator features enabled,
+with two cases skipped. The Eunomia #220 merge contains the exact
+crate sources shipped in both 0.12.1 archives. Consus #229 selects
+that published scalar version through Apollo and passes 76 locked
+raster tests, including independent JPEG and analytical transform oracles.
+
+Asclepius Coeus 0.4.0 is verified against the registry checksum and
+release revision. Helios #216 uses that archive with the registry
+Coeus 0.13.0 packages. Updating Asclepius alone exposes distinct
+Coeus tape-variable types. The aligned graph passes all 21 locked
+planning tests, including exact and finite-difference gradients.
+[Asclepius #127](https://github.com/ryancinsight/asclepius/pull/127)
+and [Helios #216](https://github.com/ryancinsight/helios/pull/216).
+
+The pinned stack has no unsatisfied Git package requirements and eight
+member lockfiles still select older Mnemosyne versions. Eight member pins
+fall outside the default-branch policy. The hosted scan against provider
+defaults reports 24 incompatible requirements and 15 stale member locks.
+The conformance inventory passes. The Aequitas 0.5 and Leto 0.52
+provider releases and consumer updates remain the merge dependency.
+
+### Aequitas 0.5 and Leto 0.52 rollout
+
+Hephaestus #557 merges as `2cb352c52b0a908ef343dd3844248a372ac6506d`.
+All six Hephaestus 0.30.0 archives and release tags match that commit.
+Host verification, native Metal, software WGPU, and the adapterless CUDA
+and ROCm checks pass. The NVIDIA and AMD hardware lanes report skipped.
+The release API gate passes against 0.29.0. A fresh Rust 1.95 consumer
+resolves one Aequitas 0.5.0, Eunomia 0.12.1, and Leto 0.52.0 provider
+set. Host and Leto Ops return −8 at all 16 points for the negative
+Laplacian of x² + 3y². Host rejects a buffer with 15 output slots.
+[Hephaestus publisher](https://github.com/ryancinsight/hephaestus/actions/runs/44781764295).
+
+Leto #435, Harmonia #103, Horae #137, Hyperion #113, and Proteus #119
+merge after the hosted gates. Their standalone locks pass 1,253, 91, 53,
+37, and 77 tests respectively. Harmonia uses the current Athena Core
+0.4.0 source. Prometheus #98 adopts Aequitas 0.5 and Leto 0.52 and
+passes all 47 tests on its merged revision.
+
+The earlier releases Gaia Mesh 0.7.0, Athena Leto 0.4.0, and
+Asclepius 0.4.0 pulled in both Aequitas 0.4 and 0.5, and Leto 0.51
+and 0.52, when resolved with the new providers. Current releases close
+parts of that boundary in dependency order.
+
+- Apollo #722 publishes 20 archives from `7b70b328`. Archive checksums
+  and source receipts match. A registry-only consumer builds the 20
+  packages and checks a four-sample FFT against a unit spectrum.
+- Coeus #682 publishes eight 0.14.0 archives from `4196389a`. The Core
+  workflow upload succeeds and the remaining uploads use the local
+  Cargo credential after the CPU credential rejection. A fresh Rust
+  1.95 consumer checks a 2 × 3 Leto view, rejects a short buffer, and
+  finds the exact autodiff derivative 6 for x² at x = 3.
+- Gaia #238 publishes Gaia Mesh 0.8.0 from `bdac6214`. A registry-only
+  consumer gives a Leto 0.52 box center (1, 2, 3) and volume 64, and
+  checks inclusion on a boundary and rejection outside it. Métis #583
+  produces the same 960 × 640 PNG and BMP as the Gaia 0.7 base.
+- Athena #181 publishes Krylov, Leto, and Hephaestus 0.5.0 from
+  `2be05424`. All three archive checksums and source receipts match.
+
+Asclepius #124 publishes both 0.5.0 crates from `b21df8fa` with
+matching checksums. Ares #96 uses the same registry Leto 0.52 identity
+as Athena. Updating the adapter alone reproduces incompatible Leto view
+and scalar types. The aligned locked build passes 120 tests on Rust 1.95.
+
+Helios #217 lands native DICOM. Its latest provider candidates use the
+verified Horae Time 0.4.0, Proteus Mat 0.3.0, and Hyperion Transport 0.3.0
+archives. A single fresh lock passes a half-second typed time result,
+rejects a zero step, and computes exact linear attenuation of 0.5 m⁻¹
+from 0.125 m²/kg and 4 kg/m³. The releases follow the prior provider
+release branches to retain the Git package contracts of active callers.
+
+The earlier RITK graph pulled Aequitas 0.4, Leto 0.51, Coeus 0.13,
+Gaia 0.7, and Apollo FFT 0.30 through Helios and the other integrators.
+The dependency scan marks 28 of 31 reachable archives for coordinated
+pre-1.0 minor bumps. RITK #1062 merges at `913be32f` after both required
+hosted gates pass. The 28 packages and Model 0.5.0 match the registry
+checksums and source commit. The release uses the local Cargo credential
+for Block Matching, Image I/O, Parcellation, and VTK when the hosted
+publisher cannot upload those versions. A fresh consumer resolves all
+29 checksums and passes six synthetic DICOM and parcellation tests.
+[RITK publisher](https://github.com/ryancinsight/ritk/actions/runs/44819699453).
+
+Hephaestus Core, WGPU, and CUDA 0.32.0 use the same quantity and array
+providers with the typed FFT capacity query required by Kwavers. The
+three crates.io archives match the sparse-index checksums and the checked
+release commit `fc9fba13`. A fresh Metal build rejects 65,535 workspace
+bytes, accepts 65,536 bytes, and computes the expected impulse spectrum.
+Kwavers #1123 packs the absorbing PSTD coefficients and spectral symbols
+to fit the tested Metal device's 29 storage bindings.
+[Hephaestus verification](https://github.com/ryancinsight/hephaestus/pull/559).
+
+CFDrs #575 uses the published Consus 0.5, Leto 0.52, and RITK VTK 0.5
+graph. The all-feature build and 55 focused Metal and I/O tests pass.
+The shared Athena and Harmonia lock uses one Athena Core source.
+[CFDrs #575](https://github.com/ryancinsight/CFDrs/pull/575).
+
+Helios #220 adopts the published DICOM and registration providers at
+the 0.2.0 boundary. The all-feature build, 115 focused tests, and all
+six hosted gates pass. Helios #221 binds publication to the exact
+11 approved package versions. The independent allocator uses 0.1.0.
+All 11 registry archives match `86a8de1c` and tag `v0.2.0`. A fresh
+registry consumer preserves the CT grid pose and voxel values −10, 10,
+190, and 2036 HU through the native deflate writer.
+[Helios #220](https://github.com/ryancinsight/helios/pull/220),
+[publisher](https://github.com/ryancinsight/helios/actions/runs/44832659153).
+
+Kwavers #1124 replaces its temporary RITK revision with the published
+0.5-compatible cohort. The locked build and 15 Metal capacity, readback,
+and CPU–GPU parity tests pass. Crates.io verifies 21 archives from #1124
+and Driver 0.4.0 from #1125. A standalone consumer resolves all 22 archives,
+passes the numerical smoke test, and type-checks with the CUDA provider.
+The Atlas pin includes #1125. Kwavers #1127 changes the coupling API
+after the registry release. CFDrs #576 and RITK #1094 also follow the
+verified consumer and provider revisions. The pin-drift register records
+the evidence required to advance each pin.
+[Release record](https://github.com/ryancinsight/kwavers/pull/1128).
+
+The Atlas overlay preserves the private Python binding's explicit Git
+revision. A fresh Cargo probe under the generated overlay resolves the
+binding and its caller to one published Aequitas 0.5 instance and
+compiles the typed length boundary. The integrated overlay, coherence,
+and gitlink checks cover all 28 recorded default revisions.
+[Atlas #757](https://github.com/ryancinsight/atlas/pull/757).
+
+Atlas's scheduled compile probe now builds the declared provider source.
+It still compiles archived Git revisions for the historical Git pairing.
+For crates.io it verifies one locked version and checksum for each
+Eunomia package and checks Aequitas in isolation under `--locked`.
+
+All 15 Moirai 0.12.0 prerequisites are verified on crates.io. Thirteen
+archives use `c909e4fa`. QUIC and runtime use `139c47ac`, which excludes
+tracked measurement archives from the QUIC Cargo package while retaining
+the evidence in Git. The retargeted runtime gate passes and the fresh
+consumer's timer task waits at least 12 ms and returns 2019.
+[Moirai packaging change](https://github.com/ryancinsight/Moirai/pull/716)
+and [runtime release](https://github.com/ryancinsight/Moirai/actions/runs/44606668518).
+
 <a id="board-headroom"></a>
 ## Finding 2026-11-15: the atlas board has no headroom for a new item
 
