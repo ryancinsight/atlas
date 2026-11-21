@@ -11,5 +11,21 @@
     },
     "review": "Re-verify every entry against the member's current default before a sweep advances pins; an entry whose regression the member has since fixed is deleted, not renewed. Measure it the way these were measured: `git -C repos/<member> archive FETCH_HEAD` into a scratch directory, then `python scripts/atlas-conformance.py check --repo <member> --member-path <dir>`, which judges the default tip against the committed baseline without touching the member checkout."
   },
-  "waivers": []
+  "waivers": [
+    {
+      "member": "CFDrs",
+      "reason": "The 3246a715 pin is the checked Consus, RITK, and Aequitas integration revision. CFDrs #576 changes public blood constants to quantities and removes scalar constants after that verification.",
+      "reopen": "Qualify the typed-constants revision with its updated callers and rerun the Atlas provider and consumer checks."
+    },
+    {
+      "member": "kwavers",
+      "reason": "The d5853a77 pin carries the verified Kwavers 4.0.0 cohort and Driver archive repair. Kwavers #1127 changes the public coupling API after that release.",
+      "reopen": "The Kwavers coupling API change ships in a published, versioned cohort and the Atlas consumer and overlay checks pass on its source revision."
+    },
+    {
+      "member": "ritk",
+      "reason": "The 913be32f pin carries the verified Aequitas 0.5 provider cohort. RITK #1094 changes native DICOM geometry resolution after the releases used by Kwavers and the other Atlas consumers.",
+      "reopen": "Qualify the new DICOM geometry revision with the Atlas clinical consumers and verify the pinned overlay and registry provider graph."
+    }
+  ]
 }
