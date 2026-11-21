@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [patch] Advance the Aequitas, CFDrs, and RITK source checkouts and retire their pin-age waivers. The Kwavers waiver records the remaining release and conformance gates.
+
 - [patch] Advance the Metis checkout through the browser startup fix in
   [Metis #586](https://github.com/ryancinsight/metis/pull/586). Its lock
   selects crates.io Aequitas 0.5.0 and one Eunomia 0.12.1.
