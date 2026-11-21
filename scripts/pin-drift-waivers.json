@@ -18,6 +18,11 @@
       "reopen": "Qualify the typed-constants revision with its updated callers and rerun the Atlas provider and consumer checks."
     },
     {
+      "member": "aequitas",
+      "reason": "Aequitas #169 adds the AEQ-PY-RUST-REGISTRY backlog entry without the required status, anchor, priority, and milestone. At ab760295 the Atlas conformance ratchet rejects all four regressions.",
+      "reopen": "Correct or close AEQ-PY-RUST-REGISTRY on Aequitas main and verify the proposed pin passes Atlas conformance and the Aequitas-Eunomia compile check."
+    },
+    {
       "member": "kwavers",
       "reason": "The d5853a77 pin carries the verified Kwavers 4.0.0 cohort and Driver archive repair. Kwavers #1127 changes the public coupling API after that release.",
       "reopen": "The Kwavers coupling API change ships in a published, versioned cohort and the Atlas consumer and overlay checks pass on its source revision."
