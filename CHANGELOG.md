@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- [patch] Advance the Aequitas, CFDrs, and RITK source checkouts and retire their pin-age waivers. The Kwavers waiver records the remaining release and conformance gates.
+- [patch] Advance Aequitas, CFDrs, and RITK and retire their pin-age waivers.
+  Advance the related Consus and Helios storage pins after their registry
+  and workspace checks pass. The Kwavers waiver records its remaining
+  release and conformance gates.
 
 - [patch] Advance the Metis checkout through the browser startup fix in
   [Metis #586](https://github.com/ryancinsight/metis/pull/586). Its lock

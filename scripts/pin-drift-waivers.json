@@ -14,7 +14,7 @@
   "waivers": [
     {
       "member": "kwavers",
-      "reason": "The eeb457aa64 pin uses the published Python adapter and the qualified 4.0.0 provider graph. Kwavers main at 25b2fb1654 carries unreleased breaking coupling and bone-acoustics APIs and raises manifest_implementation from 273 to 274 and pm_lines_over_budget from 3366 to 3372.",
+      "reason": "The eeb457aa64 pin uses the published Python adapter and the qualified 4.0.0 provider graph. Kwavers main at 5dfa92accd carries unreleased breaking coupling and bone-acoustics APIs. It raises manifest_implementation from 273 to 274, existence_only_assertions from 0 to 1, and pm_lines_over_budget from 3366 to 3372.",
       "reopen": "Publish the versioned Kwavers cohort for the changed APIs, clear the conformance regressions, and verify the Atlas consumer builds and pinned overlay."
     }
   ]
