@@ -291,9 +291,14 @@ registry consumer preserves the CT grid pose and voxel values −10, 10,
 
 Kwavers #1124 replaces its temporary RITK revision with the published
 0.5-compatible cohort. The locked build and 15 Metal capacity, readback,
-and CPU–GPU parity tests pass. The 22 affected packages are versioned
-together as a source cohort. Its automatic publisher selects zero crates.
-[Kwavers #1124](https://github.com/ryancinsight/kwavers/pull/1124).
+and CPU–GPU parity tests pass. Crates.io verifies 21 archives from #1124
+and Driver 0.4.0 from #1125. A standalone consumer resolves all 22 archives,
+passes the numerical smoke test, and type-checks with the CUDA provider.
+The Atlas pin includes #1125. Kwavers #1127 changes the coupling API
+after the registry release. CFDrs #576 and RITK #1094 also follow the
+verified consumer and provider revisions. The pin-drift register records
+the evidence required to advance each pin.
+[Release record](https://github.com/ryancinsight/kwavers/pull/1128).
 
 The Atlas overlay preserves the private Python binding's explicit Git
 revision. A fresh Cargo probe under the generated overlay resolves the
