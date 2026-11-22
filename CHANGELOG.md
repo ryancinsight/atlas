@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [patch] Record the stable-release plan for all 28 members, the two Harmonia publication blockers and the qualification gates in [the stack audit](gap_audit.md#stable-stack-baseline).
+
 
 - [patch] Pin the published Kwavers 5.0.0 registry cohort and retire the
   Kwavers pin-age waiver. Refresh the CFDrs and RITK pins after their
