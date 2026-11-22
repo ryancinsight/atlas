@@ -1,0 +1,10 @@
+<a id="atlas-stable-stack-001"></a>
+## ATLAS-STABLE-STACK-001 — Qualify every member at a stable major [major] — todo
+- Owner: Atlas integration. Target: the first coherent stable stack. Each member owns its API freeze, version and distribution. [Member-by-member work and verification basis](../gap_audit.md#stable-stack-baseline).
+- [ ] [patch] Restore the Kwavers security and aggregate CI checks. Verify the results on its candidate before advancing that gitlink.
+- [ ] [arch] Review [ADR 0072](../docs/adr/0072-stack-stability-qualification.md) and Harmonia's distribution proposal with Ares and CFDrs. Keep both registry edges open until their published dependency resolves. Obtain member review for Ares scope, Leto sparse storage, Coeus external oracles and Kwavers Driver.
+- [ ] [patch] Close the four frozen reference inventories in WP-001 with the WP-002 validator. In WP-003 map retained APIs to semantics, coverage classes and one owner. Obtain the WP-004 provider decisions. [Parity work packages](../docs/parity/execution.md).
+- [ ] [minor] Complete the linked member increments. Start independent roots together. Advance a dependent cohort when its required upstream contracts, feature variants and released artifacts satisfy its clean consumer. [Crate-order tool](../scripts/publish-order.py). Reconcile the 15 inherited board-lint failures as their milestones close.
+- [ ] [major] Freeze each member's supported interfaces, record migration and SemVer verdicts, and run its numerical, integration, safety and performance exits on its candidate. Verify the actual device wherever the contract names one. Stabilize beta and RC cohorts and repeat the gates after each candidate change.
+- [ ] [patch] For an authorized release, verify archive/source identity and run a fresh consumer without path or patch overrides. Pin the verified children in Atlas and rerun the [definition and release gates](../docs/parity/README.md) with exact-revision reviews.
+- Exit: the 28 registered members and Atlas have complete evidence in the existing [repository register](../docs/parity/repositories.json), and the coherent stack passes its integrated workloads.

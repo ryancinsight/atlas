@@ -1,5 +1,80 @@
 # atlas — cross-repository integration gap audit
 
+<a id="stable-stack-baseline"></a>
+## Stable stack qualification — 2026-11-22
+
+Atlas main `17b0124a7548ad81e817284afc5cb115c1d1bc78` registers 28 members. The table pairs each reviewed **default-branch** source with its Atlas pin. Counts are exact, unyanked crates.io name/version matches divided by Cargo workspace members with publication enabled. They measure registry presence. Archive identity, API compatibility and a working consumer require separate evidence. The manifest column names one package so independently versioned siblings retain their own baselines. In particular, Kwavers ships a 5.0.0 facade, 5.1.0 Physics and Solver, four 6.x crates and a 7.x GPU crate. Driver is at 0.5.0.
+
+### Development order
+
+1. **Restore the known failing default check.** Kwavers Security Audit reports RUSTSEC-2026-0592 and its aggregate CI gate fails at `cb2c7ecdb714`. Across the 29 sampled default heads, GitHub returned 338 successful, 405 skipped and two failed check runs. Branch protection and release approval were outside this inventory. [Failing job](https://github.com/ryancinsight/kwavers/actions/runs/45037646079/job/137255042083).
+2. **Resolve the two private-provider edges.** Harmonia 0.1.4 disables publication. The required dependencies of ares-coupling and cfd-2d make their registry releases conditional on its graduation. Exercise transfer and rollback with a real consumer first, then review the provider's public distribution and verify both downstream package graphs. Hyperion also disables publication and has a Git-first scope.
+3. **Close the definition gap while unblocked providers develop.** Of 38,096 candidate declarations, 2 are source-specified, 96 are partial and 37,998 are unmapped. All four public inventories are open. The evidence register has zero execution records. Complete WP-001/002, then WP-003/004. For each assigned family, establish an oracle, supported domain and actual target before growing coverage. Coeus's nine completed tensor milestone checks remain useful local evidence. [Program and dependency order](docs/parity/execution.md).
+4. **Release by crate dependency, verify by member contract.** Both the pinned and default-source order checks place 207 publish-enabled packages in 43 layers, with zero unresolved required cycles. There are 184 exact index matches. The 23 missing versions belong to CFDrs (11), Coeus (7), Ares (3), Moirai WebView (1) and Prometheus (1). Determine the intended cohort and enabled features before opening publication work. Close the member's named milestones, repeat tests on released providers, then qualify the actual integration. Compatible existing upstream versions can already support development.
+5. **Reconcile the selected sources.** The observed defaults differ from the pins for Coeus, Kwavers and RITK. Coordinate Coeus #686 and RITK #1104 with their owners. Advance only reviewed child revisions after their gates pass. On the resulting exact Atlas candidate, require both parity qualification verdicts and the application-level scientific and viewer workflows.
+
+### Provider development waves
+
+These are earliest integration waves for the required normal and build dependencies declared by the 28 Cargo workspaces. At each step, remove all members with no remaining required upstream member. Optional features, platform selection, private providers and the contract of the particular crate can change when a consumer is ready. Unrelated correctness repairs can start immediately.
+
+| Wave | Members |
+| ---: | --- |
+| 1 | eunomia, iris, melinoe, themis |
+| 2 | aequitas, hermes, mnemosyne |
+| 3 | horae, leto, moirai, prometheus, proteus |
+| 4 | hephaestus, hyperion |
+| 5 | apollo, athena |
+| 6 | coeus, consus, harmonia |
+| 7 | ares, asclepius, gaia, metis, tyche |
+| 8 | CFDrs, ritk |
+| 9 | helios, kwavers |
+
+### Member handoffs
+
+The rows group related work for review. The crate-order tool determines publication precedence inside and across these groups. Follow the linked planning files for ordered tasks, value-based exits, scope ADRs and remaining approval gates.
+
+| Member plan | Representative manifest | Default / Atlas pin | Indexed | Next deliverable |
+| --- | --- | --- | ---: | --- |
+| [eunomia](repos/eunomia/checklist.md) | `eunomia 0.12.1` | `cd2a7b388f0d` / `cd2a7b388f0d` | 2/2 | Close the subnormal integer-power proof across the shipped number formats. |
+| [melinoe](repos/melinoe/checklist.md) | `melinoe 0.10.0` | `e2d93b806a26` / `e2d93b806a26` | 1/1 | Qualify branded collections and disjoint parallel partitions. |
+| [iris](repos/iris/backlog.md) | `iris-viz 0.1.4` | `a5812da9b70d` / `a5812da9b70d` | 1/1 | Qualify the field-view and color-map contracts used by renderers. |
+| [themis](repos/themis/backlog.md) | `themis-topology 0.11.5` | `4ec2fb99b191` / `4ec2fb99b191` | 1/1 | Exercise the fallback topology path at the declared Rust floor. |
+| [aequitas](repos/aequitas/backlog.md) | `aequitas 0.5.0` | `17c7c91e727e` / `17c7c91e727e` | 2/2 | Freeze the quantity and unit boundary on the published Eunomia line. |
+| [mnemosyne](repos/mnemosyne/checklist.md) | `mnemosyne-memory 0.10.2` | `b81d685a55bc` / `b81d685a55bc` | 11/11 | Resolve the allocator rescue queue against the current released source. |
+| [hermes](repos/hermes/checklist.md) | `hermes-simd 0.10.0` | `d95d1cbf894e` / `d95d1cbf894e` | 5/5 | Qualify runtime-dispatched scaled CSR accumulation. |
+| [moirai](repos/moirai/backlog.md) | `moirai-runtime 0.12.0` | `11c5ffded3cd` / `11c5ffded3cd` | 18/19 | Finish the controlled transport evidence and reconcile the public WebView package. |
+| [leto](repos/leto/checklist.md) | `leto 0.52.0` | `de7c3965e53b` / `de7c3965e53b` | 2/2 | Settle ownership of the duplicate sparse matrix representations. |
+| [hephaestus](repos/hephaestus/backlog.md) | `hephaestus-core 0.30.0` | `19b15aeeedc4` / `19b15aeeedc4` | 6/6 | Qualify the device seams that downstream solvers and tensors call. |
+| [apollo](repos/apollo/checklist.md) | `apollo-fft 0.31.0` | `7b70b328f2bb` / `7b70b328f2bb` | 22/22 | Complete the dense FFT normalization and axis contract. |
+| [athena](repos/athena/backlog.md) | `athena-krylov 0.5.0` | `2be054244761` / `2be054244761` | 4/4 | Close the rectangular device-operator gap for LSQR. |
+| [consus](repos/consus/checklist.md) | `consus-hdf5 0.6.0` | `d1319313201c` / `d1319313201c` | 17/17 | Close the HDF5 handoff to Helios using the published reader. |
+| [coeus](repos/coeus/backlog.md) | `coeus-core 0.14.0` | `cc1961f51f12` / `4196389abc68` | 8/15 | Qualify the physical-autodiff cohort and settle the meaning of the local tensor milestone. |
+| [horae](repos/horae/checklist.md) | `horae-time 0.2.2` | `40196ff641c4` / `40196ff641c4` | 1/1 | Close the time-integration order and rejection evidence. |
+| [proteus](repos/proteus/backlog.md) | `proteus-mat 0.1.1` | `f571ea6adf1c` / `f571ea6adf1c` | 1/1 | Close the post-publication evidence for elastic validity and derived moduli. |
+| [tyche](repos/tyche/checklist.md) | `tyche-core 0.5.0` | `47820cd1ef43` / `47820cd1ef43` | 1/1 | Close the durable study contract after the 0.5.0 Core release. |
+| [harmonia](repos/harmonia/backlog.md) | `harmonia 0.1.4` | `3b16405022ba` / `3b16405022ba` | Git only | Prove a real coupling consumer and decide the registry route needed by two dependents. |
+| [ares](repos/ares/backlog.md) | `ares-solid 0.3.0` | `a75eae35688e` / `a75eae35688e` | 0/3 | Resolve the assembly boundary and obtain review of the proposed Phase 0 scope. |
+| [asclepius](repos/asclepius/checklist.md) | `asclepius 0.5.0` | `b21df8fa4b77` / `b21df8fa4b77` | 2/2 | Qualify the law core and Coeus adapter at their public scalar boundary. |
+| [hyperion](repos/hyperion/backlog.md) | `hyperion 0.1.1` | `19a8c90b19dd` / `19a8c90b19dd` | Git only | Derive per-quantity bounds for the diffusion-range tests. |
+| [prometheus](repos/prometheus/backlog.md) | `prometheus-kinetics 0.1.0` | `c1f85070ecf0` / `c1f85070ecf0` | 0/1 | Enforce rate-constant dimensions at the reaction boundary. |
+| [gaia](repos/gaia/CHECKLIST.md) | `gaia-mesh 0.8.0` | `19146d24ced6` / `19146d24ced6` | 1/1 | Reproduce the plane–segment midpoint error on the current geometry release. |
+| [metis](repos/metis/backlog.md) | `metis-ui 0.5.0` | `d7034d7d3dd5` / `d7034d7d3dd5` | 12/12 | Qualify the host lifecycle that RITK needs for its viewer. |
+| [ritk](repos/ritk/backlog.md) | `ritk-snap 0.2.0` | `533f2e07724d` / `762f0e92c1b5` | 32/32 | Qualify the DICOM export boundary in the real viewer. |
+| [CFDrs](repos/CFDrs/backlog.md) | `cfd-core 0.3.0` | `40021147e365` / `40021147e365` | 0/11 | Close solver recovery and the unpublished coupling edge on separate tracks. |
+| [helios](repos/helios/CHECKLIST.md) | `helios-domain 0.2.0` | `b96d802f01b4` / `b96d802f01b4` | 12/12 | Verify archive admission through the released Consus reader. |
+| [kwavers](repos/kwavers/backlog.md) | `kwavers 5.0.0` | `cb2c7ecdb714` / `bee13af7268b` | 22/22 | Restore the release baseline and qualify the current simulation cohort. |
+
+### Open verification work
+
+- **Package gaps.** Check registry ownership and the intended first-release cohort for CFDrs's eleven 0.3.0 packages, Ares Solid/Operator/Coupling 0.3.0, and Prometheus Kinetics 0.1.0. Coeus's missing 0.14.0 versions are Dist, FFT, WGPU, Accelerator, CUDA, ROCm and Metal. Reconcile those with the existing 0.15.0 candidate before scheduling uploads. Moirai WebView 0.12.0 also lacks an exact index match.
+- **Member board checks.** The whole-board lint passes for Atlas and 13 members. Existing status, priority or duplicate-ID findings remain in CFDrs, Apollo, Asclepius, Coeus, Eunomia, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Kwavers, Leto, Metis and Mnemosyne. Comparing the lint's violation sets with each reviewed parent identifies no added violation. During milestone reconciliation, verify delivered items against their source and retain every open dependency when compacting old entries.
+
+### Reproduce the baseline
+
+Use `git ls-tree HEAD repos/` and compare each entry with the member remote's default HEAD. At each reviewed member revision run `cargo +stable metadata --format-version 1 --locked --offline --no-deps`. Read the sparse index for each publish-enabled package and match its manifest version with `yanked = false`. This audit covers 246 workspace package entries. The publish-order tool also scans nonmember manifests and reports them separately.
+
+Run `python3 scripts/publish-order.py --json --exact-gitlinks` for the pinned graph and omit `--exact-gitlinks` for the reviewed checkouts. Inspect both `required_unresolved` and `blocked_by_unpublishable`. Check hosted jobs at each reviewed commit with the GitHub Check Runs API. Run `python3 scripts/atlas-parity.py check`, then `qualify --gate definition` and `qualify --gate release`. At this review the structural check passes and both qualifications fail. No member Rust test suite, GPU benchmark, SemVer comparison or fresh consumer was executed by this planning audit. The [coordination checklist](backlog/atlas-stable-stack-001.md) tracks the outstanding work.
+
 <a id="consus-050-adoption"></a>
 ## Consus 0.5.0 adoption
 
