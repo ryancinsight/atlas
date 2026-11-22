@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+
+- [patch] Pin the published Kwavers 5.0.0 registry cohort and retire the
+  Kwavers pin-age waiver. Refresh the CFDrs and RITK pins after their
+  standalone builds pass on the same Aequitas and Eunomia releases.
+
 - [patch] Advance Aequitas, CFDrs, and RITK and retire their pin-age waivers.
   Advance the related Consus and Helios storage pins after their registry
   and workspace checks pass. The Kwavers waiver records its remaining
