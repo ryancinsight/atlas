@@ -1,5 +1,62 @@
 # atlas — cross-repository integration gap audit
 
+## Incremental releases toward the first stable stack
+
+The 28 member plans below start from default-branch manifests reviewed on 2026-11-23. Each row follows one named package or application. The member checklist owns the other packages, acceptance tests and distribution channel. Versions are planning targets. When a gate closes through verification alone, carry the existing artifact forward. Select a new number only for a change that ships, after checking the registry and the package’s own compatibility baseline.
+
+### What to start first
+
+1. **Reconcile three public providers.** Hephaestus Core declares 0.30.0 while its 0.32.0 archive is indexed. Horae Time declares 0.2.2 against 0.4.0, and Proteus Mat declares 0.1.1 against 0.3.0. Their audits record each newer archive’s SHA-256 and embedded source revision. GitHub confirms that all three release sources diverge from their reviewed default branches. Compare exported APIs, features and downstream resolution before choosing the next patch. Athena and Coeus need the compute decision, while Ares needs the material decision.
+2. **Unblock the two coupled consumers.** Run an Ares structural partition through a complete Harmonia window and record transfer, rollback and work balance. Use that evidence to review Harmonia’s distribution decision and resolve the required registry dependencies of Ares Coupling and CFDrs 2D. Their independent solver tests can proceed now.
+3. **Develop independent roots in parallel.** Start with the Eunomia subnormal power oracle, Iris zero-extent views, Melinoe disjoint partitions and Themis fallback topology. Use the existing [provider waves](#provider-development-waves) to select downstream consumers for each verified increment.
+4. **Carry delivered work into the new baseline.** The Kwavers Physics/Solver 5.2.0 and Moirai Crypto 0.12.1 receipts are recorded below. Coeus has eight published CPU packages at 0.15.0. RITK has already passed the four-load Chromium replay, all nine browser scenarios and the three-plane native Safari comparison on ARM and Intel. Its next access milestone covers viewer export, reopen and the remaining nine maintenance findings. [RITK browser and dependency evidence](https://github.com/ryancinsight/ritk/blob/85280aa0b7ffb3b5376780ebf1cb2bae296fe83b/backlog/ritk-stable-qualification.md).
+
+The Atlas board checker passes for 17 of 29 candidate boards. Apollo, Asclepius, Eunomia, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Leto, Metis and Mnemosyne still have schema findings. Each member audit records its count and the qualification work to clear it.
+
+### Atlas integration checkpoints
+
+| Proposed stack target | Evidence required to advance |
+| --- | --- |
+| 0.1.0 [minor] | Close the four WP-001 inventories against their frozen references. Run WP-002 and reconcile the denominators, missing definitions and ownership gaps. |
+| 0.2.0 [minor] | Complete WP-003/004 mapping and provider decisions. For each admitted provider, record a real consumer, resolved versions and the observed output. Track private distribution and device evidence per member. |
+| 0.3.0 [minor] | Assemble the candidate on reviewed gitlinks in dependency order. On that graph, exercise the integrated scientific and viewer workloads, including rejection and recovery. Resolve each failed or unexecuted required lane. |
+| 1.0.0-beta.1 → 1.0.0-rc.1 → 1.0.0 [major] | Freeze the supported contracts and channels at beta. At RC, replay the definition and release verdicts and independently install the declared artifacts. Promote the verified revision after all member and integration exits hold. |
+
+These targets describe Atlas integration snapshots. Members keep their own versions and release authority under [proposed ADR 0072](docs/adr/0072-stack-stability-qualification.md).
+
+### Member version checkpoints
+
+| Member plan | Reviewed manifest and channel | First checkpoint | Following checkpoint before stable promotion |
+| --- | --- | --- | --- |
+| [aequitas](https://github.com/ryancinsight/aequitas/pull/174) | `aequitas 0.5.0` (indexed) | 0.5.1 | 0.6.0 if the fractional-dimension proposal lands |
+| [apollo](https://github.com/ryancinsight/apollo/pull/727) | `apollo-fft 0.31.0` (indexed) | 0.32.0 | 0.33.0 → 0.34.0 → 0.35.0 |
+| [ares](https://github.com/ryancinsight/ares/pull/99) | `ares-solid 0.3.0` (unindexed) | 0.3.0 source qualification | 0.4.0 proposed after scope review |
+| [asclepius](https://github.com/ryancinsight/asclepius/pull/129) | `asclepius 0.5.0` (indexed) | 0.5.1 | 0.6.0 if the adapter boundary changes |
+| [athena](https://github.com/ryancinsight/athena/pull/183) | `athena-krylov 0.5.0` (indexed) | 0.5.1 | 0.6.0 proposed for additive device support |
+| [coeus](https://github.com/ryancinsight/Coeus/pull/689) | `coeus-core 0.15.0` (indexed) | 0.15.1 if CPU repairs are needed | 0.16.0 if reviewed additions are needed |
+| [consus](https://github.com/ryancinsight/consus/pull/233) | `consus-hdf5 0.6.0` (indexed) | 0.6.1 | 0.7.0 if interop additions are needed |
+| [eunomia](https://github.com/ryancinsight/eunomia/pull/222) | `eunomia 0.12.1` (indexed) | 0.12.2 | 0.13.0 |
+| [gaia](https://github.com/ryancinsight/gaia/pull/241) | `gaia-mesh 0.8.0` (indexed) | 0.8.1 | 0.9.0 proposed for the scalar seam |
+| [harmonia](https://github.com/ryancinsight/harmonia/pull/106) | `harmonia 0.1.4` (Git only) | 0.2.0 | 0.3.0 |
+| [helios](https://github.com/ryancinsight/helios/pull/225) | `helios-domain 0.2.1` (indexed) | 0.2.2 | 0.3.0 proposed for additive capability |
+| [hephaestus](https://github.com/ryancinsight/hephaestus/pull/561) | `hephaestus-core 0.30.0` (indexed 0.32.0) | 0.32.1 after source reconciliation | 0.33.0 proposed for reviewed backend additions |
+| [hermes](https://github.com/ryancinsight/hermes/pull/310) | `hermes-simd 0.10.0` (indexed) | 0.10.1 if a dispatch repair is needed | 1.0.0-beta.1 |
+| [horae](https://github.com/ryancinsight/horae/pull/139) | `horae-time 0.2.2` (indexed 0.4.0) | 0.4.1 after source reconciliation | 0.5.0 only for additive integration contracts |
+| [hyperion](https://github.com/ryancinsight/hyperion/pull/115) | `hyperion 0.1.1` (Git only) | 0.1.2 | 0.2.0 |
+| [iris](https://github.com/ryancinsight/iris/pull/100) | `iris-viz 0.1.4` (indexed) | 0.1.5 | 0.2.0 |
+| [kwavers](https://github.com/ryancinsight/kwavers/pull/1145) | `kwavers-driver 0.5.0` (indexed) | 0.5.1 if Driver repairs are needed | 0.6.0 if Driver needs API changes |
+| [leto](https://github.com/ryancinsight/leto/pull/437) | `leto 0.52.0` (indexed) | 0.52.1 | 0.53.0 proposed after sparse-storage review |
+| [melinoe](https://github.com/ryancinsight/melinoe/pull/101) | `melinoe 0.10.0` (indexed) | 0.10.1 if a correctness repair is needed | 0.11.0 |
+| [metis](https://github.com/ryancinsight/metis/pull/590) | `metis-ui 0.5.0` (indexed) | 0.5.1 | 0.6.0 proposed for additive host capabilities |
+| [mnemosyne](https://github.com/ryancinsight/Mnemosyne/pull/278) | `mnemosyne-memory 0.10.2` (indexed) | 0.11.0 | 0.12.0 |
+| [moirai](https://github.com/ryancinsight/Moirai/pull/724) | `moirai-runtime 0.12.0` (indexed) | 0.12.1 if Runtime requires a compatible fix | 0.13.0 |
+| [prometheus](https://github.com/ryancinsight/prometheus/pull/100) | `prometheus-kinetics 0.1.0` (unindexed) | 0.1.1 if compatible oracle fixes land first | 0.2.0 |
+| [proteus](https://github.com/ryancinsight/proteus/pull/121) | `proteus-mat 0.1.1` (indexed 0.3.0) | 0.3.1 after source reconciliation | 0.4.0 only for additive material contracts |
+| [ritk](https://github.com/ryancinsight/ritk/pull/1121) | `ritk-snap 0.3.1` (private viewer) | 0.3.2 if viewer fixes precede access | 0.4.0 |
+| [themis](https://github.com/ryancinsight/themis/pull/148) | `themis-topology 0.11.5` (indexed) | 0.12.0 | 0.13.0 |
+| [tyche](https://github.com/ryancinsight/tyche/pull/140) | `tyche-core 0.5.0` (indexed) | 0.5.1 only for compatible repairs | 0.6.0 |
+| [CFDrs](https://github.com/ryancinsight/CFDrs/pull/584) | `cfd-core 0.3.0` (unindexed) | 0.3.1 proposed for compatible solver repairs | 0.4.0 proposed for additive solver or binding work |
+
 <a id="stable-stack-baseline"></a>
 ## Stable stack qualification — 2026-11-22
 
