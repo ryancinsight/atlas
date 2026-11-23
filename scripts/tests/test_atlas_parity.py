@@ -400,7 +400,7 @@ class ProgramTests(unittest.TestCase):
 
 class RepositoryEvidenceTests(unittest.TestCase):
     def setUp(self):
-        self.repos = {"atlas": {"candidate_revision": REV, "required_gates": sorted(ATLAS_GATES)}}
+        self.repos = {"atlas": {"critical_features": ["integrated-study"], "candidate_revision": REV, "required_gates": sorted(ATLAS_GATES)}}
         self.record = {"id": "atlas-exit", "repository": "atlas", "revision": REV,
                        "review": {"state": "approved", "revision": REV, "independent": True,
                                   "artifact": "https://example.org/review/1"},
@@ -408,6 +408,24 @@ class RepositoryEvidenceTests(unittest.TestCase):
                                   "skipped": 0, "result": "success", "artifact": "https://example.org/run/1",
                                   "sha256": HASH, "environment": {"machine": "recorded"}}
                                  for name in sorted(ATLAS_GATES)]}
+
+        self.feature_gate = next(g for g in self.record["gates"] if g["name"] == "critical_features")
+        self.feature_gate["features"] = [{"id": "integrated-study", "implementation": "complete",
+                                          "result": "success", "product_path": "open study and compare planes",
+                                          "artifact": "https://example.org/run/study", "sha256": HASH}]
+
+    def test_critical_scope_cannot_be_empty_partial_or_undercovered(self):
+        for inventory, implementation, result in [
+            ([], "complete", "success"),
+            (["integrated-study", "study-export"], "complete", "success"),
+            (["integrated-study"], "partial", "success"),
+            (["integrated-study"], "complete", "skipped"),
+        ]:
+            with self.subTest(inventory=inventory, implementation=implementation, result=result):
+                self.repos["atlas"]["critical_features"] = inventory
+                self.feature_gate["features"][0].update(implementation=implementation, result=result)
+                with self.assertRaisesRegex(ParityError, "critical feature"):
+                    validate_repository_evidence([self.record], self.repos)
 
     def test_complete_exact_revision_repository_evidence_accepted(self):
         records, qualified = validate_repository_evidence([self.record], self.repos)
