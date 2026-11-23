@@ -8,12 +8,35 @@ The 29 planning PRs are merged. The [critical feature gate](docs/parity/contract
 
 ### What to start first
 
-1. **Reconcile three public providers.** Hephaestus Core declares 0.30.0 while its 0.32.0 archive is indexed. Horae Time declares 0.2.2 against 0.4.0, and Proteus Mat declares 0.1.1 against 0.3.0. Their audits record each newer archive’s SHA-256 and embedded source revision. GitHub confirms that all three release sources diverge from their reviewed default branches. Compare exported APIs, features and downstream resolution before choosing the next patch. Athena and Coeus need the compute decision, while Ares needs the material decision.
+1. **Close the critical feature inventories.** The provider reconciliation is complete. Each member now needs an independently reviewed list of the features required by its supported workflows and passing end-to-end evidence for every entry. [Verified provider and consumer revisions](#provider-reconciliation-and-consumer-verification).
 2. **Unblock the two coupled consumers.** Run an Ares structural partition through a complete Harmonia window and record transfer, rollback and work balance. Use that evidence to review Harmonia’s distribution decision and resolve the required registry dependencies of Ares Coupling and CFDrs 2D. Their independent solver tests can proceed now.
 3. **Develop independent roots in parallel.** Start with the Eunomia subnormal power oracle, Iris zero-extent views, Melinoe disjoint partitions and Themis fallback topology. Use the existing [provider waves](#provider-development-waves) to select downstream consumers for each verified increment.
 4. **Carry delivered work into the new baseline.** The Kwavers Physics/Solver 5.2.0 and Moirai Crypto 0.12.1 receipts are recorded below. Coeus has eight published CPU packages at 0.15.0. RITK has already passed the four-load Chromium replay, all nine browser scenarios and the three-plane native Safari comparison on ARM and Intel. Its next access milestone covers viewer export, reopen and the remaining nine maintenance findings. [RITK browser and dependency evidence](https://github.com/ryancinsight/ritk/blob/85280aa0b7ffb3b5376780ebf1cb2bae296fe83b/backlog/ritk-stable-qualification.md).
 
 The Atlas board checker passes for 17 of 29 candidate boards. Apollo, Asclepius, Eunomia, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Leto, Metis and Mnemosyne still have schema findings. Each member audit records its count and the qualification work to clear it.
+
+### Provider reconciliation and consumer verification
+
+[All 29 planning PRs](https://github.com/ryancinsight/atlas/pull/781) merged. All 74 workflows triggered on those default-branch revisions completed successfully. The member PRs below migrated consumers before the three provider reconciliations merged. Each consumer’s merged Git revision resolved and compiled from a separate external Cargo project. Each project started without a lockfile or provider overrides, then passed `cargo check --locked --all-targets` on the resolved graph. After all three providers merged, six new external projects repeated this resolution and compilation. Each selected the same provider versions and crates.io sources. The local compiler cache was reused across these builds.
+
+| Published provider | Reconciled default branch | Migrated consumers |
+| --- | --- | --- |
+| Hephaestus Core, WGPU, CUDA, Metal and ROCm 0.32.0 | [hephaestus #562](https://github.com/ryancinsight/hephaestus/pull/562) · [default-branch checks](https://github.com/ryancinsight/hephaestus/commit/fbc786279dd4d2abe48037cf80b45bb55409ffd4/checks) | [apollo #728](https://github.com/ryancinsight/apollo/pull/728) and [coeus #690](https://github.com/ryancinsight/Coeus/pull/690) |
+| Horae Time 0.4.0 | [horae #140](https://github.com/ryancinsight/horae/pull/140) · [default-branch checks](https://github.com/ryancinsight/horae/commit/6dbe9a1cdb73001727d8b9c180841bc584a749fd/checks) | [harmonia #107](https://github.com/ryancinsight/harmonia/pull/107), [prometheus #101](https://github.com/ryancinsight/prometheus/pull/101) and Ares through Harmonia |
+| Proteus Mat 0.3.0 | [proteus #122](https://github.com/ryancinsight/proteus/pull/122) · [default-branch checks](https://github.com/ryancinsight/proteus/commit/9bb6e2915d9e82461f1129d43a81dec241c1d2da/checks) | [ares #100](https://github.com/ryancinsight/ares/pull/100) and [hyperion #116](https://github.com/ryancinsight/hyperion/pull/116) |
+
+The member suites below exercised the migrated contracts. Cargo nextest counts disabled or filtered tests in the skipped column. The Coeus suite requires a Metal device on Apple silicon. CUDA and ROCm cases can return after an availability check on this host. Two hosted WGPU jobs on the Coeus merge timed out during compiler-cache startup. Both passed on the same commit on [attempt 2](https://github.com/ryancinsight/Coeus/actions/runs/45282697078/attempts/2).
+
+| Merged consumer | Selected contract | Passed | Skipped |
+| --- | --- | ---: | ---: |
+| [apollo `b5e8b70b583a`](https://github.com/ryancinsight/apollo/commit/b5e8b70b583a59ed824c8c4c2ee6af58aa50b8b6) | FFT with WGPU and CUDA | 682 | 15 |
+| [coeus `3c8b71ae4f14`](https://github.com/ryancinsight/coeus/commit/3c8b71ae4f14bd94b25d62f6196f3049787b2224) | WGPU, CUDA, Metal and ROCm adapters | 182 | 0 |
+| [harmonia `66f93f57d11c`](https://github.com/ryancinsight/harmonia/commit/66f93f57d11cfd7f3fbab1a117b824501f3b433f) | Interface partition and checkpoint replay | 91 | 0 |
+| [prometheus `d190167170c3`](https://github.com/ryancinsight/prometheus/commit/d190167170c305957c266d4cbdf828eab55c685a) | Reaction kinetics with std | 47 | 0 |
+| [ares `26b32a05efa3`](https://github.com/ryancinsight/ares/commit/26b32a05efa3a3591e981b03ff38a96ba645d030) | Coupling through Harmonia and material contracts | 120 | 0 |
+| [hyperion `94a46b823dd7`](https://github.com/ryancinsight/hyperion/commit/94a46b823dd72b84b308cdcfdef5e2067a4536f4) | Diffusion and material reference values | 37 | 0 |
+
+[hephaestus-metal 0.32.0](https://github.com/ryancinsight/hephaestus/releases/tag/crate-hephaestus-metal-v0.32.0) and [hephaestus-rocm 0.32.0](https://github.com/ryancinsight/hephaestus/releases/tag/crate-hephaestus-rocm-v0.32.0) each resolve the published Core 0.32.0. The provider audit records the archive checksums and embedded source revisions. Local and hosted checks covered native Metal and the Linux ROCm SDK with adapterless contracts. Native AMD device execution remains open for V1. Kwavers also passed four device-capacity cases and a requested-output simulation. Helios verified the helical timing and attenuation laws in both supported precisions.
 
 ### Atlas integration checkpoints
 
@@ -41,9 +64,9 @@ These targets describe Atlas integration snapshots. Members keep their own versi
 | [gaia](https://github.com/ryancinsight/gaia/pull/241) | `gaia-mesh 0.8.0` (indexed) | 0.8.1 | 0.9.0 proposed for the scalar seam |
 | [harmonia](https://github.com/ryancinsight/harmonia/pull/106) | `harmonia 0.1.4` (Git only) | 0.2.0 | 0.3.0 |
 | [helios](https://github.com/ryancinsight/helios/pull/225) | `helios-domain 0.2.1` (indexed) | 0.2.2 | 0.3.0 proposed for additive capability |
-| [hephaestus](https://github.com/ryancinsight/hephaestus/pull/561) | `hephaestus-core 0.30.0` (indexed 0.32.0) | 0.32.1 after source reconciliation | 0.33.0 proposed for reviewed backend additions |
+| [hephaestus](https://github.com/ryancinsight/hephaestus/pull/561) | `hephaestus-core 0.32.0` (published and reconciled) | 0.32.1 if compatible fixes are needed | 0.33.0 proposed for reviewed backend additions |
 | [hermes](https://github.com/ryancinsight/hermes/pull/310) | `hermes-simd 0.10.0` (indexed) | 0.10.1 if a dispatch repair is needed | 1.0.0-beta.1 |
-| [horae](https://github.com/ryancinsight/horae/pull/139) | `horae-time 0.2.2` (indexed 0.4.0) | 0.4.1 after source reconciliation | 0.5.0 only for additive integration contracts |
+| [horae](https://github.com/ryancinsight/horae/pull/139) | `horae-time 0.4.0` (published and reconciled) | 0.4.1 if compatible fixes are needed | 0.5.0 only for additive integration contracts |
 | [hyperion](https://github.com/ryancinsight/hyperion/pull/115) | `hyperion 0.1.1` (Git only) | 0.1.2 | 0.2.0 |
 | [iris](https://github.com/ryancinsight/iris/pull/100) | `iris-viz 0.1.4` (indexed) | 0.1.5 | 0.2.0 |
 | [kwavers](https://github.com/ryancinsight/kwavers/pull/1145) | `kwavers-driver 0.5.0` (indexed) | 0.5.1 if Driver repairs are needed | 0.6.0 if Driver needs API changes |
@@ -53,7 +76,7 @@ These targets describe Atlas integration snapshots. Members keep their own versi
 | [mnemosyne](https://github.com/ryancinsight/Mnemosyne/pull/278) | `mnemosyne-memory 0.10.2` (indexed) | 0.11.0 | 0.12.0 |
 | [moirai](https://github.com/ryancinsight/Moirai/pull/724) | `moirai-runtime 0.12.0` (indexed) | 0.12.1 if Runtime requires a compatible fix | 0.13.0 |
 | [prometheus](https://github.com/ryancinsight/prometheus/pull/100) | `prometheus-kinetics 0.1.0` (unindexed) | 0.1.1 if compatible oracle fixes land first | 0.2.0 |
-| [proteus](https://github.com/ryancinsight/proteus/pull/121) | `proteus-mat 0.1.1` (indexed 0.3.0) | 0.3.1 after source reconciliation | 0.4.0 only for additive material contracts |
+| [proteus](https://github.com/ryancinsight/proteus/pull/121) | `proteus-mat 0.3.0` (published and reconciled) | 0.3.1 if compatible fixes are needed | 0.4.0 only for additive material contracts |
 | [ritk](https://github.com/ryancinsight/ritk/pull/1121) | `ritk-snap 0.3.1` (private viewer) | 0.3.2 if viewer fixes precede access | 0.4.0 |
 | [themis](https://github.com/ryancinsight/themis/pull/148) | `themis-topology 0.11.5` (indexed) | 0.12.0 | 0.13.0 |
 | [tyche](https://github.com/ryancinsight/tyche/pull/140) | `tyche-core 0.5.0` (indexed) | 0.5.1 only for compatible repairs | 0.6.0 |
