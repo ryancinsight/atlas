@@ -1,5 +1,12 @@
 # Capability and evidence protocol
 
+## Critical features required for 1.0
+
+For Atlas and each member, the release owner and an independent reviewer derive the critical feature inventory from the supported user workflows, the release-scope ADR and downstream obligations. Record stable IDs in the repository register before qualifying the release. An empty inventory keeps the release open. Changing that inventory requires review of the affected user workflow and the release scope.
+
+Every ID requires a complete implementation and an executed acceptance result through the supported product path, including required inputs, outputs, failure handling and targets. A missing path, partial implementation, unexecuted required target or critical defect blocks 1.0. Record the path, result and hashed evidence artifact for each ID in the candidate’s reviewed `critical_features` gate. The validator requires exact set equality between the inventory and these records.
+
+
 Protocol 1 / program 2026-10-26.3. [Program](README.md).
 
 ## Domain and equivalence

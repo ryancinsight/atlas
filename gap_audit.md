@@ -4,6 +4,8 @@
 
 The 28 member plans below start from default-branch manifests reviewed on 2026-11-23. Each row follows one named package or application. The member checklist owns the other packages, acceptance tests and distribution channel. Versions are planning targets. When a gate closes through verification alone, carry the existing artifact forward. Select a new number only for a change that ships, after checking the registry and the package’s own compatibility baseline.
 
+The 29 planning PRs are merged. The [critical feature gate](docs/parity/contracts.md#critical-features-required-for-10) requires a complete, reviewed inventory for each repository and passing product-path evidence for every entry. The initial inventories are empty and all 29 V1 exits remain open.
+
 ### What to start first
 
 1. **Reconcile three public providers.** Hephaestus Core declares 0.30.0 while its 0.32.0 archive is indexed. Horae Time declares 0.2.2 against 0.4.0, and Proteus Mat declares 0.1.1 against 0.3.0. Their audits record each newer archive’s SHA-256 and embedded source revision. GitHub confirms that all three release sources diverge from their reviewed default branches. Compare exported APIs, features and downstream resolution before choosing the next patch. Athena and Coeus need the compute decision, while Ares needs the material decision.
