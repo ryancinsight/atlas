@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [patch] Reconcile Hephaestus, Horae and Proteus with their published versions and verify six consumer migrations. Metal and ROCm 0.32.0 complete the shared Hephaestus Core version in Coeus. [Release and CI evidence](gap_audit.md#provider-reconciliation-and-consumer-verification).
+
 - [patch] Link all 29 merged planning PRs and record the Kwavers 5.2.0 and Moirai Crypto 0.12.1 registry verifications in the [stack audit](gap_audit.md#stable-stack-baseline).
 
 - [patch] Record the stable-release plan for all 28 members, the two Harmonia publication blockers and the qualification gates in [the stack audit](gap_audit.md#stable-stack-baseline).
