@@ -2,10 +2,13 @@
 """Regression tests for canonical Atlas overlay discovery."""
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
@@ -719,6 +722,138 @@ class CheckWiringTestCase(unittest.TestCase):
 
         self.assertEqual(result, 0)
         locks.assert_called_once_with({}, True)
+
+
+class RequirementSatisfactionTestCase(unittest.TestCase):
+    """`satisfies` must apply Cargo's semantics, not pass comparators blindly.
+
+    The overlay emits a local patch only when the local version satisfies the
+    consumer's declared requirement. Expected values come from running the
+    `semver` crate 1.0.28 (which Cargo delegates to) over `_UNIVERSE`, not
+    from this evaluator: each row lists the versions the crate admits.
+    """
+
+    _UNIVERSE = (
+        "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0-alpha 1.0.0-beta "
+        "1.0.0 1.1.0-alpha 1.1.0 1.2.0-alpha 1.2.0 1.2.3-alpha "
+        "1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 1.2.4-beta 1.2.5 "
+        "1.3.0-alpha 1.3.0 1.9.0 2.0.0-alpha 2.0.0"
+    ).split()
+
+    _CARGO_ADMITS = (
+        ("=1.2.3", "1.2.3"),
+        ("=1.2", "1.2.0 1.2.3 1.2.5"),
+        ("=1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("=1.2.3-alpha", "1.2.3-alpha"),
+        (">1.2.3", "1.2.5 1.3.0 1.9.0 2.0.0"),
+        ("> 1.2", "1.3.0 1.9.0 2.0.0"),
+        (">1", "2.0.0"),
+        (">1.2.3-alpha",
+         "1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 1.2.5 1.3.0 "
+         "1.9.0 2.0.0"),
+        (">=1.2.3", "1.2.3 1.2.5 1.3.0 1.9.0 2.0.0"),
+        (">=1.2", "1.2.0 1.2.3 1.2.5 1.3.0 1.9.0 2.0.0"),
+        (">=1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0 2.0.0"),
+        (">=1.2.3-alpha",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 "
+         "1.2.5 1.3.0 1.9.0 2.0.0"),
+        ("<1.2.3", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0"),
+        ("<1.2", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0"),
+        ("<1", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0"),
+        ("<1.2.3-alpha", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0"),
+        ("<=1.2.3",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 "
+         "1.2.3"),
+        ("<=1.2",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 1.2.3 "
+         "1.2.5"),
+        ("<=1",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 1.2.3 "
+         "1.2.5 1.3.0 1.9.0"),
+        ("<=1.2.3-alpha",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 "
+         "1.2.0 1.2.3-alpha"),
+        ("~1.2.3", "1.2.3 1.2.5"),
+        ("~1.2", "1.2.0 1.2.3 1.2.5"),
+        ("~1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("~1.2.3-alpha",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 "
+         "1.2.5"),
+        ("^1.2.3", "1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("^1.2", "1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("^1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("^0.2.3", "0.2.3 0.2.4"),
+        ("^0.0.3", "0.0.3"),
+        ("^0.0", "0.0.3 0.0.4"),
+        ("^0", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0"),
+        ("^1.2.3-alpha",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 "
+         "1.2.5 1.3.0 1.9.0"),
+        ("^1.2.3-alpha.1",
+         "1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 1.2.5 1.3.0 "
+         "1.9.0"),
+        ("1.2.3", "1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("*",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 1.2.3 "
+         "1.2.5 1.3.0 1.9.0 2.0.0"),
+        ("1.*", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("1.2.*", "1.2.0 1.2.3 1.2.5"),
+        (">=1.0.0-alpha",
+         "1.0.0-alpha 1.0.0-beta 1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 "
+         "1.3.0 1.9.0 2.0.0"),
+        (">=1.0.0-alpha, <2",
+         "1.0.0-alpha 1.0.0-beta 1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 "
+         "1.3.0 1.9.0"),
+        (">=1.2.0, < 1.5", "1.2.0 1.2.3 1.2.5 1.3.0"),
+        (">=1.2, <1.3.0", "1.2.0 1.2.3 1.2.5"),
+        (">=1.2.3-alpha, <2",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta "
+         "1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("1.2.3+meta", "1.2.3 1.2.5 1.3.0 1.9.0"),
+        (" >= 1.2.3 , < 1.9", "1.2.3 1.2.5 1.3.0"),
+    )
+
+    _CARGO_REJECTS = (
+        "*, >=1", "1.2-alpha", ">=1.2.3,", "1.2.3.4", "abc", ">=",
+        "1.2.3 1.2.4", "01.2.3", "1.*.3", "1.2.3-01", "1.2.3-", "1.2.3+", "=", "",
+        "  ",
+    )
+
+    def test_each_requirement_admits_exactly_the_versions_cargo_admits(self) -> None:
+        for requirement, admitted in self._CARGO_ADMITS:
+            for version in self._UNIVERSE:
+                with self.subTest(requirement=requirement, version=version):
+                    self.assertIs(
+                        _overlay.satisfies(version, requirement),
+                        version in admitted.split(),
+                    )
+
+    def test_build_metadata_is_ignored(self) -> None:
+        self.assertTrue(_overlay.satisfies("1.2.3+build", "1.2.3"))
+        self.assertTrue(_overlay.satisfies("1.2.3", "=1.2.3+meta"))
+
+    def test_forms_cargo_rejects_raise_rather_than_passing(self) -> None:
+        for requirement in self._CARGO_REJECTS:
+            with self.subTest(requirement=requirement):
+                with self.assertRaises(_overlay.RequirementSyntaxError):
+                    _overlay.satisfies("1.2.3", requirement)
+        with self.assertRaises(_overlay.RequirementSyntaxError):
+            _overlay.satisfies("1.2", "^1")
+
+    def test_an_unreadable_requirement_ends_check_with_a_message(self) -> None:
+        deps = [("p", "https://github.com/ryancinsight/p", "1.2-alpha", Path("m"), False)]
+        packages = {"p": (Path("repos/p"), "1.2.3")}
+        stderr = io.StringIO()
+        with patch.object(_overlay, "read_manifests", return_value=[]), patch.object(
+            _overlay, "load_packages", return_value=packages
+        ), patch.object(
+            _overlay, "collect_first_party_deps", return_value=deps
+        ), patch.object(sys, "argv", ["overlay", "check"]), contextlib.redirect_stderr(
+            stderr
+        ):
+            status = _overlay.main()
+        self.assertEqual(status, 2)
+        self.assertIn("1.2-alpha", stderr.getvalue())
 
 
 if __name__ == "__main__":
