@@ -13,7 +13,7 @@ The 29 planning PRs are merged. The [critical feature gate](docs/parity/contract
 3. **Develop independent roots in parallel.** Start with the Eunomia subnormal power oracle, Iris zero-extent views, Melinoe disjoint partitions and Themis fallback topology. Use the existing [provider waves](#provider-development-waves) to select downstream consumers for each verified increment.
 4. **Carry delivered work into the new baseline.** The Kwavers Physics/Solver 5.2.0 and Moirai Crypto 0.12.1 receipts are recorded below. Coeus has eight published CPU packages at 0.15.0. RITK has already passed the four-load Chromium replay, all nine browser scenarios and the three-plane native Safari comparison on ARM and Intel. Its next access milestone covers viewer export, reopen and the remaining nine maintenance findings. [RITK browser and dependency evidence](https://github.com/ryancinsight/ritk/blob/85280aa0b7ffb3b5376780ebf1cb2bae296fe83b/backlog/ritk-stable-qualification.md).
 
-The Atlas board checker passes for 18 of 29 candidate boards. Apollo, Asclepius, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Leto, Metis and Mnemosyne still have schema findings. Each member audit records its count and the qualification work to clear it.
+The Atlas board checker (`scripts/atlas-board-lint.py --file`, read on 2026-11-24 at the Atlas board of this revision and at each of the 28 `.gitmodules` members' fetched default ref) passes for 19 of 29 candidate boards. Apollo, Asclepius, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Kwavers and Leto exit nonzero with schema findings. Each member audit records its count and the qualification work to clear it.
 
 ### Provider reconciliation and consumer verification
 
@@ -157,7 +157,7 @@ The [Atlas planning PR](https://github.com/ryancinsight/atlas/pull/779) and all 
 ### Open verification work
 
 - **Package gaps.** Check registry ownership and the intended first-release cohort for CFDrs's eleven 0.3.0 packages, Ares Solid/Operator/Coupling 0.3.0, and Prometheus Kinetics 0.1.0. Coeus's missing 0.14.0 versions are Dist, FFT, WGPU, Accelerator, CUDA, ROCm and Metal. Reconcile those with the existing 0.15.0 candidate before scheduling uploads. Moirai WebView 0.12.0 also lacks an exact index match.
-- **Member board checks.** The whole-board lint passes for Atlas and 13 members. Existing status, priority or duplicate-ID findings remain in CFDrs, Apollo, Asclepius, Coeus, Eunomia, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Kwavers, Leto, Metis and Mnemosyne. Comparing the lint's violation sets with each reviewed parent identifies no added violation. During milestone reconciliation, verify delivered items against their source and retain every open dependency when compacting old entries.
+- **Member board checks.** The whole-board lint, read on 2026-11-24 at each member's fetched default ref, passes for Atlas and 18 members. Status, priority or duplicate-ID findings remain in Apollo, Asclepius, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Kwavers and Leto. During milestone reconciliation, verify delivered items against their source and retain every open dependency when compacting old entries.
 
 ### Reproduce the baseline
 
