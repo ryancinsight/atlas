@@ -2361,15 +2361,20 @@ def test_a_cfg_predicate_naming_clippy_is_found_by_line():
     assert gate.cfg_clippy_lines(text) == [2, 3, 7]
 
 
-def _hidden_cast_repo(tmp_path, lib_source):
+HIDDEN_MANIFEST = '[package]\nname = "hidden"\nversion = "0.1.0"\nedition = "2021"\n'
+
+
+def _hidden_cast_repo(tmp_path, lib_source, extra=None):
     repo = tmp_path / "member"
     init(repo)
     (repo / "src").mkdir()
-    (repo / "Cargo.toml").write_text(
-        '[package]\nname = "hidden"\nversion = "0.1.0"\nedition = "2021"\n')
-    (repo / "src" / "lib.rs").write_text("pub fn fine() {}\n")
+    (repo / "Cargo.toml").write_bytes(HIDDEN_MANIFEST.encode())
+    (repo / "src" / "lib.rs").write_bytes(b"pub fn fine() {}\n")
     base = commit(repo, "base")
-    (repo / "src" / "lib.rs").write_text(lib_source)
+    (repo / "src" / "lib.rs").write_bytes(lib_source.encode())
+    for name, body in (extra or {}).items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_bytes(body.encode())
     tip = commit(repo, "tip")
     rules = tmp_path / "rules.json"
     rules.write_text('{"sanctioned": {}, "counts": {"m": {"hidden": 0}}}')
@@ -2378,10 +2383,10 @@ def _hidden_cast_repo(tmp_path, lib_source):
     return repo, base, tip, rules, sites
 
 
-def _check_hidden(repo, base, tip, rules, sites):
+def _check_hidden(repo, base, tip, rules, sites, package="hidden"):
     return gate.main(["--baseline", str(rules), "check", "--member", "m",
                       "--repo", str(repo), "--base", base, "--tip", tip,
-                      "--package", "hidden", "--sites", str(sites)])
+                      "--package", package, "--sites", str(sites)])
 
 
 def test_a_cast_under_cfg_not_clippy_cannot_pass_unmeasured(tmp_path, capsys):
@@ -2424,6 +2429,69 @@ def test_a_package_without_a_clippy_predicate_still_passes(tmp_path, capsys):
     )
     assert _check_hidden(repo, base, tip, rules, sites) == 0
     assert "predicate names `clippy`" not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("source, lines", [
+    ("#[cfg(all(not(test), not(clippy)))] fn h() {}\n", [1]),
+    ('#[cfg(all(\n    not(clippy),\n    target_pointer_width = "64"\n))]\nfn h() {}\n', [1]),
+    ("#[cfg(\n    not(clippy)\n)]\nfn h() {}\n", [1]),
+    ("fn a() {}\n#[cfg(any(clippy, test))] fn h() {}\n", [2]),
+    ("#[cfg_attr(test, cfg(clippy))] fn h() {}\n", [1]),
+    ("#[cfg(not(clippy_x))] fn h() {}\n", []),
+    ("#[cfg(my_clippy)] fn h() {}\n", []),
+    ('#[cfg(feature = "clippy")] fn h() {}\n', []),
+    ("/* #[cfg(clippy)] /* nested */ */ fn h() {}\n", []),
+    ("#[cfg(\n    not(test)\n)]\nfn h() { let _ = clippy; }\n", []),
+])
+def test_a_cfg_predicate_is_read_across_lines_and_whole_words(source, lines):
+    assert gate.cfg_clippy_lines(source) == lines
+
+
+@pytest.mark.parametrize("lib", [
+    "#[cfg(all(not(test), not(clippy)))] pub fn hidden(x: u32) -> u64 { x as u64 }\n",
+    '#[cfg(all(\n    not(clippy),\n    target_pointer_width = "64"\n))]\n'
+    "pub fn hidden(x: u32) -> u64 {\n    x as u64\n}\n",
+    "#[cfg(\n    not(clippy)\n)]\npub fn hidden(x: u32) -> u64 { x as u64 }\n",
+])
+def test_a_split_or_nested_clippy_predicate_cannot_pass_unmeasured(tmp_path, capsys, lib):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, "pub fn fine() {}\n" + lib)
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    assert "src/lib.rs:2" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("name, body", [
+    ("README.md", "# hidden\n\nCode under `#[cfg(not(clippy))]` is invisible.\n"),
+    ("README.md", "# hidden\n\nAvoid `#[cfg(clippy)]`; sources live in `src/*`.\n"),
+    ("docs/notes.md", "We never write cfg(not(clippy)) in this crate.\n"),
+    ("Cargo.toml", HIDDEN_MANIFEST + "[lints.rust]\nunexpected_cfgs = "
+     "{ level = \"warn\", check-cfg = ['cfg(clippy)'] }\n"),
+])
+def test_text_that_is_not_rust_source_is_not_scanned(tmp_path, capsys, name, body):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, "pub fn fine() {}\n", {name: body})
+    assert _check_hidden(repo, base, tip, rules, sites) == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_a_rust_file_naming_clippy_that_does_not_lex_is_refused(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, "pub fn fine() {}\n", {"src/bad.rs": "/* clippy\n"})
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "src/bad.rs: cannot be read as Rust (an unclosed block comment)" in err
+
+
+def test_the_scan_covers_the_named_package_directory_alone(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, "pub fn fine() {}\n",
+        {"member/Cargo.toml": '[package]\nname = "other"\nversion = "0.1.0"\n',
+         "member/src/lib.rs": "#[cfg(not(clippy))] fn h() {}\n"})
+    assert _check_hidden(repo, base, tip, rules, sites) == 0
+    assert _check_hidden(repo, base, tip, rules, sites, package="nosuch") == 0
+    assert _check_hidden(repo, base, tip, rules, sites, package="other") == 1
+    assert "member/src/lib.rs:1" in capsys.readouterr().err
+
+
 
 
 def test_target_roots_follow_the_manifest_and_auto_discovery():
