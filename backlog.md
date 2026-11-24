@@ -64,7 +64,6 @@
 <a id="atlas-pub-008"></a>- [ATLAS-PUB-008](backlog/atlas-pub-008.md) — Audit facade names immediately before each first publish [chore] — todo
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
-<a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the locked bump guard and require it [patch] — todo
 <a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
@@ -91,7 +90,6 @@
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Decide the post-command heartbeat window and re-aim one scan test [patch] — todo
 <a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo
-<a id="atlas-board-index-ladder-crash"></a>- [ATLAS-BOARD-INDEX-LADDER-CRASH](backlog/atlas-board-index-ladder-crash.md) — The board index and compact tools mishandle the milestone ladder [patch] — todo
 <a id="atlas-ci-ubuntu-2604"></a>- [ATLAS-CI-UBUNTU-2604](backlog/atlas-ci-ubuntu-2604.md) — `ubuntu-latest` moved to 26.04: wheel callers repin atlas python-wheels.yml, and apt-installing atlas jobs need a named image [patch] — todo
 <a id="atlas-hook-credential-alias"></a>- [ATLAS-HOOK-CREDENTIAL-ALIAS](backlog/atlas-hook-credential-alias.md) — Decide the credential-alias and include handling in the exported Cargo config [patch] — todo
 <a id="atlas-hook-merge-range"></a>- [ATLAS-HOOK-MERGE-RANGE](backlog/atlas-hook-merge-range.md) — A pushed branch update gates and budgets against the wrong base [patch] — todo
