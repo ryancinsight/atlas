@@ -87,9 +87,7 @@ jobs:
   sweep:
     name: Toolchain preflight + coherence scan
     runs-on: ubuntu-latest
-    # Member init at depth 1, a pinned toolchain, then the sweep over every member: the
-    # scheduled run fetches each published state, a push reads the recorded one. 20 min
-    # is the fetching case, and a push run finishes far inside it.
+    # bound: 97 s (run 44799005470) -> 20 min = 12.37x
     timeout-minutes: 20
     steps:
       - name: Checkout

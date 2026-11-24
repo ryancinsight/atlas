@@ -41,9 +41,6 @@ jobs:
   artifact-budget:
     name: Boards and tracked images within budget
     runs-on: ubuntu-latest
-    # Two checkouts, one shallow fetch of the base revision, and one script that reads the
-    # tracked boards and images. The fetch is the only network and the script is local file
-    # reads, so 5 min is the stack's floor for two checkouts and a script.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

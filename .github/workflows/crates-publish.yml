@@ -56,9 +56,6 @@ jobs:
   validate:
     name: Validate crate package
     runs-on: ubuntu-latest
-    # `cargo publish --locked --dry-run`: a release build of the package and its path
-    # dependencies, then packaging and the verification pass. 30 min is the cold
-    # build's budget, the same one the publish job beside it uses.
     timeout-minutes: 30
     permissions:
       contents: read
@@ -162,9 +159,6 @@ jobs:
     needs: validate
     name: Publish crate
     runs-on: ubuntu-latest
-    # The same cold build as `validate`, then the upload and the wait for the index to
-    # serve the new version. 30 min matches the validation job so a package that
-    # builds there is not rejected here by a tighter bound.
     timeout-minutes: 30
     environment:
       name: crates-io

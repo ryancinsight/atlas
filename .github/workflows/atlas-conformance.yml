@@ -71,8 +71,8 @@ jobs:
     name: Debt-class inventory
     if: github.event_name != 'schedule' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
-    # The stack scan and focused audits finish in about four minutes on the
-    # hosted runner. The script suite runs once, partitioned, in `script-tests`.
+    # The script suite runs once, partitioned, in `script-tests`.
+    # bound: 181 s (run 45274225788) -> 10 min = 3.31x
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -115,8 +115,7 @@ jobs:
         run: python3 -m pip install --quiet -r scripts/requirements-test.txt
 
       - name: Setup recorded consumer toolchain
-        # One recorded channel from repos/aequitas, minimal profile: a single
-        # `rustup toolchain install`, the action #708 bounds at 3 min in python-tests.yml.
+        # bound: 9 s (run 45290135398) -> 3 min = 20.00x
         timeout-minutes: 3
         shell: bash
         run: |
@@ -293,9 +292,7 @@ jobs:
     if: always() && github.event_name != 'schedule'
     needs: [workflow-lint, conformance-check, script-tests]
     runs-on: ubuntu-latest
-    # One shell step over the three upstream verdicts: no checkout, no network, nothing to
-    # build. 1 min is far above its four string comparisons, and the tightness is
-    # deliberate: a stalled aggregation has nothing to wait for.
+    # bound: 3 s (run 45290135398) -> 1 min = 20.00x
     timeout-minutes: 1
     steps:
       - name: Require every conformance verdict
@@ -325,6 +322,7 @@ jobs:
     # gitlink changes, so on an ordinary pull request this job costs a checkout
     # and exits. The budget covers the scheduled run, which reads 28 remotes
     # and initialises 28 members.
+    # bound: 98 s (run 44984553425) -> 15 min = 9.18x
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -388,8 +386,7 @@ jobs:
 
       - name: Setup recorded consumer toolchain
         if: steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
-        # The same single recorded-channel install as the ratchet job's step of this name:
-        # 3 min is the bound #708 set in python-tests.yml.
+        # bound: 7 s (run 44984553425) -> 3 min = 25.71x
         timeout-minutes: 3
         shell: bash
         run: |
@@ -398,9 +395,10 @@ jobs:
 
       - name: Pins within one sweep of their members' defaults
         if: steps.scope.outputs.run == 'true'
-        # `atlas-pin-drift.py --timeout 20 --jobs 8`: each member costs at most three
-        # bounded git calls (ls-remote, fetch, rev-list) at 20 s, 60 s; 28 recorded members
-        # in 4 waves of 8 is 240 s, so 5 min covers that and keeps 60 s spare.
+        # Two 20 s listing calls (`member_urls`, `recorded_gitlinks`), then the 28
+        # gitlinks at origin/main bc593fbd6 in ceil(28 / 8) = 4 waves of three 20 s git
+        # calls each (ls-remote, fetch, rev-list), with `--timeout 20 --jobs 8`.
+        # bound: 20 * 2 + 60 * 4 s (scripts/atlas-pin-drift.py) -> 5 min = 1.07x
         timeout-minutes: 5
         shell: bash
         # Redirect-then-cat, not a pipe: the default shell has no pipefail, so
@@ -425,9 +423,9 @@ jobs:
 
       - name: Compile recorded Aequitas with its Eunomia dependency
         if: always() && steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
-        # `atlas-pin-compile.py`'s own deadlines: two 30 s archives, 60 s of `cargo metadata`
-        # and 180 s of `cargo check` make 300 s, so 6 min is that arithmetic plus a minute of
-        # probe setup rather than a round number.
+        # Two 30 s archives, 60 s of `cargo metadata` and 180 s of `cargo check`, the
+        # longest path through `compile_recorded_pair`.
+        # bound: 30 * 2 + 60 + 180 s (scripts/atlas-pin-compile.py) -> 6 min = 1.20x
         timeout-minutes: 6
         shell: bash
         run: |

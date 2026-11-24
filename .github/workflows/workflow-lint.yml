@@ -32,9 +32,7 @@ jobs:
   workflow-lint:
     name: Workflows are valid
     runs-on: ubuntu-latest
-    # Checkout, then the composite action: it downloads the pinned actionlint and
-    # shellcheck archives, runs the analyzers over every workflow, and pyflakes over the
-    # scripts. 5 min covers the two downloads; the analyzers themselves take seconds.
+    # bound: 86 s (run 45074147825) -> 5 min = 3.48x
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

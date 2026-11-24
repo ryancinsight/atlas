@@ -275,9 +275,6 @@ jobs:
     needs: build
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    # `deploy-pages` alone: it uploads the artifact the build job produced above and polls
-    # the Pages deployment service. No build, no install; 10 min covers a queued
-    # deployment, since the service rather than the runner is what this waits on.
     timeout-minutes: 10
     permissions:
       pages: write

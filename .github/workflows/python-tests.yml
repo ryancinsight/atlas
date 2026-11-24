@@ -10,10 +10,7 @@ jobs:
   pytest-fast:
     name: Run pytest (fast)
     runs-on: ubuntu-latest
-    # Checkout, member init, pip, a toolchain install, cargo-semver-checks, then the
-    # non-slow suite at up to 8 workers. 10 min covers the installs and a few minutes
-    # of suite; the suite is the only piece that grows with the repository, so the
-    # bound moves with it.
+    # bound: 577 s (run 45069017750) -> 10 min = 1.03x
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -43,9 +40,7 @@ jobs:
           python -m pip install -r scripts/requirements-test.txt
 
       - name: Setup recorded fast-suite toolchains
-        # Both pins resolve to the same 1.97.0 channel, so this is a single
-        # `rustup toolchain install --profile minimal`: 3 min is the bound #708 set
-        # for that install, the same action as in the slow job.
+        # bound: 11 s (run 40776129780) -> 3 min = 16.36x
         timeout-minutes: 3
         shell: bash
         run: |
@@ -103,9 +98,7 @@ jobs:
   pytest-slow:
     name: Run pytest (slow)
     runs-on: ubuntu-latest
-    # The fast job's installs plus nextest, cargo-semver-checks, the pinned rustdoc
-    # nightly, an mdbook cache restore with its cold `cargo install` fallback, then
-    # the slow suite. 15 min covers those installs and the fixtures that build crates.
+    # bound: 488 s (run 44963956257) -> 15 min = 1.84x
     timeout-minutes: 15
     env:
       RUSTUP_TOOLCHAIN: 1.97.0
@@ -136,8 +129,7 @@ jobs:
           python -m pip install -r scripts/requirements-test.txt
 
       - name: Setup recorded consumer toolchain
-        # One recorded channel from repos/aequitas with clippy and rustfmt: the same single
-        # `rustup toolchain install --profile minimal` the fast job bounds at 3 (#708).
+        # bound: 11 s (run 45274225788) -> 3 min = 16.36x
         timeout-minutes: 3
         shell: bash
         env:
@@ -156,17 +148,15 @@ jobs:
           tool: nextest@0.9.140
 
       - name: Install cargo-semver-checks for the locked SemVer comparison test
-        # scripts/tests/test_atlas_semver_pr.py skips without both. One pinned tarball
-        # through taiki-e/install-action: 3 min is that action's bound (#708), the
-        # same pin the informational SemVer job installs.
+        # scripts/tests/test_atlas_semver_pr.py skips without both.
+        # bound: 3 s (run 45274225788) -> 3 min = 60.00x
         timeout-minutes: 3
         uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
           tool: cargo-semver-checks@0.51.0
 
       - name: Install the pinned rustdoc nightly
-        # One pinned nightly at the minimal profile: the same single `rustup toolchain
-        # install` the two setup steps above bound at 3 (#708).
+        # bound: 9 s (run 45069017750) -> 3 min = 20.00x
         timeout-minutes: 3
         run: rustup toolchain install nightly-2026-08-01 --profile minimal
 
@@ -214,9 +204,7 @@ jobs:
   windows-lock-protocol:
     name: Native Windows lock protocol
     runs-on: windows-latest
-    # A Windows runner, Git Bash selected by path, and two fixture invocations that
-    # exercise the lock protocol with Python and Bash children. No toolchain, no
-    # build; 5 min is the floor for two subprocess fixtures on Windows.
+    # bound: 18 s (run 45074147825) -> 5 min = 16.66x
     timeout-minutes: 5
     steps:
       - name: Checkout

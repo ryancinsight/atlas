@@ -100,10 +100,6 @@ jobs:
     if: inputs.abi3
     name: ${{ matrix.target }} / ${{ matrix.manylinux }} / abi3
     runs-on: ${{ matrix.os }}
-    # An abi3 wheel is built once and installed on every supported CPython, so the
-    # build is a cold maturin build against the oldest stable ABI plus the binding
-    # tests. 30 min is the cold build budget for the target's container; a warm cargo
-    # cache returns most of it.
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -249,9 +245,6 @@ jobs:
     if: ${{ !inputs.abi3 }}
     name: ${{ matrix.target }} / ${{ matrix.manylinux }} / CPython ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
-    # A version-specific wheel: a cold maturin build inside the target's container, the
-    # wheel installed, and the binding behaviour tests run against it, the musl case in
-    # docker. 30 min is the cold build budget; a warm cache returns most of it.
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -391,9 +384,6 @@ jobs:
     if: inputs.free-threaded
     name: ${{ matrix.target }} / ${{ matrix.manylinux }} / CPython ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
-    # The free-threaded interpreter has no stable ABI and no cached wheel to reuse, so
-    # the step also asserts the GIL is off before a cold build per target. 30 min is
-    # that build plus the free-threaded behaviour suite.
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -506,9 +496,6 @@ jobs:
     if: inputs.abi3t
     name: ${{ matrix.target }} / ${{ matrix.manylinux }} / abi3t
     runs-on: ${{ matrix.os }}
-    # abi3t targets the free-threaded ABI's stable subset and asserts the feature
-    # selection before building, so a mis-selected wheel fails in seconds. 30 min is
-    # the cold maturin build plus the install and test of the result.
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -619,9 +606,6 @@ jobs:
     name: Validate distributions
     needs: [build-abi3, build-cpython, build-free-threaded, build-abi3t]
     runs-on: ubuntu-24.04
-    # No extension compile: maturin builds the sdist, the wheel artifacts arrive from
-    # the build jobs, identity and the wheel set are validated, then attestation and
-    # the release upload. 30 min covers the sdist build and those network round trips.
     timeout-minutes: 30
     permissions:
       artifact-metadata: write
