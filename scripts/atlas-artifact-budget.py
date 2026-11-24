@@ -102,6 +102,20 @@ def _is_git_checkout(root: Path) -> bool:
     return (root / target).exists() or Path(target).exists()
 
 
+def _is_checkout_top_level(root: Path) -> bool:
+    """True when `root` is the top level of its own git checkout.
+
+    `git -C <root>` finds an enclosing repository, and `ls-tree` run from a
+    subdirectory lists only that subdirectory, so a plain directory inside
+    another repository (untracked, or an uninitialised submodule) would read
+    every board as absent. An initialised submodule is its own top level.
+    """
+    top = _git(root, "rev-parse", "--show-toplevel").strip()
+    return os.path.normcase(os.path.realpath(top)) == os.path.normcase(
+        os.path.realpath(root)
+    )
+
+
 def _line_count(text: str) -> int:
     return text.count("\n") + (0 if text.endswith("\n") or not text else 1)
 
@@ -351,6 +365,14 @@ def main() -> int:
     # empty listing, so a non-checkout root or an unknown `--rev`/`--base`
     # measured zero lines and printed "within budget" (exit 0).
     try:
+        if (args.base or args.rev) and not _is_checkout_top_level(root):
+            print(
+                f"artifact-budget: {root} is not the top level of its own git "
+                "checkout; the requested revisions would be read from an "
+                "enclosing repository",
+                file=sys.stderr,
+            )
+            return 2
         failures, warnings = evaluate(root, args.base, args.line_budget,
                                       args.image_budget_bytes, rev=args.rev)
         # Per-item-file report: visibility only, never a gate (ITEM_BUDGET).

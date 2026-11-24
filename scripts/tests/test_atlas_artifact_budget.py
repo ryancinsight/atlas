@@ -302,6 +302,40 @@ class UnreadableRevisionTest(unittest.TestCase):
             self.assertNotIn("within budget", proc.stdout)
             self.assertIn("cannot read the requested revision", proc.stderr)
 
+    def _assert_refused(self, proc: subprocess.CompletedProcess) -> None:
+        self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
+        self.assertNotIn("within budget", proc.stdout)
+        self.assertIn("not the top level of its own git checkout", proc.stderr)
+
+    def test_untracked_directory_inside_a_checkout_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            outer = Path(temp)
+            _repo(outer)
+            (outer / "backlog.md").write_text(_lines(5), encoding="utf-8")
+            _commit(outer, "board")
+            nested = outer / "sub"
+            nested.mkdir()
+            (nested / "backlog.md").write_text(_lines(50), encoding="utf-8")
+            self._assert_refused(self._run(
+                nested, "--base", "HEAD", "--rev", "HEAD", "--line-budget", "10"
+            ))
+
+    def test_uninitialised_submodule_directory_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            outer = Path(temp)
+            _repo(outer)
+            (outer / "backlog.md").write_text(_lines(5), encoding="utf-8")
+            _git(outer, "add", "backlog.md")
+            _git(outer, "update-index", "--add", "--cacheinfo",
+                 "160000,1111111111111111111111111111111111111111,mem")
+            _git(outer, "commit", "-q", "-m", "gitlink")
+            member = outer / "mem"
+            member.mkdir()
+            (member / "backlog.md").write_text(_lines(50), encoding="utf-8")
+            self._assert_refused(self._run(
+                member, "--base", "HEAD", "--rev", "HEAD", "--line-budget", "10"
+            ))
+
     def test_unknown_rev_in_a_real_checkout_refuses(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
