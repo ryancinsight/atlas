@@ -16,17 +16,19 @@ on a new cast. This gate is the enforcement:
   module (`cast_modules`) is counted like any other file, so a cast moved
   into it neither raises nor lowers the package's count. Its added lines pass
   only under `cast_module_fault`, no file of its package mounted twice
-  (`clippy::duplicate_mod`, force-warned), the module compiled by exactly one
-  crate target of its package (`second_target_problems`), and the base count;
-- a pushed package whose `.rs` text holds a `cfg` or `cfg_attr` predicate naming
-  `clippy` fails (`cfg_clippy_problems`): clippy-driver sets `cfg(clippy)` and
-  rustc does not, so code under `cfg(not(clippy))` is compiled only by the run
-  that skips it, and code under `cfg(clippy)` by no build the gate counts. The
-  scan reads the package's tracked `.rs` files with comments and strings blanked,
-  and refuses a file that names `clippy` and does not lex. A predicate built by
-  macro substitution (`#[cfg(not($p))]`) or written as a `cfg_select!` arm
-  (`not(clippy) => { ... }`, which rustc 1.97.0 compiled here) has no `cfg(`
-  token and is not seen;
+  (`clippy::duplicate_mod`, force-warned), and the base count;
+- a pushed package whose Rust text holds a `cfg` or `cfg_attr` predicate, or a
+  `cfg_select!` arm head, naming `clippy` fails (`cfg_clippy_problems`):
+  clippy-driver sets `cfg(clippy)` and rustc does not, so code under
+  `cfg(not(clippy))` is compiled only by the run that skips it, and code under
+  `cfg(clippy)` by no build the gate counts. The scan reads the files the
+  package's crate targets compile (`package_sources`: module trees, `#[path]`
+  and `include!("literal")` files of any extension, wherever they lie) and the
+  tracked `.rs` files under its directory that no other workspace member holds,
+  with comments and strings blanked, and refuses a file that cannot be read as
+  Rust. A manifest `tomllib` rejects fails the push naming the manifest. A
+  predicate built by macro substitution (`#[cfg(not($p))]`) has no `cfg(` token
+  and is not seen;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -54,14 +56,6 @@ on a new cast. This gate is the enforcement:
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
 say whether a site sits under an `#[expect]`.
-
-A cast module that two crate targets of one package compile (`lib`, `bin`,
-`tests/`, `examples/`, `benches/`, the build script) is counted once there
-and linted once, so `second_target_problems` walks each target root's module
-tree over the pushed tip's files and names the package and every root that
-reaches the module. It follows `mod name;` as rustc resolves it, `#[path]`
-and both outcomes of a `cfg_attr(.., path = ..)`; `include!` and a `mod`
-written by a macro are not followed.
 
 The tip's clippy run is the hook's own: `clippy` runs it under the
 source-identity leases in place of the plain step, writing each diagnostic's
@@ -112,7 +106,7 @@ import subprocess
 import sys
 import time
 import tomllib
-from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
@@ -122,13 +116,15 @@ HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
 HISTORICAL_CAST_PROFILE = "cast-history"
 HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
-# `cfg(...)` and `cfg_attr(...)` name their predicate in the first argument.
+# `cfg(...)` and `cfg_attr(...)` name their predicate in the first argument, and
+# each arm of `cfg_select! { <predicate> => ..., }` begins with one.
 # `clippy` is a real cfg set by clippy-driver and not by rustc, so code under
 # `cfg(not(clippy))` compiles only in the clippy run -- which then skips it --
 # and code under `cfg(clippy)` compiles only where the gate is looking. Both
 # are unmeasurable, and a gate that cannot see a cast must refuse the push
 # rather than count the rest of the package and pass.
 CFG_PREDICATE = re.compile(r"\b(cfg|cfg_attr)\s*\(")
+CFG_SELECT = re.compile(r"\bcfg_select\s*!\s*[({\[]")
 CLIPPY_PREDICATE = re.compile(r"\bclippy\b")
 
 
@@ -456,17 +452,17 @@ def code_without_comments_or_strings(text: str) -> str:
     )
 
 
-def matching_paren(code: str, opening: int) -> int:
-    """The index of the `)` closing the `(` at `opening`; unclosed raises."""
+def closing_bracket(code: str, opening: int) -> int:
+    """The index of the bracket closing the one at `opening`; unclosed raises."""
     depth = 0
     for index in range(opening, len(code)):
-        if code[index] == "(":
+        if code[index] in "([{":
             depth += 1
-        elif code[index] == ")":
+        elif code[index] in ")]}":
             depth -= 1
             if depth == 0:
                 return index
-    raise ValueError("an unclosed `cfg` predicate")
+    raise ValueError("an unclosed bracket")
 
 
 def cfg_predicate(code: str, name: str, opening: int, closing: int) -> str:
@@ -486,217 +482,129 @@ def cfg_predicate(code: str, name: str, opening: int, closing: int) -> str:
     return inner
 
 
+def cfg_select_heads(code: str, opening: int, closing: int) -> Iterator[tuple[int, str]]:
+    """The (offset, text) of each arm head of the `cfg_select!` group between
+    `opening` and `closing`: its grammar is `<predicate> => <block or expression>`,
+    arms separated by a comma that a block body does not need."""
+    index = opening + 1
+    while index < closing:
+        depth, arrow = 0, index
+        while arrow < closing and (depth or not code.startswith("=>", arrow)):
+            depth += (code[arrow] in "([{") - (code[arrow] in ")]}")
+            arrow += 1
+        if arrow >= closing:
+            return
+        yield index, code[index:arrow]
+        index = arrow + 2
+        while code[index].isspace():
+            index += 1
+        if code[index] == "{":
+            index = closing_bracket(code, index) + 1
+        else:
+            depth = 0
+            while index < closing and (depth or code[index] != ","):
+                depth += (code[index] in "([{") - (code[index] in ")]}")
+                index += 1
+        while index < closing and (code[index].isspace() or code[index] == ","):
+            index += 1
+
+
 def cfg_clippy_lines(text: str) -> list[int]:
-    """Lines whose `cfg`/`cfg_attr` predicate names `clippy`."""
+    """Lines whose `cfg`/`cfg_attr` predicate, or `cfg_select!` arm head, names `clippy`."""
     code = code_without_comments_or_strings(text)
     found: list[int] = []
     for match in CFG_PREDICATE.finditer(code):
         opening = code.find("(", match.start())
-        closing = matching_paren(code, opening)
+        closing = closing_bracket(code, opening)
         if CLIPPY_PREDICATE.search(cfg_predicate(code, match.group(1), opening, closing)):
             found.append(code.count("\n", 0, match.start()) + 1)
-    return found
+    for match in CFG_SELECT.finditer(code):
+        opening = match.end() - 1
+        for start, head in cfg_select_heads(code, opening, closing_bracket(code, opening)):
+            if CLIPPY_PREDICATE.search(head):
+                found.append(code.count("\n", 0, start + len(head) - len(head.lstrip())) + 1)
+    return sorted(found)
 
 
-def package_sources(repo: pathlib.Path, tip: str, packages: Iterable[str]) -> list[str]:
-    """The tracked `.rs` paths at `tip` that belong to the named packages: those
-    whose nearest ancestor directory holding a `Cargo.toml` is a named
-    package's. A package no manifest names has none; a root package does not
-    own the directories of the workspace members below it."""
-    paths = git_paths(repo, tip)
-    manifests = [path for path in paths if is_manifest(path)]
-    holders = {posixpath.dirname(path) for path in manifests}
+def member_directories(manifests: Mapping[str, dict]) -> frozenset[str]:
+    """The directories of packages cargo builds apart from the package above
+    them: each workspace member (`members` globs less `exclude`) and each
+    manifest that opens a workspace of its own. A package that is only a path
+    dependency of a workspace root is not named here; its files stay with the
+    package above, which only widens that package's scan."""
+    found: set[str] = set()
+    for path, manifest in manifests.items():
+        table = manifest.get("workspace")
+        if not isinstance(table, dict):
+            continue
+        root = posixpath.dirname(path)
+        prefix = f"{root}/" if root else ""
+        inside = [other.removeprefix(prefix) for other in manifests if other.startswith(prefix)]
+        excluded = [entry for entry in table.get("exclude", []) if isinstance(entry, str)]
+        found.add(root)
+        members = [member for member in table.get("members", []) if isinstance(member, str)]
+        named = [name for member in members for name in member_manifests(member, inside)]
+        for manifest_path in named:
+            directory = posixpath.dirname(manifest_path)
+            if not any(is_excluded(directory, entry) for entry in excluded):
+                found.add("/".join(filter(None, [root, directory])))
+    return frozenset(found)
+
+
+def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], dict[str, str]]:
+    """The tracked files the named packages compile, and why any could not be
+    read: (paths, error by path).
+
+    A package compiles the files its crate targets' module trees reach
+    (`compiled_files`), whatever their extension or directory, and the scan
+    adds every tracked `.rs` file under the package directory that no other
+    workspace member's directory contains: a file no `mod` reaches can still
+    be compiled by a macro the walk does not read. A manifest that declares no
+    package, or is not a member, fences nothing off. A package no manifest
+    names has no files.
+    """
+    manifests = tip.manifests[0]
+    members = member_directories(manifests)
     wanted = frozenset(packages)
-    owned = {directory for name, directory in package_directories(repo, tip, manifests)
-             if name in wanted}
-
-    def owner(path: str) -> str:
+    files: set[str] = set()
+    errors: dict[str, str] = {}
+    for path, manifest in manifests.items():
+        if package_name(manifest) not in wanted:
+            continue
         directory = posixpath.dirname(path)
-        while directory and directory not in holders:
-            directory = posixpath.dirname(directory)
-        return directory
-
-    return [path for path in paths if path.endswith(".rs") and owner(path) in owned]
-
-
-def target_roots(manifest: dict, directory: str, tree: Collection[str]) -> list[str]:
-    """The crate-root files of one package: library, build script, bins, tests,
-    examples and benches that exist among the tracked paths `tree`.
-
-    Specification: the Cargo Book, "Target auto-discovery" in
-    https://doc.rust-lang.org/cargo/reference/cargo-targets.html and
-    https://doc.rust-lang.org/cargo/guide/project-layout.html. The defaults
-    are `src/lib.rs`, `build.rs`, `src/main.rs`, and in `src/bin`, `tests`,
-    `examples` and `benches` each `<name>.rs` and each `<name>/main.rs`; the
-    `autolib`, `autobins`, `autotests`, `autoexamples` and `autobenches` keys
-    switch the discovery off, and `[lib]`, `[[bin]]`, `[[test]]`, `[[example]]`
-    and `[[bench]]` add targets, a missing `path` being inferred from the name.
-    The build script is a root: clippy-driver wraps every rustc call of a
-    workspace package, the script's included (recalled, not run here).
-    """
-    prefix = f"{directory}/" if directory else ""
-    package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
-    lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
-    own = {path.removeprefix(prefix) for path in tree if path.startswith(prefix)}
-    found = []
-    if "lib" in manifest or package.get("autolib", True) is not False:
-        found.append(lib["path"] if isinstance(lib.get("path"), str) else "src/lib.rs")
-    if package.get("build", True) is not False:
-        found.append(package["build"] if isinstance(package.get("build"), str) else "build.rs")
-    for key, folder, auto in (("bin", "src/bin", "autobins"), ("test", "tests", "autotests"),
-                              ("example", "examples", "autoexamples"),
-                              ("bench", "benches", "autobenches")):
-        entries = manifest.get(key)
-        for entry in entries if isinstance(entries, list) else []:
-            if not isinstance(entry, dict):
-                continue
-            name = entry.get("name")
-            if isinstance(entry.get("path"), str):
-                found.append(entry["path"])
-            elif isinstance(name, str):
-                found += [f"{folder}/{name}.rs", f"{folder}/{name}/main.rs"]
-                if key == "bin" and name == package.get("name"):
-                    found.append("src/main.rs")
-        if package.get(auto, True) is not False:
-            if key == "bin":
-                found.append("src/main.rs")
-            found += [path for path in own
-                      if re.fullmatch(rf"{folder}/([^/]+|[^/]+/main)\.rs", path)]
-    roots = dict.fromkeys(prefix + posixpath.normpath(path) for path in found)
-    return [path for path in roots if path in tree]
+        prefix = f"{directory}/" if directory else ""
+        for root in target_roots(manifest, directory, tip.index):
+            reached, unreadable = compiled_files(tip.index, tip.read, root)
+            files |= reached
+            errors |= unreadable
+        nested = tuple(f"{member}/" for member in members
+                       if member and member != directory and f"{member}/".startswith(prefix))
+        files |= {file for file in tip.paths
+                  if file.endswith(".rs") and file.startswith(prefix)
+                  and not file.startswith(nested)}
+    return files, errors
 
 
-@dataclass(frozen=True)
-class Mount:
-    """A `mod name;` declaration and where it sits: the directory components of
-    the inline modules around it, its `#[path]` values, and the values under
-    `cfg_attr`, whose predicate is not evaluated."""
-
-    name: str
-    inline: tuple[str, ...]
-    paths: tuple[str, ...]
-    conditional: tuple[str, ...]
-
-
-def attribute_paths(tokens: list[tuple[str, str]], head: str) -> tuple[list[str], list[str]]:
-    """The `path = "..."` values one outer attribute sets: (`#[path]`, `cfg_attr`)."""
-    found = [literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
-             if tokens[index] == ("word", "path") and tokens[index + 1] == ("punct", "=")
-             and tokens[index + 2][0] == "string"]
-    return (found, []) if head == "path" else ([], found) if head == "cfg_attr" else ([], [])
-
-
-def mod_declarations(text: str) -> list[Mount]:
-    """The `mod name;` declarations of one file, read from its token stream.
-
-    An inline `mod name { ... }` opens a directory component, its `#[path]`
-    value when it has one; any other brace opens none. A `mod` in a macro
-    body or one a macro writes is not seen.
-    """
-    tokens = lex(text)
-    starts = {start: (end, inner, head) for start, end, inner, head in attributes(tokens)}
-    found: list[Mount] = []
-    inline: list[str | None] = []
-    plain: list[str] = []
-    conditional: list[str] = []
-    index = 0
-    while index < len(tokens):
-        if index in starts:
-            end, inner, head = starts[index]
-            if not inner:
-                paths, conditions = attribute_paths(tokens[index:end], head)
-                plain, conditional = plain + paths, conditional + conditions
-            index = end
-            continue
-        kind, word = tokens[index]
-        after = tokens[index + 1:index + 3]
-        if ((kind, word) == ("word", "mod") and len(after) == 2 and after[0][0] == "word"
-                and after[1] in (("punct", ";"), ("punct", "{"))):
-            name = after[0][1].removeprefix("r#")
-            if after[1][1] == ";":
-                found.append(Mount(name, tuple(d for d in inline if d), tuple(plain),
-                                   tuple(conditional)))
-            else:
-                inline.append(plain[0] if plain else name)
-            plain, conditional, index = [], [], index + 3
-            continue
-        if kind == "punct" and word in "{};":
-            if word == "{":
-                inline.append(None)
-            elif word == "}" and inline:
-                inline.pop()
-            plain, conditional = [], []
-        index += 1
-    return found
-
-
-def compiled_files(read: Callable[[str], str | None], root: str) -> set[str]:
-    """The files the crate root `root` compiles: its own and every module it
-    loads, found by resolving `mod` declarations as rustc does.
-
-    Specification: the Rust Reference, "Module source filenames" and "The
-    path attribute" in https://doc.rust-lang.org/reference/items/modules.html.
-    `mod name;` loads `name.rs` or `name/mod.rs` from the file's module
-    directory: the directory of a crate root and of `mod.rs`, and
-    `<dir>/<stem>` for any other file; each enclosing inline module adds a
-    component. `#[path]` on a `mod` outside inline modules is relative to the
-    declaring file's directory, inside them to the module directory, and an
-    inline module's own `#[path]` replaces its name. The Reference is silent
-    on the children of a file loaded through `#[path]`: they resolve beside
-    it, as a `mod.rs`'s do (rustc 1.97.0, `--emit=dep-info`). Not followed:
-    `include!`, a `mod` a macro writes, and a `cfg_attr` predicate's value, so
-    both of its outcomes are.
-    """
-    seen: set[tuple[str, str]] = set()
-    pending = [(root, posixpath.dirname(root))]
-    while pending:
-        file, base = pending.pop()
-        text = read(file)
-        if text is None or (file, base) in seen:
-            continue
-        seen.add((file, base))
-        try:
-            mounts = mod_declarations(text)
-        except ValueError as error:
-            raise ValueError(f"{file}: {error}") from error
-        for mount in mounts:
-            directory = posixpath.join(base, *mount.inline)
-            relative = directory if mount.inline else posixpath.dirname(file)
-            for target in (*mount.paths, *mount.conditional):
-                path = posixpath.normpath(posixpath.join(relative, target))
-                pending.append((path, posixpath.dirname(path)))
-            if not mount.paths:
-                module = posixpath.join(directory, mount.name)
-                pending += [(f"{module}.rs", module), (f"{module}/mod.rs", module)]
-    return {file for file, _ in seen}
-
-
-def cfg_clippy_problems(repo: pathlib.Path, tip: str,
-                        packages: Iterable[str]) -> list[str]:
+def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
     """One problem per `cfg` predicate naming `clippy` in a pushed package.
 
-    The scan covers the package's tracked `.rs` files and no other text. A
-    file holds such a predicate only if the word `clippy` occurs in it, so
-    `git grep` for the word narrows the files the lexer reads; the lexer then
-    decides whether a hit is code and whether the predicate -- not a
-    `cfg_attr` body -- names `clippy`. A file that names `clippy` and does not
-    lex is refused, since its predicates cannot be read.
+    The scan covers the files the package compiles (`package_sources`) and no
+    other text. A file holds such a predicate only if the word `clippy` occurs
+    in it, and the lexer then decides whether a hit is code and whether the
+    predicate -- not a `cfg_attr` body -- names `clippy`. A file that cannot be
+    read as Rust is refused: its predicates, and the modules it declares,
+    cannot be read.
     """
-    sources = package_sources(repo, tip, packages)
-    if not sources:
-        return []
-    command = ["git", "-C", str(repo), "grep", "-l", "-z", "-a", "-w", "-F", "clippy",
-               tip, "--", "*.rs"]
-    run = subprocess.run(command, capture_output=True)
-    if run.returncode not in (0, 1):  # 1: no hit, not a failure
-        raise subprocess.CalledProcessError(run.returncode, command, output=run.stdout,
-                                            stderr=run.stderr)
-    named = {entry.removeprefix(f"{tip}:")
-             for entry in run.stdout.decode("utf-8", errors="replace").split("\0")}
-    problems: list[str] = []
-    for path in sorted(named.intersection(sources)):
+    files, unreadable = package_sources(tip, packages)
+    problems = [f"{path}: cannot be read as Rust ({error}), so the gate cannot tell "
+                "whether a `cfg` predicate names `clippy`"
+                for path, error in sorted(unreadable.items())]
+    for path in sorted(files.difference(unreadable)):
+        text = tip.read(path) or ""
+        if not CLIPPY_PREDICATE.search(text):
+            continue
         try:
-            lines = cfg_clippy_lines(git_file(repo, tip, path) or "")
+            lines = cfg_clippy_lines(text)
         except ValueError as error:
             problems.append(
                 f"{path}: cannot be read as Rust ({error}), so the gate cannot tell "
@@ -707,47 +615,6 @@ def cfg_clippy_problems(repo: pathlib.Path, tip: str,
             "and rustc does not, so the gate cannot count the code it guards"
             for line in lines
         ]
-    return problems
-
-
-def second_target_problems(repo: pathlib.Path, tip: str,
-                           cast_modules: Mapping[str, str]) -> list[str]:
-    """One problem per package whose registered cast module (`cast_modules`
-    maps a package to its path) more than one of its crate targets compile.
-
-    `clippy::duplicate_mod` works per crate, and `sites()` merges a span two
-    builds report, so a second target that mounts the module is counted once
-    and linted once.
-    """
-    if not cast_modules:
-        return []
-    paths = git_paths(repo, tip)
-    tree = frozenset(paths)
-
-    @functools.cache
-    def read(path: str) -> str | None:
-        return git_file(repo, tip, path) if path in tree else None
-
-    problems = []
-    for package, directory in package_directories(
-            repo, tip, [path for path in paths if is_manifest(path)]):
-        cast = cast_modules.get(package)
-        if cast is None:
-            continue
-        manifest = tomllib.loads(read(posixpath.join(directory, "Cargo.toml")) or "")
-        try:
-            roots = [root for root in target_roots(manifest, directory, tree)
-                     if cast in compiled_files(read, root)]
-        except ValueError as error:
-            problems.append(f"{package}: {error}, so the gate cannot tell whether "
-                            f"{cast} is compiled by more than one crate target")
-            continue
-        if len(roots) > 1:
-            problems.append(
-                f"{package}: cast module {cast} is compiled by more than one crate "
-                f"target ({', '.join(roots)}); clippy::duplicate_mod cannot see a "
-                "second target"
-            )
     return problems
 
 
@@ -1059,32 +926,118 @@ def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
     return run.stdout.decode("utf-8", errors="replace")
 
 
-def git_paths(repo: pathlib.Path, revision: str) -> list[str]:
-    """Every tracked path at `revision`."""
-    run = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "-z", "--name-only",
-                          revision], capture_output=True, check=True)
-    return [path for path in run.stdout.decode("utf-8", errors="replace").split("\0") if path]
+def path_clean(path: str) -> str:
+    """`path` as rustc finds a file on the Windows host the gate runs on:
+    backslash separators accepted, `.` and `..` components collapsed."""
+    return posixpath.normpath(path.replace("\\", "/"))
+
+
+def path_key(path: str) -> str:
+    """The key a path is looked up under: `path_clean` with case folded, as
+    NTFS compares names. The reading is the Windows one on every host, a safe
+    superset where a Linux checkout holds names that differ only in case; two
+    such tracked paths count as one."""
+    return path_clean(path).casefold()
+
+
+def path_index(paths: Iterable[str]) -> dict[str, str]:
+    """Tracked paths by `path_key`."""
+    return {path_key(path): path for path in paths}
+
+
+class ManifestError(ValueError):
+    """A manifest `tomllib` rejects. Cargo accepts TOML that `tomllib` does not
+    (a multi-line inline table), so the gate cannot tell which package the
+    file declares and must not read the package as absent."""
+
+    def __init__(self, path: str, error: Exception) -> None:
+        super().__init__(f"{path} does not parse as TOML here ({error}), so the gate "
+                         "cannot tell which package it declares")
+        self.path = path
+
+
+class Revision:
+    """The tracked files of one revision. Blobs are read through one `git
+    cat-file --batch` process, started on the first read, so a scan that reads
+    thousands of files pays for one process, not one per file."""
+
+    def __init__(self, repo: pathlib.Path, revision: str) -> None:
+        listing = subprocess.run(
+            ["git", "-C", str(repo), "ls-tree", "-r", "-z", revision],
+            capture_output=True, check=True).stdout.decode("utf-8", errors="replace")
+        self.repo = repo
+        self.blobs: dict[str, str] = {}
+        for entry in listing.split("\0"):
+            fields, _, path = entry.partition("\t")
+            if path and fields.split()[1] == "blob":  # a gitlink is a commit
+                self.blobs[path] = fields.split()[2]
+        self.paths = list(self.blobs)
+        self._texts: dict[str, str] = {}
+        self._reader: subprocess.Popen[bytes] | None = None
+
+    def __enter__(self) -> Revision:
+        return self
+
+    def __exit__(self, *exception: object) -> None:
+        reader = self._reader
+        if reader is not None:
+            assert reader.stdin is not None and reader.stdout is not None
+            reader.stdin.close()
+            reader.wait()
+            reader.stdout.close()
+
+    def read(self, path: str) -> str | None:
+        """The text of `path`, or None when the revision tracks no such file."""
+        oid = self.blobs.get(path)
+        if oid is None:
+            return None
+        if path not in self._texts:
+            if self._reader is None:
+                self._reader = subprocess.Popen(
+                    ["git", "-C", str(self.repo), "cat-file", "--batch"],
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            reader = self._reader
+            assert reader.stdin is not None and reader.stdout is not None
+            reader.stdin.write(f"{oid}\n".encode())
+            reader.stdin.flush()
+            size = int(reader.stdout.readline().split()[2])
+            self._texts[path] = reader.stdout.read(size + 1)[:size].decode(
+                "utf-8", errors="replace")
+        return self._texts[path]
+
+    @functools.cached_property
+    def index(self) -> dict[str, str]:
+        """The tracked paths by `path_index` key."""
+        return path_index(self.paths)
+
+    @functools.cached_property
+    def manifests(self) -> tuple[dict[str, dict], dict[str, ManifestError]]:
+        """Every tracked manifest as (parsed by path, refused by path)."""
+        parsed: dict[str, dict] = {}
+        refused: dict[str, ManifestError] = {}
+        for path in self.paths:
+            if is_manifest(path):
+                try:
+                    parsed[path] = self.manifest_at(path) or {}
+                except ManifestError as error:
+                    refused[path] = error
+        return parsed, refused
+
+    def manifest_at(self, path: str) -> dict | None:
+        """The parsed manifest at `path`; None when none is tracked there; an
+        unparseable one raises `ManifestError`."""
+        text = self.read(path)
+        if text is None:
+            return None
+        try:
+            return tomllib.loads(text)
+        except tomllib.TOMLDecodeError as error:
+            raise ManifestError(path, error) from error
 
 
 def is_manifest(path: str) -> bool:
     """Whether `path` is a `Cargo.toml`."""
     return posixpath.basename(path) == "Cargo.toml"
-
-
-def package_directories(repo: pathlib.Path, revision: str,
-                        manifests: Iterable[str]) -> list[tuple[str, str]]:
-    """The (package, manifest directory) of each manifest at `revision` that
-    parses and declares a package; the root directory is ``""``."""
-    found = []
-    for path in manifests:
-        text = git_file(repo, revision, path)
-        try:
-            name = package_name(tomllib.loads(text)) if text is not None else None
-        except tomllib.TOMLDecodeError:
-            continue
-        if name:
-            found.append((name, posixpath.dirname(path)))
-    return found
 
 
 def package_name(manifest: dict) -> str | None:
@@ -1151,29 +1104,233 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
 
     The root manifest at `base` names the members, and each member manifest
     names its package. A repository that is one package is its own workspace.
+    A manifest `tomllib` rejects raises `ManifestError`.
     """
-    root = git_file(repo, base, "Cargo.toml")
-    if root is None:
-        return frozenset()
-    data = tomllib.loads(root)
-    workspace = data.get("workspace")
-    if not isinstance(workspace, dict):
+    with Revision(repo, base) as tree:
+        data = tree.manifest_at("Cargo.toml")
+        if data is None:
+            return frozenset()
+        workspace = data.get("workspace")
+        if not isinstance(workspace, dict):
+            name = package_name(data)
+            return frozenset({name}) if name else frozenset()
+        packages = set()
         name = package_name(data)
-        return frozenset({name}) if name else frozenset()
-    packages = set()
-    name = package_name(data)
-    if name:
-        packages.add(name)
-    excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
-    manifests = [path for path in git_paths(repo, base) if is_manifest(path)]
-    for member in workspace.get("members", []):
-        if not isinstance(member, str):
+        if name:
+            packages.add(name)
+        excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
+        manifests = [path for path in tree.paths if is_manifest(path)]
+        for member in workspace.get("members", []):
+            if not isinstance(member, str):
+                continue
+            for manifest in member_manifests(member, manifests):
+                directory = posixpath.dirname(manifest)
+                if any(is_excluded(directory, entry) for entry in excluded):
+                    continue
+                name = package_name(tree.manifest_at(manifest) or {})
+                if name:
+                    packages.add(name)
+        return frozenset(packages)
+
+
+def target_roots(manifest: dict, directory: str, index: Mapping[str, str]) -> list[str]:
+    """The crate-root files of one package: library, build script, bins, tests,
+    examples and benches that exist among the tracked paths `index` (`path_index`).
+
+    Specification: the Cargo Book, "Target auto-discovery" in
+    https://doc.rust-lang.org/cargo/reference/cargo-targets.html and
+    https://doc.rust-lang.org/cargo/guide/project-layout.html. The defaults
+    are `src/lib.rs`, `build.rs`, `src/main.rs`, and in `src/bin`, `tests`,
+    `examples` and `benches` each `<name>.rs` and each `<name>/main.rs`; the
+    `autolib`, `autobins`, `autotests`, `autoexamples` and `autobenches` keys
+    switch the discovery off, and `[lib]`, `[[bin]]`, `[[test]]`, `[[example]]`
+    and `[[bench]]` add targets, a missing `path` being inferred from the name.
+    The build script is a root: clippy-driver wraps every rustc call of a
+    workspace package, the script's included (recalled, not run here).
+    """
+    prefix = f"{directory}/" if directory else ""
+    package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
+    lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
+    own = {path.removeprefix(prefix) for path in index.values() if path.startswith(prefix)}
+    found = []
+    if "lib" in manifest or package.get("autolib", True) is not False:
+        found.append(lib["path"] if isinstance(lib.get("path"), str) else "src/lib.rs")
+    if package.get("build", True) is not False:
+        found.append(package["build"] if isinstance(package.get("build"), str) else "build.rs")
+    for key, folder, auto in (("bin", "src/bin", "autobins"), ("test", "tests", "autotests"),
+                              ("example", "examples", "autoexamples"),
+                              ("bench", "benches", "autobenches")):
+        entries = manifest.get(key)
+        for entry in entries if isinstance(entries, list) else []:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if isinstance(entry.get("path"), str):
+                found.append(entry["path"])
+            elif isinstance(name, str):
+                found += [f"{folder}/{name}.rs", f"{folder}/{name}/main.rs"]
+                if key == "bin" and name == package.get("name"):
+                    found.append("src/main.rs")
+        if package.get(auto, True) is not False:
+            if key == "bin":
+                found.append("src/main.rs")
+            found += [path for path in own
+                      if re.fullmatch(rf"{folder}/([^/]+|[^/]+/main)\.rs", path)]
+    keys = dict.fromkeys(path_key(prefix + path) for path in found)
+    return [index[key] for key in keys if key in index]
+
+
+@dataclass(frozen=True)
+class Module:
+    """A `mod` item as written: its name, its `#[path]` values, and the values
+    under `cfg_attr`, whose predicate is not evaluated."""
+
+    name: str
+    paths: tuple[str, ...] = ()
+    conditional: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Mount:
+    """A `mod name;` declaration and the inline modules around it, outermost first."""
+
+    module: Module
+    enclosing: tuple[Module, ...]
+
+
+def attribute_paths(tokens: list[tuple[str, str]], head: str) -> tuple[list[str], list[str]]:
+    """The `path = "..."` values one outer attribute sets: (`#[path]`, `cfg_attr`)."""
+    found = [literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
+             if tokens[index] == ("word", "path") and tokens[index + 1] == ("punct", "=")
+             and tokens[index + 2][0] == "string"]
+    return (found, []) if head == "path" else ([], found) if head == "cfg_attr" else ([], [])
+
+
+@functools.cache
+def mod_declarations(text: str) -> tuple[tuple[Mount, ...], tuple[str, ...]]:
+    """The `mod name;` declarations and the `include!("path")` literals of one
+    file, read from its token stream.
+
+    An inline `mod name { ... }` is an enclosing module of what it holds; any
+    other brace is none. A `mod` the tokens show is seen wherever it stands,
+    macro body included, and a `mod` a macro writes from `$` is not.
+    """
+    tokens = lex(text)
+    starts = {start: (end, inner, head) for start, end, inner, head in attributes(tokens)}
+    found: list[Mount] = []
+    included: list[str] = []
+    inline: list[Module | None] = []
+    plain: list[str] = []
+    conditional: list[str] = []
+    index = 0
+    while index < len(tokens):
+        if index in starts:
+            end, inner, head = starts[index]
+            if not inner:
+                paths, conditions = attribute_paths(tokens[index:end], head)
+                plain, conditional = plain + paths, conditional + conditions
+            index = end
             continue
-        for name, directory in package_directories(
-                repo, base, member_manifests(member, manifests)):
-            if not any(is_excluded(directory, entry) for entry in excluded):
-                packages.add(name)
-    return frozenset(packages)
+        kind, word = tokens[index]
+        after = tokens[index + 1:index + 4]
+        if ((kind, word) == ("word", "include") and len(after) == 3 and after[0] == ("punct", "!")
+                and after[1] in (("punct", "("), ("punct", "["), ("punct", "{"))
+                and after[2][0] == "string"):
+            included.append(literal(after[2][1]))
+            index += 4
+            continue
+        if ((kind, word) == ("word", "mod") and len(after) >= 2 and after[0][0] == "word"
+                and after[1] in (("punct", ";"), ("punct", "{"))):
+            module = Module(after[0][1].removeprefix("r#"), tuple(plain), tuple(conditional))
+            if after[1][1] == ";":
+                found.append(Mount(module, tuple(m for m in inline if m)))
+            else:
+                inline.append(module)
+            plain, conditional, index = [], [], index + 3
+            continue
+        if kind == "punct" and word in "{};":
+            if word == "{":
+                inline.append(None)
+            elif word == "}" and inline:
+                inline.pop()
+            plain, conditional = [], []
+        index += 1
+    return tuple(found), tuple(included)
+
+
+def module_directories(states: set[tuple[str, str | None]],
+                       module: Module) -> set[tuple[str, str | None]]:
+    """The (directory, stem) states inside the inline `module` of each state in
+    `states`: its `#[path]` values joined to the directory, and without one its
+    name after the directory and stem."""
+    found: set[tuple[str, str | None]] = set()
+    for directory, stem in states:
+        found |= {(posixpath.join(directory, path), None)
+                  for path in (*module.paths, *module.conditional)}
+        if not module.paths:
+            found.add((posixpath.join(directory, *filter(None, [stem]), module.name), None))
+    return found
+
+
+def compiled_files(index: Mapping[str, str], read: Callable[[str], str | None],
+                   root: str) -> tuple[set[str], dict[str, str]]:
+    """The files the crate root `root` compiles, and why any could not be read:
+    (tracked paths, error by path). `index` is `path_index` of the tracked
+    paths and `read` yields a tracked file's text.
+
+    Specification: the Rust Reference, "Module source filenames" and "The
+    path attribute" in https://doc.rust-lang.org/reference/items/modules.html,
+    and rustc 1.97.0 `--emit=dep-info` where the Reference is silent. A module
+    has a directory and, for a file that is not `mod.rs`, a stem: `mod name;`
+    loads `<directory>/<stem>/name.rs` or `.../name/mod.rs`, and each inline
+    module adds a component. `#[path]` on `mod name;` is joined to the
+    directory without the stem, and an inline module's own `#[path]` replaces
+    its component, joined likewise (`#[path = "num"] mod m { mod cast; }`
+    in `src/a.rs` loads `src/num/cast.rs`). A file loaded through `#[path]` or
+    `include!("literal")`, the latter relative to the file holding the call,
+    resolves its children beside itself. A `cfg_attr` path counts as both
+    outcomes, since its predicate is not evaluated. Each candidate is
+    normalised and matched as `path_index` reads names. Not followed: a `mod`
+    a macro writes, and `include!` of anything but a literal.
+    """
+    files: set[str] = set()
+    errors: dict[str, str] = {}
+    seen: set[tuple[str, str, str | None]] = set()
+    pending: list[tuple[str, str, str | None]] = [(root, posixpath.dirname(root), None)]
+    while pending:
+        file, directory, stem = pending.pop()
+        file = path_clean(file)
+        if (path_key(file), directory, stem) in seen:
+            continue
+        seen.add((path_key(file), directory, stem))
+        real = index.get(path_key(file))
+        text = None if real is None else read(real)
+        if real is None or text is None:
+            continue
+        files.add(real)
+        try:
+            mounts, included = mod_declarations(text)
+        except ValueError as error:
+            errors[real] = str(error)
+            continue
+        for literal_path in included:
+            path = path_clean(posixpath.join(posixpath.dirname(file), literal_path))
+            pending.append((path, posixpath.dirname(path), None))
+        for mount in mounts:
+            states = {(directory, stem)}
+            for module in mount.enclosing:
+                states = module_directories(states, module)
+            module = mount.module
+            for here, here_stem in states:
+                for path in (*module.paths, *module.conditional):
+                    path = path_clean(posixpath.join(here, path))
+                    pending.append((path, posixpath.dirname(path), None))
+                if not module.paths:
+                    base = posixpath.join(here, *filter(None, [here_stem]))
+                    pending += [(posixpath.join(base, f"{module.name}.rs"), base, module.name),
+                                (posixpath.join(base, module.name, "mod.rs"),
+                                 posixpath.join(base, module.name), None)]
+    return files, errors
 
 
 def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
@@ -1582,7 +1739,12 @@ def check(args: argparse.Namespace) -> int:
         base |= read_sites(pathlib.Path(path))
     repo = pathlib.Path(args.repo)
     added = pushed_additions(repo, args.base or None, args.tip)
-    held = held_to_base(repo, args.base, args.base_package, base)
+    problems = []
+    try:
+        held = held_to_base(repo, args.base, args.base_package, base)
+    except ManifestError as error:
+        held = frozenset()
+        problems.append(str(error))
     held |= frozenset(args.zero_base_package)
     doubled = {s.package for s in found if not s.line}
     found, base = {s for s in found if s.line}, {s for s in base if s.line}
@@ -1592,13 +1754,11 @@ def check(args: argparse.Namespace) -> int:
         if package in doubled and (fault is None or not fault.endswith(COPIES)):
             fault = f"shares its package with a file clippy finds mounted twice{COPIES}"
         modules[package] = (path, fault)
-    problems = violations(args.member, found, added, args.package, baseline, base,
-                          held, modules)
-    problems += cfg_clippy_problems(repo, args.tip, args.package)
-    # a module that already faults fails the push; reading it again adds only noise
-    problems += second_target_problems(
-        repo, args.tip, {package: path for package, (path, fault) in modules.items()
-                         if path and not fault})
+    problems += violations(args.member, found, added, args.package, baseline, base,
+                           held, modules)
+    with Revision(repo, args.tip) as tip:
+        problems += [str(error) for error in tip.manifests[1].values()]
+        problems += cfg_clippy_problems(tip, args.package)
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:

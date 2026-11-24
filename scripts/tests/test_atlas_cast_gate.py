@@ -2265,8 +2265,11 @@ HOLDS = "holds {} inner `#![expect(...)]` attributes, not one"
 ])
 def test_a_cast_module_opens_with_one_expect_naming_cast_lints(tmp_path, capsys, text, fault):
     found = (site("prof", MODULE, 1, 1),)  # line 1 is added in every shape
+    unread = ([f"{MODULE}: cannot be read as Rust (an unclosed attribute), so the gate cannot "
+               "tell whether a `cfg` predicate names `clippy`"]
+              if "an unclosed attribute" in str(fault) else [])  # the walk reads it as well
     assert cast_module_push(tmp_path, capsys, text, found=found)[1:] == (
-        (0, []) if fault is None else (1, faults(fault, "1:1")))
+        (0, []) if fault is None else (1, faults(fault, "1:1") + unread))
 
 
 # The round-2 judge's witnesses, each with the sites clippy 1.97.0 reports for it.
@@ -2346,6 +2349,198 @@ def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tm
     assert cast_module_push(tmp_path, capsys, module, "#[macro_use]\n" + MOUNT + USES, found,
                             held=False, base_module=module, before={CAST_MODULE_SITE})[1:] == (
         1, faults(MACRO, "11:20", "17:9"))
+
+
+def test_a_revision_reads_every_blob_through_one_process(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    init(repo)
+    big = "pub fn f() {}\r\n" * 20000
+    (repo / "src").mkdir()
+    (repo / "src" / "a b.rs").write_bytes(big.encode())
+    accented = "src/uni\N{LATIN SMALL LETTER E WITH ACUTE}.rs"
+    (repo / accented).write_bytes(b"mod x;\xff\n")
+    tip = commit(repo, "files")
+    started = []
+    real = subprocess.Popen
+    monkeypatch.setattr(gate.subprocess, "Popen",
+                        lambda *args, **kwargs: started.append(args) or real(*args, **kwargs))
+    with gate.Revision(repo, tip) as tree:
+        assert sorted(tree.paths) == ["src/a b.rs", accented]
+        assert tree.read("src/a b.rs") == big
+        assert tree.read(accented) == "mod x;\N{REPLACEMENT CHARACTER}\n"
+        assert tree.read("src/absent.rs") is None
+    readers = [command[0] for command in started if "cat-file" in command[0]]
+    assert len(readers) == 1
+
+
+MULTILINE_TABLE = 'metadata = {\n  note = "x",\n}\n'  # cargo parses it; tomllib does not
+MEMBER_MANIFEST = '[package]\nname = "p"\nversion = "0.1.0"\n'
+
+
+def test_a_manifest_tomllib_rejects_names_its_path_and_error(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/p"]\n')
+    (repo / "crates" / "p").mkdir(parents=True)
+    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST + MULTILINE_TABLE)
+    base = commit(repo, "base")
+    message = r"crates/p/Cargo\.toml does not parse as TOML here \("
+    with pytest.raises(gate.ManifestError, match=message):
+        gate.base_workspace_packages(repo, base)
+
+
+def test_a_base_manifest_only_cargo_parses_refuses_the_push(tmp_path, capsys):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/p"]\n')
+    (repo / "crates" / "p" / "src").mkdir(parents=True)
+    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST + MULTILINE_TABLE)
+    (repo / "crates" / "p" / "src" / "lib.rs").write_text("pub fn f() {}\n")
+    base = commit(repo, "base")
+    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST)
+    tip = commit(repo, "the manifest becomes TOML 1.0")
+    rules = tmp_path / "rules.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"p": 0}}}')
+    sites = tmp_path / "sites.json"
+    sites.write_text("[]")
+    assert gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--package", "p", "--sites", str(sites),
+                      "--base-package", "p"]) == 1
+    assert "cast gate: crates/p/Cargo.toml does not parse as TOML here" in capsys.readouterr().err
+
+
+ROOT_TREE = frozenset({
+    "Cargo.toml", "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs",
+    "src/bin/multi/main.rs", "src/bin/multi/util.rs", "src/bin/deep/er/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "tests/m/helper.rs", "tests/n/o/main.rs",
+    "examples/e.rs", "examples/e2/main.rs", "benches/b.rs", "benches/b2/main.rs",
+    "alt/lib.rs", "alt/x.rs", "scripts/b.rs",
+})
+DEFAULT_ROOTS = {
+    "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "examples/e.rs", "examples/e2/main.rs",
+    "benches/b.rs", "benches/b2/main.rs",
+}
+AUTO_OFF = {"src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs", "tests/a.rs",
+            "tests/m/main.rs"}
+
+
+@pytest.mark.parametrize("manifest, expected", [
+    ({}, DEFAULT_ROOTS),
+    ({"package": {"autobins": False, "autotests": False}}, DEFAULT_ROOTS - AUTO_OFF),
+    ({"package": {"autolib": False}}, DEFAULT_ROOTS - {"src/lib.rs"}),
+    ({"package": {"autolib": False}, "lib": {}}, DEFAULT_ROOTS),
+    ({"lib": {"path": "alt/lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+    ({"package": {"autotests": False}, "test": [{"name": "x", "path": "alt/x.rs"}]},
+     DEFAULT_ROOTS - {"tests/a.rs", "tests/m/main.rs"} | {"alt/x.rs"}),
+    ({"package": {"name": "p", "autobins": False}, "bin": [{"name": "p"}, {"name": "tool"}]},
+     DEFAULT_ROOTS - {"src/bin/multi/main.rs"}),
+    ({"package": {"build": False}}, DEFAULT_ROOTS - {"build.rs"}),
+    ({"package": {"build": "scripts/b.rs"}}, DEFAULT_ROOTS - {"build.rs"} | {"scripts/b.rs"}),
+    ({"lib": {"path": "alt\\lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+    ({"lib": {"path": "ALT/Lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+])
+def test_target_roots_follow_cargo_discovery_and_the_manifest(manifest, expected):
+    assert set(gate.target_roots(manifest, "", gate.path_index(ROOT_TREE))) == expected
+    nested = frozenset(f"pkg/{path}" for path in ROOT_TREE)
+    assert set(gate.target_roots(manifest, "pkg", gate.path_index(nested))) == {
+        f"pkg/{p}" for p in expected}
+
+
+def walk(root, files):
+    return gate.compiled_files(gate.path_index(files), files.get, root)
+
+
+@pytest.mark.parametrize("root, files, expected", [
+    ("src/lib.rs", {"src/lib.rs": "pub(crate) mod util;", "src/util.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod util;", "src/util/mod.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util/mod.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": '#[path = "foo.rs"]\nmod c;', "src/a/foo.rs": "",
+                    "src/a/b/foo.rs": ""}, {"src/a/mod.rs", "src/a/b.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": '#[path = "foo.rs"] mod c;',
+                    "src/a/foo.rs": ""}, {"src/a/mod.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": 'mod inline {\n    #[path = "other.rs"]\n    mod inner;\n}',
+                    "src/a/b/inline/other.rs": ""},
+     {"src/a/mod.rs", "src/a/b.rs", "src/a/b/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs":
+                    'mod inline { #[path = "other.rs"] mod inner; }',
+                    "src/a/inline/other.rs": ""}, {"src/a/mod.rs", "src/a/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "thread_files"]\nmod thread {\n'
+                    '    #[path = "tls.rs"]\n    mod local_data;\n}',
+                    "src/thread_files/tls.rs": ""}, {"src/thread_files/tls.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "x/y.rs"] mod y;', "src/x/y.rs": "mod z;",
+                    "src/x/z.rs": "", "src/x/y/z.rs": ""}, {"src/x/y.rs", "src/x/z.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod r#cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(unix, path = "a.rs")]\nmod m;', "src/a.rs": "",
+                    "src/m.rs": ""}, {"src/a.rs", "src/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '// mod cast;\n/* mod cast; */\nconst S: &str = "mod cast;";',
+                    "src/cast.rs": ""}, set()),
+    ("src/lib.rs", {"src/lib.rs": "mod cli { pub mod cast; }", "src/cli/cast.rs": "",
+                    "src/cast.rs": ""}, {"src/cli/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "lib.rs"]\nmod me;'}, set()),
+    ("tests/x.rs", {"tests/x.rs": "mod cast;", "tests/cast/mod.rs": "", "src/cast.rs": ""},
+     {"tests/cast/mod.rs"}),
+    # an inline module's `#[path]` is joined to the directory, not to the stem's
+    ("src/lib.rs", {"src/lib.rs": '#[path = "."] mod m { mod cast; }', "src/cast.rs": "",
+                    "src/m/cast.rs": ""}, {"src/cast.rs"}),
+    ("tests/x.rs", {"tests/x.rs": '#[path = "../src"] mod shared { mod cast; }',
+                    "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(all(), path = ".")] mod m { mod cast; }',
+                    "src/cast.rs": "", "src/m/cast.rs": ""}, {"src/cast.rs", "src/m/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a.rs": '#[path = "num"] mod m { mod cast; }',
+                    "src/num/cast.rs": "", "src/a/num/cast.rs": ""},
+     {"src/a.rs", "src/num/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;",
+                    "src/a.rs": 'mod x { #[path = "p"] mod y { mod cast; } }',
+                    "src/a/x/p/cast.rs": "", "src/x/p/cast.rs": "", "src/a/p/cast.rs": ""},
+     {"src/a.rs", "src/a/x/p/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;",
+                    "src/a.rs": '#[path = "num"] mod m { #[path = "q.rs"] mod z; }',
+                    "src/num/q.rs": "", "src/a/num/q.rs": ""}, {"src/a.rs", "src/num/q.rs"}),
+    # `#[path]` loads a file of any extension, and `include!("literal")` one beside its caller
+    ("src/lib.rs", {"src/lib.rs": '#[path = "hidden.inc"] mod hidden;', "src/hidden.inc": ""},
+     {"src/hidden.inc"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!("hidden.in");', "src/hidden.in": ""},
+     {"src/hidden.in"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!("sub/inc.in");', "src/sub/inc.in": "mod m;",
+                    "src/sub/m.rs": "", "src/m.rs": ""}, {"src/sub/inc.in", "src/sub/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a.rs": 'include!("inc.in");',
+                    "src/inc.in": "mod m;", "src/m.rs": "", "src/a/m.rs": ""},
+     {"src/a.rs", "src/inc.in", "src/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!(concat!("hid", "den.in"));', "src/hidden.in": ""},
+     set()),
+    # candidates are normalised before the lookup, and matched as the Windows host does
+    ("tests/x/main.rs", {"tests/x/main.rs": '#[path = r"..\\..\\src\\cast.rs"]\nmod cast;',
+                         "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/main.rs", {"src/main.rs": '#[path = "CAST.rs"] mod c;', "src/cast.rs": ""},
+     {"src/cast.rs"}),
+    ("src/main.rs", {"src/main.rs": "mod Cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+])
+def test_modules_resolve_as_the_rust_reference_and_rustc_load_them(root, files, expected):
+    assert walk(root, files) == ({root, *expected}, {})
+
+
+def test_a_reached_file_that_does_not_lex_is_reported_with_its_path():
+    files = {"src/lib.rs": "mod a;\nmod b;", "src/a.rs": "/* open", "src/b.rs": ""}
+    assert walk("src/lib.rs", files) == (
+        {"src/lib.rs", "src/a.rs", "src/b.rs"}, {"src/a.rs": "an unclosed block comment"})
+
+
+def test_a_path_cycle_that_respells_its_directory_is_walked_once():
+    files = {"src/lib.rs": '#[path = "../src/lib.rs"]\nmod me;'}
+    reads: list[str] = []
+
+    def read(path):
+        reads.append(path)
+        assert len(reads) < 10, "the walk revisits one state under a longer spelling"
+        return files.get(path)
+
+    assert gate.compiled_files(gate.path_index(files), read, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+    assert reads == ["src/lib.rs"]
 
 
 def test_a_cfg_predicate_naming_clippy_is_found_by_line():
@@ -2442,9 +2637,21 @@ def test_a_package_without_a_clippy_predicate_still_passes(tmp_path, capsys):
     ('#[cfg(feature = "clippy")] fn h() {}\n', []),
     ("/* #[cfg(clippy)] /* nested */ */ fn h() {}\n", []),
     ("#[cfg(\n    not(test)\n)]\nfn h() { let _ = clippy; }\n", []),
+    # a `cfg_select!` arm head is a predicate; its body is not
+    ("cfg_select! {\n    not(clippy) => { fn h() {} }\n    _ => {}\n}\n", [2]),
+    ('cfg_select! { feature = "x" => {}, clippy => {}, _ => {} }\n', [1]),
+    ("cfg_select!(unix => fn a() {}, all(unix, not(clippy)) => fn b() {}, _ => fn c() {})\n", [1]),
+    ("cfg_select! { unix => { let _ = clippy; } _ => match x { clippy => 1 } }\n", []),
+    ("cfg_select! { unix => {}\n    // clippy => {}\n    _ => {} }\n", []),
 ])
 def test_a_cfg_predicate_is_read_across_lines_and_whole_words(source, lines):
     assert gate.cfg_clippy_lines(source) == lines
+
+
+def test_a_predicate_that_does_not_close_cannot_be_read():
+    for source in ("#[cfg(not(clippy)\nfn h() {}\n", "cfg_select! { not(clippy) => {}\n"):
+        with pytest.raises(ValueError, match="an unclosed bracket"):
+            gate.cfg_clippy_lines(source)
 
 
 @pytest.mark.parametrize("lib", [
@@ -2481,169 +2688,90 @@ def test_a_rust_file_naming_clippy_that_does_not_lex_is_refused(tmp_path, capsys
     assert "src/bad.rs: cannot be read as Rust (an unclosed block comment)" in err
 
 
-def test_the_scan_covers_the_named_package_directory_alone(tmp_path, capsys):
-    repo, base, tip, rules, sites = _hidden_cast_repo(
-        tmp_path, "pub fn fine() {}\n",
-        {"member/Cargo.toml": '[package]\nname = "other"\nversion = "0.1.0"\n',
-         "member/src/lib.rs": "#[cfg(not(clippy))] fn h() {}\n"})
-    assert _check_hidden(repo, base, tip, rules, sites) == 0
-    assert _check_hidden(repo, base, tip, rules, sites, package="nosuch") == 0
-    assert _check_hidden(repo, base, tip, rules, sites, package="other") == 1
-    assert "member/src/lib.rs:1" in capsys.readouterr().err
+HID = "#[cfg(not(clippy))] pub fn h(x: u32) -> u64 { x as u64 }\n"
+FINE = "pub fn fine() {}\n"
 
 
-ROOT_TREE = frozenset({
-    "Cargo.toml", "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs",
-    "src/bin/multi/main.rs", "src/bin/multi/util.rs", "src/bin/deep/er/main.rs",
-    "tests/a.rs", "tests/m/main.rs", "tests/m/helper.rs", "tests/n/o/main.rs",
-    "examples/e.rs", "examples/e2/main.rs", "benches/b.rs", "benches/b2/main.rs",
-    "alt/lib.rs", "alt/x.rs", "scripts/b.rs",
-})
-DEFAULT_ROOTS = {
-    "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs",
-    "tests/a.rs", "tests/m/main.rs", "examples/e.rs", "examples/e2/main.rs",
-    "benches/b.rs", "benches/b2/main.rs",
-}
-AUTO_OFF = {"src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs", "tests/a.rs",
-            "tests/m/main.rs"}
+def _scan(tmp_path, capsys, lib, extra=None, package="hidden"):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, lib, extra)
+    return _check_hidden(repo, base, tip, rules, sites, package=package), capsys.readouterr().err
 
 
-@pytest.mark.parametrize("manifest, expected", [
-    ({}, DEFAULT_ROOTS),
-    ({"package": {"autobins": False, "autotests": False}}, DEFAULT_ROOTS - AUTO_OFF),
-    ({"package": {"autolib": False}}, DEFAULT_ROOTS - {"src/lib.rs"}),
-    ({"package": {"autolib": False}, "lib": {}}, DEFAULT_ROOTS),
-    ({"lib": {"path": "alt/lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
-    ({"package": {"autotests": False}, "test": [{"name": "x", "path": "alt/x.rs"}]},
-     DEFAULT_ROOTS - {"tests/a.rs", "tests/m/main.rs"} | {"alt/x.rs"}),
-    ({"package": {"name": "p", "autobins": False}, "bin": [{"name": "p"}, {"name": "tool"}]},
-     DEFAULT_ROOTS - {"src/bin/multi/main.rs"}),
-    ({"package": {"build": False}}, DEFAULT_ROOTS - {"build.rs"}),
-    ({"package": {"build": "scripts/b.rs"}}, DEFAULT_ROOTS - {"build.rs"} | {"scripts/b.rs"}),
+@pytest.mark.parametrize("lib, extra, where", [
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": ""},
+     "src/hidden/mod.rs:1"),
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": "not = [toml"},
+     "src/hidden/mod.rs:1"),
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml":
+                              '[package]\nname = "decoy"\nversion = "0.1.0"\n'},
+     "src/hidden/mod.rs:1"),
+    (FINE + '#[path = "hidden.inc"] mod hidden;\n', {"src/hidden.inc": HID}, "src/hidden.inc:1"),
+    (FINE + 'include!("hidden.in");\n', {"src/hidden.in": HID}, "src/hidden.in:1"),
+    (FINE + "#[path = \"..\\\\shared\\\\h.rs\"] mod h;\n", {"shared/h.rs": HID},
+     "shared/h.rs:1"),
 ])
-def test_target_roots_follow_cargo_discovery_and_the_manifest(manifest, expected):
-    assert set(gate.target_roots(manifest, "", ROOT_TREE)) == expected
-    nested = frozenset(f"pkg/{path}" for path in ROOT_TREE)
-    assert set(gate.target_roots(manifest, "pkg", nested)) == {f"pkg/{p}" for p in expected}
+def test_the_scan_reads_the_files_the_package_compiles(tmp_path, capsys, lib, extra, where):
+    code, err = _scan(tmp_path, capsys, lib, extra)
+    assert (code, where in err) == (1, True)
 
 
-@pytest.mark.parametrize("root, files, expected", [
-    ("src/lib.rs", {"src/lib.rs": "pub(crate) mod util;", "src/util.rs": "mod config;",
-                    "src/util/config.rs": ""}, {"src/util.rs", "src/util/config.rs"}),
-    ("src/lib.rs", {"src/lib.rs": "mod util;", "src/util/mod.rs": "mod config;",
-                    "src/util/config.rs": ""}, {"src/util/mod.rs", "src/util/config.rs"}),
-    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
-                    "src/a/b.rs": '#[path = "foo.rs"]\nmod c;', "src/a/foo.rs": "",
-                    "src/a/b/foo.rs": ""}, {"src/a/mod.rs", "src/a/b.rs", "src/a/foo.rs"}),
-    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": '#[path = "foo.rs"] mod c;',
-                    "src/a/foo.rs": ""}, {"src/a/mod.rs", "src/a/foo.rs"}),
-    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
-                    "src/a/b.rs": 'mod inline {\n    #[path = "other.rs"]\n    mod inner;\n}',
-                    "src/a/b/inline/other.rs": ""},
-     {"src/a/mod.rs", "src/a/b.rs", "src/a/b/inline/other.rs"}),
-    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs":
-                    'mod inline { #[path = "other.rs"] mod inner; }',
-                    "src/a/inline/other.rs": ""}, {"src/a/mod.rs", "src/a/inline/other.rs"}),
-    ("src/lib.rs", {"src/lib.rs": '#[path = "thread_files"]\nmod thread {\n'
-                    '    #[path = "tls.rs"]\n    mod local_data;\n}',
-                    "src/thread_files/tls.rs": ""}, {"src/thread_files/tls.rs"}),
-    ("src/lib.rs", {"src/lib.rs": '#[path = "x/y.rs"] mod y;', "src/x/y.rs": "mod z;",
-                    "src/x/z.rs": "", "src/x/y/z.rs": ""}, {"src/x/y.rs", "src/x/z.rs"}),
-    ("src/lib.rs", {"src/lib.rs": "mod r#cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
-    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(unix, path = "a.rs")]\nmod m;', "src/a.rs": "",
-                    "src/m.rs": ""}, {"src/a.rs", "src/m.rs"}),
-    ("src/lib.rs", {"src/lib.rs": '// mod cast;\n/* mod cast; */\nconst S: &str = "mod cast;";',
-                    "src/cast.rs": ""}, set()),
-    ("src/lib.rs", {"src/lib.rs": "mod cli { pub mod cast; }", "src/cli/cast.rs": "",
-                    "src/cast.rs": ""}, {"src/cli/cast.rs"}),
-    ("src/lib.rs", {"src/lib.rs": '#[path = "lib.rs"]\nmod me;'}, set()),
-    ("tests/x.rs", {"tests/x.rs": "mod cast;", "tests/cast/mod.rs": "", "src/cast.rs": ""},
-     {"tests/cast/mod.rs"}),
-])
-def test_modules_resolve_as_the_rust_reference_and_rustc_load_them(root, files, expected):
-    assert gate.compiled_files(files.get, root) == {root, *expected}
+def test_a_path_mount_outside_the_package_directory_is_scanned(tmp_path, capsys):
+    code, err = _scan(
+        tmp_path, capsys, FINE,
+        {"Cargo.toml": '[workspace]\nmembers = ["crates/p"]\n',
+         "crates/p/Cargo.toml": '[package]\nname = "p"\nversion = "0.1.0"\n',
+         "crates/p/src/lib.rs": '#[path = "../../../shared/h.rs"]\nmod h;\n',
+         "shared/h.rs": HID}, package="p")
+    assert code == 1
+    assert "shared/h.rs:1: a `cfg` predicate names `clippy`" in err
 
 
-def _cast_target_repo(tmp_path, files, manifest_extra="", cast="src/cast.rs"):
-    repo = tmp_path / "repo"
-    init(repo)
-    (repo / "Cargo.toml").write_bytes(
-        ('[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n'
-         + manifest_extra).encode())
-    for name, text in files.items():
-        path = repo / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(text.encode())
-    tip = commit(repo, "targets")
-    rules = tmp_path / "rules.json"
-    rules.write_text(
-        '{"cast_modules": {"m": {"core": "%s"}}, "counts": {"m": {"core": 0}}}' % cast)
-    sites = tmp_path / "sites.json"
-    sites.write_text("[]")
-    return repo, tip, rules, sites
+def test_a_manifest_only_cargo_parses_fails_the_push_naming_it(tmp_path, capsys):
+    nested = {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": "not = [toml"}
+    code, err = _scan(tmp_path / "nested", capsys, FINE + "mod hidden;\n", nested)
+    assert code == 1
+    assert "cast gate: src/hidden/Cargo.toml does not parse as TOML here" in err
+    root = {"Cargo.toml": HIDDEN_MANIFEST + MULTILINE_TABLE}
+    code, err = _scan(tmp_path / "root", capsys, FINE + HID, root)
+    assert code == 1
+    assert "cast gate: Cargo.toml does not parse as TOML here (" in err
+    code, err = _scan(tmp_path / "control", capsys, FINE + HID, {"Cargo.toml": HIDDEN_MANIFEST})
+    assert (code, "src/lib.rs:2" in err, "does not parse" in err) == (1, True, False)
 
 
-def _check_targets(repo, tip, rules, sites):
-    return gate.main(["--baseline", str(rules), "check", "--member", "m",
-                      "--repo", str(repo), "--tip", tip,
-                      "--package", "core", "--sites", str(sites)])
+def test_a_file_no_mod_reaches_is_scanned_unless_a_workspace_member_holds_it(tmp_path, capsys):
+    stray = {"src/stray/Cargo.toml": '[package]\nname = "decoy"\nversion = "0.1.0"\n',
+             "src/stray/lib.rs": HID}
+    code, err = _scan(tmp_path / "decoy", capsys, FINE, stray)
+    assert (code, "src/stray/lib.rs:1" in err) == (1, True)
+    member = {"Cargo.toml": HIDDEN_MANIFEST + '[workspace]\nmembers = ["src/stray"]\n', **stray}
+    assert _scan(tmp_path / "member", capsys, FINE, member) == (0, "")
+    assert _scan(tmp_path / "other", capsys, FINE, member, package="decoy")[0] == 1
+    assert _scan(tmp_path / "none", capsys, FINE, member, package="nosuch") == (0, "")
 
 
-CAST_FIXTURE = '#![expect(clippy::as_conversions, reason = "fixture")]\npub fn x() {}\n'
-ONE_MOUNT = {"src/cast.rs": CAST_FIXTURE, "src/lib.rs": "mod cast;\npub use cast::x;\n"}
-NUM_MOUNT = {"src/num/cast.rs": CAST_FIXTURE, "src/num.rs": "pub mod cast;\n", "src/lib.rs": "mod num;\n"}
-MAIN_FN = "fn main() {}\n"
-CASES = [
-    ({**ONE_MOUNT, "tests/x/main.rs": '#[path = "../../src/cast.rs"]\nmod cast;\n'}, "src/cast.rs", True),
-    ({**ONE_MOUNT, "examples/x/main.rs": '#[path = "../../src/cast.rs"]\nmod cast;\n' + MAIN_FN},
-     "src/cast.rs", True),
-    ({**ONE_MOUNT, "benches/x/main.rs": '#[path = "../../src/cast.rs"]\nmod cast;\n' + MAIN_FN},
-     "src/cast.rs", True),
-    ({**ONE_MOUNT, "src/bin/x/main.rs": '#[path = "../../cast.rs"]\nmod cast;\n' + MAIN_FN},
-     "src/cast.rs", True),
-    ({**ONE_MOUNT, "build.rs": '#[path = "src/cast.rs"]\nmod cast;\n' + MAIN_FN}, "src/cast.rs", True),
-    ({**ONE_MOUNT, "src/main.rs": "mod r#cast;\n" + MAIN_FN}, "src/cast.rs", True),
-    ({**ONE_MOUNT, "src/main.rs": '#[cfg_attr(all(), path = "cast.rs")]\nmod again;\n' + MAIN_FN},
-     "src/cast.rs", True),
-    ({**ONE_MOUNT, "src/main.rs": "mod bridge;\n" + MAIN_FN, "src/bridge.rs":
-      '#[path = "cast.rs"]\nmod again;\n'}, "src/cast.rs", True),
-    ({**NUM_MOUNT, "src/main.rs": '#[path = "num/cast.rs"]\nmod c;\n' + MAIN_FN}, "src/num/cast.rs", True),
-    (NUM_MOUNT, "src/num/cast.rs", False),
-    (ONE_MOUNT, "src/cast.rs", False),
-    ({**ONE_MOUNT, "src/main.rs": "mod cli { pub mod cast; }\n" + MAIN_FN, "src/cli/cast.rs": "pub fn y() {}\n"},
-     "src/cast.rs", False),
-    ({**ONE_MOUNT, "src/bin/tool/main.rs": "mod cast;\n" + MAIN_FN, "src/bin/tool/cast.rs": "pub fn y() {}\n"},
-     "src/cast.rs", False),
-    ({**ONE_MOUNT, "tests/x.rs": "mod cast;\n", "tests/cast/mod.rs": "pub fn y() {}\n"},
-     "src/cast.rs", False),
-]
+def test_member_directories_name_members_and_nested_workspaces():
+    manifests = {"Cargo.toml": {"workspace": {"members": ["crates/*"], "exclude": ["crates/old"]}},
+                 "crates/a/Cargo.toml": {}, "crates/old/Cargo.toml": {}, "tools/x/Cargo.toml": {},
+                 "fuzz/Cargo.toml": {"workspace": {}}}
+    assert gate.member_directories(manifests) == {"", "crates/a", "fuzz"}
 
 
-@pytest.mark.parametrize("files, cast, doubled", CASES)
-def test_a_cast_module_is_compiled_by_exactly_one_crate_target(
-        tmp_path, capsys, files, cast, doubled):
-    repo, tip, rules, sites = _cast_target_repo(tmp_path, files, cast=cast)
-    assert _check_targets(repo, tip, rules, sites) == int(doubled)
-    assert ("more than one crate target" in capsys.readouterr().err) is doubled
+def test_a_cfg_select_arm_naming_clippy_cannot_pass_unmeasured(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "cfg_select! {\n"
+                      "    not(clippy) => { pub fn h(x: u32) -> u64 { x as u64 } }\n"
+                      "    _ => {}\n}\n")
+    assert code == 1
+    assert "src/lib.rs:3: a `cfg` predicate names `clippy`" in err
 
 
-def test_the_fault_names_the_package_and_every_mounting_root(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(
-        tmp_path, {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN})
-    assert _check_targets(repo, tip, rules, sites) == 1
-    assert ("core: cast module src/cast.rs is compiled by more than one crate target "
-            "(src/lib.rs, src/main.rs)") in capsys.readouterr().err
+def test_a_file_the_walk_reaches_that_does_not_lex_is_refused(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "mod bad;\n", {"src/bad.rs": "/* open\n"})
+    assert code == 1
+    assert "src/bad.rs: cannot be read as Rust (an unclosed block comment)" in err
 
 
-def test_a_disabled_auto_bin_is_not_a_second_target(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(
-        tmp_path, {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN}, manifest_extra="autobins = false\n")
-    assert _check_targets(repo, tip, rules, sites) == 0
-    assert "more than one crate target" not in capsys.readouterr().err
-
-
-def test_a_crate_root_that_does_not_lex_is_refused_with_its_path(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(
-        tmp_path, {**ONE_MOUNT, "src/main.rs": "/* unclosed\n" + MAIN_FN})
-    assert _check_targets(repo, tip, rules, sites) == 1
-    assert "src/main.rs: an unclosed block comment" in capsys.readouterr().err
+def test_an_unreadable_file_naming_clippy_is_refused_once(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "mod bad;\n", {"src/bad.rs": "/* clippy\n"})
+    assert code == 1
+    assert err.count("src/bad.rs: cannot be read as Rust (an unclosed block comment)") == 1
