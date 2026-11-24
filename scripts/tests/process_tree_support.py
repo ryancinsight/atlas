@@ -120,7 +120,7 @@ def budget_from_readiness(listener: socket.socket):
 
 
 def is_running(pid: int) -> bool:
-    """Whether process ``pid`` is active after process-tree cleanup returns."""
+    """Whether process `pid` is active after process-tree cleanup returns."""
     if os.name == "nt":
         import ctypes
 
