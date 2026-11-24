@@ -2265,8 +2265,11 @@ HOLDS = "holds {} inner `#![expect(...)]` attributes, not one"
 ])
 def test_a_cast_module_opens_with_one_expect_naming_cast_lints(tmp_path, capsys, text, fault):
     found = (site("prof", MODULE, 1, 1),)  # line 1 is added in every shape
+    unread = ([f"{MODULE}: cannot be read as Rust (an unclosed attribute), so the gate cannot "
+               "tell whether a `cfg` predicate names `clippy`"]
+              if "an unclosed attribute" in str(fault) else [])  # the walk reads it as well
     assert cast_module_push(tmp_path, capsys, text, found=found)[1:] == (
-        (0, []) if fault is None else (1, faults(fault, "1:1")))
+        (0, []) if fault is None else (1, faults(fault, "1:1") + unread))
 
 
 # The round-2 judge's witnesses, each with the sites clippy 1.97.0 reports for it.
@@ -2685,12 +2688,90 @@ def test_a_rust_file_naming_clippy_that_does_not_lex_is_refused(tmp_path, capsys
     assert "src/bad.rs: cannot be read as Rust (an unclosed block comment)" in err
 
 
-def test_the_scan_covers_the_named_package_directory_alone(tmp_path, capsys):
-    repo, base, tip, rules, sites = _hidden_cast_repo(
-        tmp_path, "pub fn fine() {}\n",
-        {"member/Cargo.toml": '[package]\nname = "other"\nversion = "0.1.0"\n',
-         "member/src/lib.rs": "#[cfg(not(clippy))] fn h() {}\n"})
-    assert _check_hidden(repo, base, tip, rules, sites) == 0
-    assert _check_hidden(repo, base, tip, rules, sites, package="nosuch") == 0
-    assert _check_hidden(repo, base, tip, rules, sites, package="other") == 1
-    assert "member/src/lib.rs:1" in capsys.readouterr().err
+HID = "#[cfg(not(clippy))] pub fn h(x: u32) -> u64 { x as u64 }\n"
+FINE = "pub fn fine() {}\n"
+
+
+def _scan(tmp_path, capsys, lib, extra=None, package="hidden"):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, lib, extra)
+    return _check_hidden(repo, base, tip, rules, sites, package=package), capsys.readouterr().err
+
+
+@pytest.mark.parametrize("lib, extra, where", [
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": ""},
+     "src/hidden/mod.rs:1"),
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": "not = [toml"},
+     "src/hidden/mod.rs:1"),
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml":
+                              '[package]\nname = "decoy"\nversion = "0.1.0"\n'},
+     "src/hidden/mod.rs:1"),
+    (FINE + '#[path = "hidden.inc"] mod hidden;\n', {"src/hidden.inc": HID}, "src/hidden.inc:1"),
+    (FINE + 'include!("hidden.in");\n', {"src/hidden.in": HID}, "src/hidden.in:1"),
+    (FINE + "#[path = \"..\\\\shared\\\\h.rs\"] mod h;\n", {"shared/h.rs": HID},
+     "shared/h.rs:1"),
+])
+def test_the_scan_reads_the_files_the_package_compiles(tmp_path, capsys, lib, extra, where):
+    code, err = _scan(tmp_path, capsys, lib, extra)
+    assert (code, where in err) == (1, True)
+
+
+def test_a_path_mount_outside_the_package_directory_is_scanned(tmp_path, capsys):
+    code, err = _scan(
+        tmp_path, capsys, FINE,
+        {"Cargo.toml": '[workspace]\nmembers = ["crates/p"]\n',
+         "crates/p/Cargo.toml": '[package]\nname = "p"\nversion = "0.1.0"\n',
+         "crates/p/src/lib.rs": '#[path = "../../../shared/h.rs"]\nmod h;\n',
+         "shared/h.rs": HID}, package="p")
+    assert code == 1
+    assert "shared/h.rs:1: a `cfg` predicate names `clippy`" in err
+
+
+def test_a_manifest_only_cargo_parses_fails_the_push_naming_it(tmp_path, capsys):
+    nested = {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": "not = [toml"}
+    code, err = _scan(tmp_path / "nested", capsys, FINE + "mod hidden;\n", nested)
+    assert code == 1
+    assert "cast gate: src/hidden/Cargo.toml does not parse as TOML here" in err
+    root = {"Cargo.toml": HIDDEN_MANIFEST + MULTILINE_TABLE}
+    code, err = _scan(tmp_path / "root", capsys, FINE + HID, root)
+    assert code == 1
+    assert "cast gate: Cargo.toml does not parse as TOML here (" in err
+    code, err = _scan(tmp_path / "control", capsys, FINE + HID, {"Cargo.toml": HIDDEN_MANIFEST})
+    assert (code, "src/lib.rs:2" in err, "does not parse" in err) == (1, True, False)
+
+
+def test_a_file_no_mod_reaches_is_scanned_unless_a_workspace_member_holds_it(tmp_path, capsys):
+    stray = {"src/stray/Cargo.toml": '[package]\nname = "decoy"\nversion = "0.1.0"\n',
+             "src/stray/lib.rs": HID}
+    code, err = _scan(tmp_path / "decoy", capsys, FINE, stray)
+    assert (code, "src/stray/lib.rs:1" in err) == (1, True)
+    member = {"Cargo.toml": HIDDEN_MANIFEST + '[workspace]\nmembers = ["src/stray"]\n', **stray}
+    assert _scan(tmp_path / "member", capsys, FINE, member) == (0, "")
+    assert _scan(tmp_path / "other", capsys, FINE, member, package="decoy")[0] == 1
+    assert _scan(tmp_path / "none", capsys, FINE, member, package="nosuch") == (0, "")
+
+
+def test_member_directories_name_members_and_nested_workspaces():
+    manifests = {"Cargo.toml": {"workspace": {"members": ["crates/*"], "exclude": ["crates/old"]}},
+                 "crates/a/Cargo.toml": {}, "crates/old/Cargo.toml": {}, "tools/x/Cargo.toml": {},
+                 "fuzz/Cargo.toml": {"workspace": {}}}
+    assert gate.member_directories(manifests) == {"", "crates/a", "fuzz"}
+
+
+def test_a_cfg_select_arm_naming_clippy_cannot_pass_unmeasured(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "cfg_select! {\n"
+                      "    not(clippy) => { pub fn h(x: u32) -> u64 { x as u64 } }\n"
+                      "    _ => {}\n}\n")
+    assert code == 1
+    assert "src/lib.rs:3: a `cfg` predicate names `clippy`" in err
+
+
+def test_a_file_the_walk_reaches_that_does_not_lex_is_refused(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "mod bad;\n", {"src/bad.rs": "/* open\n"})
+    assert code == 1
+    assert "src/bad.rs: cannot be read as Rust (an unclosed block comment)" in err
+
+
+def test_an_unreadable_file_naming_clippy_is_refused_once(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "mod bad;\n", {"src/bad.rs": "/* clippy\n"})
+    assert code == 1
+    assert err.count("src/bad.rs: cannot be read as Rust (an unclosed block comment)") == 1

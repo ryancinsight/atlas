@@ -17,15 +17,18 @@ on a new cast. This gate is the enforcement:
   into it neither raises nor lowers the package's count. Its added lines pass
   only under `cast_module_fault`, no file of its package mounted twice
   (`clippy::duplicate_mod`, force-warned), and the base count;
-- a pushed package whose `.rs` text holds a `cfg` or `cfg_attr` predicate naming
-  `clippy` fails (`cfg_clippy_problems`): clippy-driver sets `cfg(clippy)` and
-  rustc does not, so code under `cfg(not(clippy))` is compiled only by the run
-  that skips it, and code under `cfg(clippy)` by no build the gate counts. The
-  scan reads the package's tracked `.rs` files with comments and strings blanked,
-  and refuses a file that names `clippy` and does not lex. A predicate built by
-  macro substitution (`#[cfg(not($p))]`) or written as a `cfg_select!` arm
-  (`not(clippy) => { ... }`, which rustc 1.97.0 compiled here) has no `cfg(`
-  token and is not seen;
+- a pushed package whose Rust text holds a `cfg` or `cfg_attr` predicate, or a
+  `cfg_select!` arm head, naming `clippy` fails (`cfg_clippy_problems`):
+  clippy-driver sets `cfg(clippy)` and rustc does not, so code under
+  `cfg(not(clippy))` is compiled only by the run that skips it, and code under
+  `cfg(clippy)` by no build the gate counts. The scan reads the files the
+  package's crate targets compile (`package_sources`: module trees, `#[path]`
+  and `include!("literal")` files of any extension, wherever they lie) and the
+  tracked `.rs` files under its directory that no other workspace member holds,
+  with comments and strings blanked, and refuses a file that cannot be read as
+  Rust. A manifest `tomllib` rejects fails the push naming the manifest. A
+  predicate built by macro substitution (`#[cfg(not($p))]`) has no `cfg(` token
+  and is not seen;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -523,53 +526,85 @@ def cfg_clippy_lines(text: str) -> list[int]:
     return sorted(found)
 
 
-def package_sources(repo: pathlib.Path, tip: str, packages: Iterable[str]) -> list[str]:
-    """The tracked `.rs` paths at `tip` that belong to the named packages: those
-    whose nearest ancestor directory holding a `Cargo.toml` is a named
-    package's. A package no manifest names has none; a root package does not
-    own the directories of the workspace members below it."""
-    paths = git_paths(repo, tip)
-    manifests = [path for path in paths if is_manifest(path)]
-    holders = {posixpath.dirname(path) for path in manifests}
+def member_directories(manifests: Mapping[str, dict]) -> frozenset[str]:
+    """The directories of packages cargo builds apart from the package above
+    them: each workspace member (`members` globs less `exclude`) and each
+    manifest that opens a workspace of its own. A package that is only a path
+    dependency of a workspace root is not named here; its files stay with the
+    package above, which only widens that package's scan."""
+    found: set[str] = set()
+    for path, manifest in manifests.items():
+        table = manifest.get("workspace")
+        if not isinstance(table, dict):
+            continue
+        root = posixpath.dirname(path)
+        prefix = f"{root}/" if root else ""
+        inside = [other.removeprefix(prefix) for other in manifests if other.startswith(prefix)]
+        excluded = [entry for entry in table.get("exclude", []) if isinstance(entry, str)]
+        found.add(root)
+        members = [member for member in table.get("members", []) if isinstance(member, str)]
+        named = [name for member in members for name in member_manifests(member, inside)]
+        for manifest_path in named:
+            directory = posixpath.dirname(manifest_path)
+            if not any(is_excluded(directory, entry) for entry in excluded):
+                found.add("/".join(filter(None, [root, directory])))
+    return frozenset(found)
+
+
+def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], dict[str, str]]:
+    """The tracked files the named packages compile, and why any could not be
+    read: (paths, error by path).
+
+    A package compiles the files its crate targets' module trees reach
+    (`compiled_files`), whatever their extension or directory, and the scan
+    adds every tracked `.rs` file under the package directory that no other
+    workspace member's directory contains: a file no `mod` reaches can still
+    be compiled by a macro the walk does not read. A manifest that declares no
+    package, or is not a member, fences nothing off. A package no manifest
+    names has no files.
+    """
+    manifests = tip.manifests[0]
+    members = member_directories(manifests)
     wanted = frozenset(packages)
-    owned = {directory for name, directory in package_directories(repo, tip, manifests)
-             if name in wanted}
-
-    def owner(path: str) -> str:
+    files: set[str] = set()
+    errors: dict[str, str] = {}
+    for path, manifest in manifests.items():
+        if package_name(manifest) not in wanted:
+            continue
         directory = posixpath.dirname(path)
-        while directory and directory not in holders:
-            directory = posixpath.dirname(directory)
-        return directory
+        prefix = f"{directory}/" if directory else ""
+        for root in target_roots(manifest, directory, tip.index):
+            reached, unreadable = compiled_files(tip.index, tip.read, root)
+            files |= reached
+            errors |= unreadable
+        nested = tuple(f"{member}/" for member in members
+                       if member and member != directory and f"{member}/".startswith(prefix))
+        files |= {file for file in tip.paths
+                  if file.endswith(".rs") and file.startswith(prefix)
+                  and not file.startswith(nested)}
+    return files, errors
 
-    return [path for path in paths if path.endswith(".rs") and owner(path) in owned]
 
-
-def cfg_clippy_problems(repo: pathlib.Path, tip: str,
-                        packages: Iterable[str]) -> list[str]:
+def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
     """One problem per `cfg` predicate naming `clippy` in a pushed package.
 
-    The scan covers the package's tracked `.rs` files and no other text. A
-    file holds such a predicate only if the word `clippy` occurs in it, so
-    `git grep` for the word narrows the files the lexer reads; the lexer then
-    decides whether a hit is code and whether the predicate -- not a
-    `cfg_attr` body -- names `clippy`. A file that names `clippy` and does not
-    lex is refused, since its predicates cannot be read.
+    The scan covers the files the package compiles (`package_sources`) and no
+    other text. A file holds such a predicate only if the word `clippy` occurs
+    in it, and the lexer then decides whether a hit is code and whether the
+    predicate -- not a `cfg_attr` body -- names `clippy`. A file that cannot be
+    read as Rust is refused: its predicates, and the modules it declares,
+    cannot be read.
     """
-    sources = package_sources(repo, tip, packages)
-    if not sources:
-        return []
-    command = ["git", "-C", str(repo), "grep", "-l", "-z", "-a", "-w", "-F", "clippy",
-               tip, "--", "*.rs"]
-    run = subprocess.run(command, capture_output=True)
-    if run.returncode not in (0, 1):  # 1: no hit, not a failure
-        raise subprocess.CalledProcessError(run.returncode, command, output=run.stdout,
-                                            stderr=run.stderr)
-    named = {entry.removeprefix(f"{tip}:")
-             for entry in run.stdout.decode("utf-8", errors="replace").split("\0")}
-    problems: list[str] = []
-    for path in sorted(named.intersection(sources)):
+    files, unreadable = package_sources(tip, packages)
+    problems = [f"{path}: cannot be read as Rust ({error}), so the gate cannot tell "
+                "whether a `cfg` predicate names `clippy`"
+                for path, error in sorted(unreadable.items())]
+    for path in sorted(files.difference(unreadable)):
+        text = tip.read(path) or ""
+        if not CLIPPY_PREDICATE.search(text):
+            continue
         try:
-            lines = cfg_clippy_lines(git_file(repo, tip, path) or "")
+            lines = cfg_clippy_lines(text)
         except ValueError as error:
             problems.append(
                 f"{path}: cannot be read as Rust ({error}), so the gate cannot tell "
@@ -891,13 +926,6 @@ def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
     return run.stdout.decode("utf-8", errors="replace")
 
 
-def git_paths(repo: pathlib.Path, revision: str) -> list[str]:
-    """Every tracked path at `revision`."""
-    run = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "-z", "--name-only",
-                          revision], capture_output=True, check=True)
-    return [path for path in run.stdout.decode("utf-8", errors="replace").split("\0") if path]
-
-
 def path_clean(path: str) -> str:
     """`path` as rustc finds a file on the Windows host the gate runs on:
     backslash separators accepted, `.` and `..` components collapsed."""
@@ -982,6 +1010,19 @@ class Revision:
         """The tracked paths by `path_index` key."""
         return path_index(self.paths)
 
+    @functools.cached_property
+    def manifests(self) -> tuple[dict[str, dict], dict[str, ManifestError]]:
+        """Every tracked manifest as (parsed by path, refused by path)."""
+        parsed: dict[str, dict] = {}
+        refused: dict[str, ManifestError] = {}
+        for path in self.paths:
+            if is_manifest(path):
+                try:
+                    parsed[path] = self.manifest_at(path) or {}
+                except ManifestError as error:
+                    refused[path] = error
+        return parsed, refused
+
     def manifest_at(self, path: str) -> dict | None:
         """The parsed manifest at `path`; None when none is tracked there; an
         unparseable one raises `ManifestError`."""
@@ -997,22 +1038,6 @@ class Revision:
 def is_manifest(path: str) -> bool:
     """Whether `path` is a `Cargo.toml`."""
     return posixpath.basename(path) == "Cargo.toml"
-
-
-def package_directories(repo: pathlib.Path, revision: str,
-                        manifests: Iterable[str]) -> list[tuple[str, str]]:
-    """The (package, manifest directory) of each manifest at `revision` that
-    parses and declares a package; the root directory is ``""``."""
-    found = []
-    for path in manifests:
-        text = git_file(repo, revision, path)
-        try:
-            name = package_name(tomllib.loads(text)) if text is not None else None
-        except tomllib.TOMLDecodeError:
-            continue
-        if name:
-            found.append((name, posixpath.dirname(path)))
-    return found
 
 
 def package_name(manifest: dict) -> str | None:
@@ -1731,7 +1756,9 @@ def check(args: argparse.Namespace) -> int:
         modules[package] = (path, fault)
     problems += violations(args.member, found, added, args.package, baseline, base,
                            held, modules)
-    problems += cfg_clippy_problems(repo, args.tip, args.package)
+    with Revision(repo, args.tip) as tip:
+        problems += [str(error) for error in tip.manifests[1].values()]
+        problems += cfg_clippy_problems(tip, args.package)
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:
