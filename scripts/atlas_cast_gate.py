@@ -16,7 +16,8 @@ on a new cast. This gate is the enforcement:
   module (`cast_modules`) is counted like any other file, so a cast moved
   into it neither raises nor lowers the package's count. Its added lines pass
   only under `cast_module_fault`, no file of its package mounted twice
-  (`clippy::duplicate_mod`, force-warned), and the base count;
+  (`clippy::duplicate_mod`, force-warned), the module compiled by exactly one
+  crate target of its package (`second_target_problems`), and the base count;
 - a pushed package whose Rust text holds a `cfg` or `cfg_attr` predicate, or a
   `cfg_select!` arm head, naming `clippy` fails (`cfg_clippy_problems`):
   clippy-driver sets `cfg(clippy)` and rustc does not, so code under
@@ -56,6 +57,16 @@ on a new cast. This gate is the enforcement:
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
 say whether a site sits under an `#[expect]`.
+
+A cast module that two crate targets of one package compile (`lib`, `bin`,
+`tests/`, `examples/`, `benches/`, the build script) is counted once there
+and linted once, so `second_target_problems` walks each target root's module
+tree over the pushed tip's files and names the package and every root that
+reaches the module. It follows `mod name;` as rustc resolves it, `#[path]`,
+both outcomes of a `cfg_attr(.., path = ..)`, and `include!("literal")`
+(rustc 1.97.0 rejects an `include!` of a module that opens with its inner
+`#![expect]`, so that mount is a fault either way). A `mod` a macro writes is
+not followed, and a mount from another package's target is outside the rule.
 
 The tip's clippy run is the hook's own: `clippy` runs it under the
 source-identity leases in place of the plain step, writing each diagnostic's
@@ -615,6 +626,40 @@ def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
             "and rustc does not, so the gate cannot count the code it guards"
             for line in lines
         ]
+    return problems
+
+
+def second_target_problems(tip: Revision, cast_modules: Mapping[str, str]) -> list[str]:
+    """One problem per package whose registered cast module (`cast_modules`
+    maps a package to its path) more than one of its crate targets compile.
+
+    `clippy::duplicate_mod` works per crate, and `sites()` merges a span two
+    builds report, so a second target that mounts the module is counted once
+    and linted once. A file the walk reaches and cannot read fails the package:
+    the gate cannot tell what that file mounts.
+    """
+    problems = []
+    for path, manifest in tip.manifests[0].items():
+        package = package_name(manifest)
+        cast = cast_modules.get(package) if package else None
+        if cast is None:
+            continue
+        roots: list[str] = []
+        unreadable: dict[str, str] = {}
+        for root in target_roots(manifest, posixpath.dirname(path), tip.index):
+            reached, failed = compiled_files(tip.index, tip.read, root)
+            unreadable |= failed
+            if cast in reached:
+                roots.append(root)
+        problems += [f"{package}: {file}: {error}, so the gate cannot tell whether {cast} is "
+                     "compiled by more than one crate target"
+                     for file, error in sorted(unreadable.items())]
+        if len(roots) > 1:
+            problems.append(
+                f"{package}: cast module {cast} is compiled by more than one crate "
+                f"target ({', '.join(roots)}); clippy::duplicate_mod cannot see a "
+                "second target"
+            )
     return problems
 
 
@@ -1759,6 +1804,8 @@ def check(args: argparse.Namespace) -> int:
     with Revision(repo, args.tip) as tip:
         problems += [str(error) for error in tip.manifests[1].values()]
         problems += cfg_clippy_problems(tip, args.package)
+        problems += second_target_problems(
+            tip, {package: path for package, (path, _) in modules.items()})
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:

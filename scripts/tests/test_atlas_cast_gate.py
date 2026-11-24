@@ -2266,8 +2266,10 @@ HOLDS = "holds {} inner `#![expect(...)]` attributes, not one"
 def test_a_cast_module_opens_with_one_expect_naming_cast_lints(tmp_path, capsys, text, fault):
     found = (site("prof", MODULE, 1, 1),)  # line 1 is added in every shape
     unread = ([f"{MODULE}: cannot be read as Rust (an unclosed attribute), so the gate cannot "
-               "tell whether a `cfg` predicate names `clippy`"]
-              if "an unclosed attribute" in str(fault) else [])  # the walk reads it as well
+               "tell whether a `cfg` predicate names `clippy`",
+               f"prof: {MODULE}: an unclosed attribute, so the gate cannot "
+               f"tell whether {MODULE} is compiled by more than one crate target"]
+              if "an unclosed attribute" in str(fault) else [])  # both walks read it
     assert cast_module_push(tmp_path, capsys, text, found=found)[1:] == (
         (0, []) if fault is None else (1, faults(fault, "1:1") + unread))
 
@@ -2775,3 +2777,116 @@ def test_an_unreadable_file_naming_clippy_is_refused_once(tmp_path, capsys):
     code, err = _scan(tmp_path, capsys, FINE + "mod bad;\n", {"src/bad.rs": "/* clippy\n"})
     assert code == 1
     assert err.count("src/bad.rs: cannot be read as Rust (an unclosed block comment)") == 1
+
+
+def _cast_target_repo(tmp_path, files, manifest_extra="", cast="src/cast.rs"):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_bytes(
+        ('[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n'
+         + manifest_extra).encode())
+    for name, text in files.items():
+        path = repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(text.encode())
+    tip = commit(repo, "targets")
+    rules = tmp_path / "rules.json"
+    rules.write_text(
+        '{"cast_modules": {"m": {"core": "%s"}}, "counts": {"m": {"core": 0}}}' % cast)
+    sites = tmp_path / "sites.json"
+    sites.write_text("[]")
+    return repo, tip, rules, sites
+
+
+def _check_targets(repo, tip, rules, sites):
+    return gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--tip", tip,
+                      "--package", "core", "--sites", str(sites)])
+
+
+CAST_FIXTURE = '#![expect(clippy::as_conversions, reason = "fixture")]\npub fn x() {}\n'
+ONE_MOUNT = {"src/cast.rs": CAST_FIXTURE, "src/lib.rs": "mod cast;\npub use cast::x;\n"}
+NUM_MOUNT = {"src/num/cast.rs": CAST_FIXTURE, "src/num.rs": "pub mod cast;\n",
+             "src/lib.rs": "mod num;\n"}
+MAIN_FN = "fn main() {}\n"
+BY_PATH = '#[path = "../../src/cast.rs"]\nmod cast;\n'
+CASES = [
+    ({**ONE_MOUNT, "tests/x/main.rs": BY_PATH}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "examples/x/main.rs": BY_PATH + MAIN_FN}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "benches/x/main.rs": BY_PATH + MAIN_FN}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/bin/x/main.rs": '#[path = "../../cast.rs"]\nmod cast;\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "build.rs": '#[path = "src/cast.rs"]\nmod cast;\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": "mod r#cast;\n" + MAIN_FN}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": '#[cfg_attr(all(), path = "cast.rs")]\nmod again;\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": "mod bridge;\n" + MAIN_FN,
+      "src/bridge.rs": '#[path = "cast.rs"]\nmod again;\n'}, "src/cast.rs", True),
+    ({**NUM_MOUNT, "src/main.rs": '#[path = "num/cast.rs"]\nmod c;\n' + MAIN_FN},
+     "src/num/cast.rs", True),
+    # a mount through an inline module that carries its own `#[path]`
+    ({**ONE_MOUNT, "src/main.rs": '#[path = "."] mod m { mod cast; }\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "tests/x.rs": '#[path = "../src"] mod shared { mod cast; }\n'},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": '#[cfg_attr(all(), path = ".")] mod m { mod cast; }\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**NUM_MOUNT, "src/main.rs": "mod a;\n" + MAIN_FN,
+      "src/a.rs": '#[path = "num"] mod m { mod cast; }\n'}, "src/num/cast.rs", True),
+    # the same files named as the Windows host reads them
+    ({**ONE_MOUNT, "tests/x/main.rs": '#[path = r"..\\..\\src\\cast.rs"]\nmod cast;\n'},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": '#[path = "CAST.rs"] mod c;\n' + MAIN_FN}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": 'include!("cast.rs");\n' + MAIN_FN}, "src/cast.rs", True),
+    (NUM_MOUNT, "src/num/cast.rs", False),
+    (ONE_MOUNT, "src/cast.rs", False),
+    ({**ONE_MOUNT, "src/main.rs": "mod cli { pub mod cast; }\n" + MAIN_FN,
+      "src/cli/cast.rs": "pub fn y() {}\n"}, "src/cast.rs", False),
+    ({**ONE_MOUNT, "src/bin/tool/main.rs": "mod cast;\n" + MAIN_FN,
+      "src/bin/tool/cast.rs": "pub fn y() {}\n"}, "src/cast.rs", False),
+    ({**ONE_MOUNT, "tests/x.rs": "mod cast;\n", "tests/cast/mod.rs": "pub fn y() {}\n"},
+     "src/cast.rs", False),
+    # a module that already faults is still walked
+    ({"src/cast.rs": "pub fn x() {}\n", "src/lib.rs": "mod cast;\n", "src/main.rs":
+      "mod cast;\n" + MAIN_FN}, "src/cast.rs", True),
+]
+
+
+@pytest.mark.parametrize("files, cast, doubled", CASES)
+def test_a_cast_module_is_compiled_by_exactly_one_crate_target(
+        tmp_path, capsys, files, cast, doubled):
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, files, cast=cast)
+    assert _check_targets(repo, tip, rules, sites) == int(doubled)
+    assert ("more than one crate target" in capsys.readouterr().err) is doubled
+
+
+def test_the_fault_names_the_package_and_every_mounting_root(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path, {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN})
+    assert _check_targets(repo, tip, rules, sites) == 1
+    assert ("core: cast module src/cast.rs is compiled by more than one crate target "
+            "(src/lib.rs, src/main.rs)") in capsys.readouterr().err
+
+
+def test_a_disabled_auto_bin_is_not_a_second_target(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path, {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN},
+        manifest_extra="autobins = false\n")
+    assert _check_targets(repo, tip, rules, sites) == 0
+    assert "more than one crate target" not in capsys.readouterr().err
+
+
+def test_a_crate_root_that_does_not_lex_is_refused_with_its_path(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path, {**ONE_MOUNT, "src/main.rs": "/* unclosed\n" + MAIN_FN})
+    assert _check_targets(repo, tip, rules, sites) == 1
+    assert "src/main.rs: an unclosed block comment" in capsys.readouterr().err
+
+
+def test_a_registered_package_whose_manifest_only_cargo_parses_is_refused(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path, {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN},
+        manifest_extra=MULTILINE_TABLE)
+    assert _check_targets(repo, tip, rules, sites) == 1
+    assert "cast gate: Cargo.toml does not parse as TOML here (" in capsys.readouterr().err
