@@ -5,11 +5,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import argparse
+import fnmatch
 import json
 import os
 from pathlib import Path, PurePosixPath
 import re
 import sys
+import tomllib
 from typing import Iterable, Mapping
 
 
@@ -53,6 +55,61 @@ def _skip_non_cargo(repository_path: str) -> bool:
     return False
 
 
+_PROSE_SUFFIXES = (".md", ".markdown")
+_UNSCANNED_DIRECTORIES = frozenset({".git", "target"})
+
+
+def _rust_source_text(root: Path) -> str:
+    """Concatenate every Rust source under `root`, the text a file reference hides in."""
+    chunks: list[str] = []
+    for directory, subdirectories, names in os.walk(root):
+        subdirectories[:] = [d for d in subdirectories if d not in _UNSCANNED_DIRECTORIES]
+        for name in names:
+            if name.endswith(".rs"):
+                chunks.append((Path(directory) / name).read_text(encoding="utf-8", errors="replace"))
+    return "\n".join(chunks)
+
+
+def _manifest_claims(manifest: Path, package_relative: str) -> bool:
+    """Whether the package manifest names the file as its readme or an `include` glob."""
+    try:
+        document = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return True
+    package = document.get("package")
+    if not isinstance(package, dict):
+        return False
+    readme = package.get("readme")
+    if isinstance(readme, str) and PurePosixPath(readme).as_posix() == package_relative:
+        return True
+    include = package.get("include")
+    return isinstance(include, list) and any(
+        isinstance(glob, str) and fnmatch.fnmatchcase(package_relative, glob.removeprefix("./"))
+        for glob in include
+    )
+
+
+def _is_prose_only(
+    root: Path, package_directory: PurePosixPath, changed_path: str, sources: list[str]
+) -> bool:
+    """A Markdown file no package target, readme or `include` glob can reach.
+
+    Rust reaches a file through `include_str!`, `include_bytes!`, `#[path]` or a
+    build script reading it, all of which spell the file name in a Rust source,
+    so an unreferenced name is conservatively treated as reachable. Cargo's
+    package metadata reaches it through `readme` and `include`.
+    """
+    path = PurePosixPath(changed_path)
+    if path.suffix.lower() not in _PROSE_SUFFIXES:
+        return False
+    package_relative = path.relative_to(package_directory).as_posix()
+    if _manifest_claims(root / package_directory / "Cargo.toml", package_relative):
+        return False
+    if not sources:
+        sources.append(_rust_source_text(root))
+    return path.name not in sources[0]
+
+
 def cargo_input_owners(
     root: Path,
     workspace_manifest: str,
@@ -90,6 +147,7 @@ def cargo_input_owners(
     workspace_prefix = PurePosixPath(workspace_manifest).parent
     gate_manifest = root / "Cargo.toml"
     gate_sections = _manifest_sections(gate_manifest)
+    sources: list[str] = []
     for changed_path in changed_paths:
         if not changed_path:
             continue
@@ -130,6 +188,8 @@ def cargo_input_owners(
             if gate_sections is None or not gate_sections[0]:
                 continue
             package_directory = PurePosixPath(".")
+        if _is_prose_only(root, package_directory, changed_path, sources):
+            continue
         relative_manifest = (package_directory / "Cargo.toml").as_posix()
         if relative_manifest.startswith("./"):
             relative_manifest = relative_manifest[2:]

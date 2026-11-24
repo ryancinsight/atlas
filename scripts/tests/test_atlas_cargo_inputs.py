@@ -185,3 +185,75 @@ def test_cli_emits_lf_records_from_crlf_paths(tmp_path: Path) -> None:
     )
 
     assert result.stdout == b"package\troot\n"
+
+
+_ROOT_PACKAGE = '[package]\nname = "root"\nversion = "0.1.0"\n'
+
+
+def _root_metadata(root: Path) -> dict:
+    return _metadata(root, [("root-id", "root", "Cargo.toml", None)])
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        ["docs/adr/0002-rate-constant-typing.md", "backlog.md"],
+        ["docs/book/cpu_topology.md", "docs/book/topology_epoch.md"],
+    ],
+)
+def test_unreferenced_markdown_owns_no_root_package(tmp_path: Path, changed: list[str]) -> None:
+    root = _repo(tmp_path)
+    _write(root, "Cargo.toml", _ROOT_PACKAGE + 'readme = "README.md"\n')
+    _write(root, "src/lib.rs", "pub fn root() {}\n")
+    _write(root, "README.md", "readme\n")
+    for path in changed:
+        _write(root, path, "prose\n")
+    _commit(root, "base")
+
+    owners = cargo_input_owners(root, "Cargo.toml", _root_metadata(root), changed)
+
+    assert owners == CargoInputOwners((), (), (), ())
+
+
+def test_markdown_reached_by_source_readme_or_include_still_gates(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    _write(
+        root,
+        "Cargo.toml",
+        _ROOT_PACKAGE + 'readme = "docs/readme.md"\ninclude = ["src/**", "docs/packaged/*.md"]\n',
+    )
+    _write(root, "src/lib.rs", '#![doc = include_str!("../docs/book/included.md")]\n')
+    for path in ("docs/book/included.md", "docs/readme.md", "docs/packaged/x.md", "docs/book/loose.md"):
+        _write(root, path, "prose\n")
+    _commit(root, "base")
+    metadata = _root_metadata(root)
+
+    for reached in ("docs/book/included.md", "docs/readme.md", "docs/packaged/x.md"):
+        owners = cargo_input_owners(root, "Cargo.toml", metadata, [reached])
+        assert owners.packages == ("root",), reached
+    assert cargo_input_owners(root, "Cargo.toml", metadata, ["docs/book/loose.md"]).packages == ()
+
+
+def test_markdown_deleted_but_still_included_gates(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    _write(root, "Cargo.toml", _ROOT_PACKAGE)
+    _write(root, "src/lib.rs", 'pub const TEXT: &str = include_str!("../docs/gone.md");\n')
+    _commit(root, "base")
+
+    owners = cargo_input_owners(root, "Cargo.toml", _root_metadata(root), ["docs/gone.md"])
+
+    assert owners.packages == ("root",)
+
+
+def test_markdown_in_member_crate_is_judged_against_its_own_manifest(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    _write(root, "Cargo.toml", '[workspace]\nmembers = ["crates/foo"]\n')
+    _write(root, "crates/foo/Cargo.toml", '[package]\nname = "foo"\nversion = "0.1.0"\nreadme = "README.md"\n')
+    _write(root, "crates/foo/src/lib.rs", "pub fn foo() {}\n")
+    _write(root, "crates/foo/README.md", "readme\n")
+    _write(root, "crates/foo/docs/notes.md", "notes\n")
+    _commit(root, "base")
+    metadata = _metadata(root, [("foo-id", "foo", "crates/foo/Cargo.toml", None)])
+
+    assert cargo_input_owners(root, "Cargo.toml", metadata, ["crates/foo/README.md"]).packages == ("foo",)
+    assert cargo_input_owners(root, "Cargo.toml", metadata, ["crates/foo/docs/notes.md"]).packages == ()
