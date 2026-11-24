@@ -190,6 +190,13 @@ jobs:
         shell: bash
         run: python3 scripts/atlas-book-gate-audit.py --check
 
+      - name: Scattered-container oracle (pinned member census)
+        shell: bash
+        # `--pinned` reads the gitlink commits from the member object stores
+        # initialized above, not the checkout, so this measures the revision
+        # under test. A pin advance without the regenerated site list fails.
+        run: python3 scripts/atlas_scattered_containers_classify.py --pinned --verify-oracle scripts/oracles/arch-008-production-sites.txt
+
       - name: Committed Cargo.lock form (standalone, not overlay-stripped)
         shell: bash
         run: |
