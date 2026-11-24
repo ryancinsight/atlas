@@ -46,6 +46,9 @@ jobs:
   conformance:
     name: Debt classes at or below the recorded baseline
     runs-on: ubuntu-latest
+    # Two checkouts and one `atlas-conformance.py check` scoped to this member, which is
+    # the per-member part of the scan `atlas-conformance.yml` budgets at about four
+    # minutes hosted. 5 min is that job's floor applied to a single member.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

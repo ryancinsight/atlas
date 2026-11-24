@@ -69,6 +69,10 @@ jobs:
   docs-link-check:
     name: Dead-link + mdbook build
     runs-on: ubuntu-latest
+    # A pinned toolchain, mdbook-linkcheck2 built from source on a cold registry
+    # cache, the mdbook binary download, the link detector over every provider book,
+    # then a build of each. 15 min is the cold-cache budget; a warm cache leaves the
+    # install at seconds.
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -150,6 +154,9 @@ jobs:
   docs-link-smoke-test-filters:
     name: Detector filter regression (single-char + LaTeX)
     runs-on: ubuntu-latest
+    # One script over the committed fixture directory: no toolchain, no book build, no
+    # network. 5 min is the floor for a checkout and one script; the work is the same
+    # detector the job above runs, on a directory this job already carries.
     timeout-minutes: 5
     steps:
       - name: Checkout
