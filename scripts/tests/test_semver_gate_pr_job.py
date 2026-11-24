@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -27,10 +28,33 @@ FALLBACK_IF = ("steps.tool.outcome == 'failure' || steps.atlas.outcome == 'failu
                "steps.semver.outputs.exit != '101')")
 # The step publishes its status as an output, then exits with it so the step outcome follows.
 SEMVER_RUN_TAIL = ['echo "exit=$status" >> "$GITHUB_OUTPUT"', 'exit "$status"']
+# The job bound is stated as an arithmetic over the step bounds plus a margin, so a step bound
+# edited without its comment fails here instead of leaving the derivation describing another job.
+BOUND_HEADER = re.compile(r"(?P<bound>\d+) min = the (?P<sum>\d+) the steps bind")
+STEP_SUM = re.compile(r"(?P<terms>\d+(?: \+ \d+)+) = (?P<total>\d+)")
+MARGIN = re.compile(r"plus (?P<margin>\d+) min")
 
 
 def job_steps(name: str) -> list[dict]:
     return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"][name]["steps"]
+
+
+def job_source(name: str) -> list[str]:
+    """The job's lines as written, from its key up to the next job key."""
+    lines = WORKFLOW.read_text(encoding="utf-8").splitlines()
+    start = lines.index(f"  {name}:")
+    end = next((i for i in range(start + 1, len(lines))
+                if re.fullmatch(r"  [a-z0-9][a-z0-9-]*:", lines[i])), len(lines))
+    return lines[start:end]
+
+
+def comment_above(lines: list[str], index: int, indent: int) -> str:
+    """The comment block directly above `lines[index]` at `indent`, read as one line."""
+    collected = []
+    while index > 0 and lines[index - 1].startswith(" " * indent + "#"):
+        index -= 1
+        collected.append(lines[index].strip().lstrip("#").strip())
+    return " ".join(reversed(collected))
 
 
 class WiringTests(unittest.TestCase):
@@ -53,6 +77,54 @@ class WiringTests(unittest.TestCase):
         self.assertEqual(steps["semver"]["run"].splitlines()[-2:], SEMVER_RUN_TAIL)
         report = next(s for s in job_steps("semver-pr") if "did not complete" in s.get("name", ""))
         self.assertEqual(report["if"], FALLBACK_IF)
+
+
+class BoundTests(unittest.TestCase):
+    """Every step is bounded, and the job bound is the arithmetic of those bounds."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["semver-pr"]
+        cls.bounds = [step.get("timeout-minutes") for step in cls.job["steps"]]
+        cls.source = job_source("semver-pr")
+        bound = cls.source.index(f"    timeout-minutes: {cls.job['timeout-minutes']}")
+        cls.comment = comment_above(cls.source, bound, 4)
+
+    def test_every_step_carries_a_bound(self) -> None:
+        for step, bound in zip(self.job["steps"], self.bounds):
+            label = step.get("name") or step.get("id") or step["uses"].split("@")[0]
+            with self.subTest(label):
+                self.assertIsInstance(bound, int, label)
+                self.assertGreater(bound, 0, label)
+
+    def test_the_step_bounds_fit_inside_the_job_bound(self) -> None:
+        self.assertLessEqual(sum(self.bounds), self.job["timeout-minutes"])
+
+    def test_the_job_bound_comment_is_the_arithmetic_of_the_step_bounds(self) -> None:
+        header = BOUND_HEADER.search(self.comment)
+        self.assertIsNotNone(header, self.comment)
+        self.assertEqual(int(header["bound"]), self.job["timeout-minutes"])
+        self.assertEqual(int(header["sum"]), sum(self.bounds))
+        stated = STEP_SUM.search(self.comment)
+        self.assertIsNotNone(stated, self.comment)
+        terms = [int(term) for term in stated["terms"].split(" + ")]
+        self.assertEqual(terms, self.bounds)
+        self.assertEqual(int(stated["total"]), sum(terms))
+        margin = MARGIN.search(self.comment)
+        self.assertIsNotNone(margin, self.comment)
+        self.assertEqual(int(stated["total"]) + int(margin["margin"]),
+                         self.job["timeout-minutes"])
+
+    def test_the_comparison_derivation_counts_its_toolchain_installs(self) -> None:
+        # The derivation sits above the step's own bound, where the step sweep reads it.
+        start = self.source.index("      - id: semver")
+        bound = next(i for i in range(start, len(self.source))
+                     if self.source[i].startswith(" " * 8 + "timeout-minutes:"))
+        derivation = comment_above(self.source, bound, 8)
+        # The cold build is still the measured term it was, with the two installs added.
+        self.assertIn("98 s", derivation)
+        self.assertIn("rustup toolchain install", derivation)
+        self.assertIn("25 min is 2x", derivation)
 
 
 @unittest.skipUnless(shutil.which("cargo") and shutil.which("git"), "needs cargo and git")

@@ -151,15 +151,27 @@ jobs:
     name: SemVer (informational)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 60 min = the 51 the steps bind themselves to, plus 9 min (18%) of job overhead and
+    # margin: runner assignment, teardown, and each step's summary published after the last
+    # step. 5 + 2 + 2 + 5 + 3 + 5 + 25 + 2 + 2 = 51. Each step's own comment above its bound
+    # states where that number comes from, and a bound moved without its derivation fails
+    # scripts/tests/test_workflow_bounds.py.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Full history of this repository in one fetch: a single download, so 5 min is the
+        # stack's one-download bound, as in adr-index-guard, artifact-budget and
+        # lockfile-guard, each of which bounds its single download at the same 5.
+        timeout-minutes: 5
         with:
           fetch-depth: 0
       # Rustdoc for both revisions takes minutes; a pull request that changes no
       # Rust source, manifest, lock, or toolchain pin cannot change the public API.
       - name: Detect a change that can move the public API
         id: scope
+        # `git diff --name-only` over the pull request's range and the change test that reads
+        # it, measured 0.08 s here and 1.2 s at the stack's 15x hosted factor; 2 min is 100x.
+        timeout-minutes: 2
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
@@ -176,6 +188,9 @@ jobs:
           fi
       - name: Select packages with a library target
         id: checkable
+        # One `cargo metadata --no-deps` over the selected manifest, measured 0.12 s here and
+        # 1.8 s at the stack's 15x hosted factor; 2 min is 67x that.
+        timeout-minutes: 2
         env:
           PACKAGE: ${{ inputs.package }}
           MANIFEST: ${{ inputs.manifest-path }}
@@ -209,30 +224,42 @@ jobs:
           fi
       - name: Install system packages the build scripts need
         if: inputs.apt-packages != '' && steps.scope.outputs.rust == 'true'
+        # `apt-get update` then one install of the caller's packages: one round trip to the
+        # Ubuntu mirrors, so 5 min is the stack's one-download bound, as on the checkouts.
+        timeout-minutes: 5
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ${{ inputs.apt-packages }}
       - id: tool
         if: steps.scope.outputs.rust == 'true' && steps.checkable.outputs.packages != ''
         continue-on-error: true
+        # One pinned tarball through taiki-e/install-action: #708 measured this action at
+        # 3 min in python-tests.yml, and this step installs the same cargo-semver-checks pin.
+        timeout-minutes: 3
         uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
           tool: cargo-semver-checks@0.51.0
       - id: atlas
         if: steps.scope.outputs.rust == 'true' && steps.checkable.outputs.packages != ''
         continue-on-error: true
+        # A second repository in one fetch: one download, so 5 min by the same one-download
+        # bound as the first checkout.
+        timeout-minutes: 5
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ryancinsight/atlas
           ref: ${{ inputs.atlas-ref }}
           path: _atlas
           persist-credentials: false
-      # cargo-semver-checks re-resolves a --baseline-rev in a placeholder, so a moved git dependency
-      # fails it (hephaestus#537); the script builds each side under its own lock. 25 min is
-      # 5x the derived cold build (98 s x 10/7 builds x 2 target directories).
       - id: semver
         if: steps.tool.outcome == 'success' && steps.atlas.outcome == 'success'
         continue-on-error: true
+        # cargo-semver-checks re-resolves a --baseline-rev in a placeholder, so a moved git
+        # dependency fails it (hephaestus#537); the script builds each side under its own lock.
+        # 25 min is 2x the 10.7 the step can take at its measured pieces, rounded up: 4.7 of
+        # cold builds (98 s x 10/7 builds x 2 target directories) plus 6 for the two
+        # `rustup toolchain install --profile minimal` lines it runs first, each of which
+        # python-tests.yml bounds at 3 (#708).
         timeout-minutes: 25
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
@@ -252,9 +279,14 @@ jobs:
         if: >-
           steps.tool.outcome == 'failure' || steps.atlas.outcome == 'failure' || (steps.semver.outcome == 'failure'
           && steps.semver.outputs.exit != '100' && steps.semver.outputs.exit != '101')
+        # One `echo` into the step summary: a local write, so 2 min is the floor for a step
+        # that runs one local command.
+        timeout-minutes: 2
         run: 'echo "### SemVer: tool failure, no complete verdict" >> "$GITHUB_STEP_SUMMARY"'
       - name: Report why nothing was compared
         if: steps.checkable.outputs.packages != '' && steps.scope.outputs.rust != 'true'
+        # One `printf` into the step summary: the local write above, 2 min by the same floor.
+        timeout-minutes: 2
         run: |
           printf '%s\n' "### SemVer: not compared" "" "The pull request changes no Rust source, manifest, lock, or toolchain pin, so the public API cannot differ from the base." >> "$GITHUB_STEP_SUMMARY"
 
@@ -262,6 +294,9 @@ jobs:
     name: Version bump guard
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # Two checkouts and one `atlas-bump-guard.py` pass comparing the manifest versions
+    # against the published ones. 10 min is the floor for two checkouts plus a registry
+    # query; the comparison itself is seconds.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -310,6 +345,10 @@ jobs:
       || github.event_name == 'release'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
+    # Two cargo-semver-checks action runs, registry and tag baselines, each building
+    # rustdoc for both sides, plus apt and the registry probes. 20 min is under the
+    # informational job's 25 for the same comparison, which also installs two
+    # toolchains in its step.
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

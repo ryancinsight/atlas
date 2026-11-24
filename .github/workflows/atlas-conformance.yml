@@ -115,6 +115,8 @@ jobs:
         run: python3 -m pip install --quiet -r scripts/requirements-test.txt
 
       - name: Setup recorded consumer toolchain
+        # One recorded channel from repos/aequitas, minimal profile: a single
+        # `rustup toolchain install`, the action #708 measured at 3 min in python-tests.yml.
         timeout-minutes: 3
         shell: bash
         run: |
@@ -291,6 +293,9 @@ jobs:
     if: always() && github.event_name != 'schedule'
     needs: [workflow-lint, conformance-check, script-tests]
     runs-on: ubuntu-latest
+    # One shell step over the three upstream verdicts: no checkout, no network, nothing to
+    # build. 1 min is far above its four string comparisons, and the tightness is
+    # deliberate: a stalled aggregation has nothing to wait for.
     timeout-minutes: 1
     steps:
       - name: Require every conformance verdict
@@ -383,6 +388,8 @@ jobs:
 
       - name: Setup recorded consumer toolchain
         if: steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
+        # The same single recorded-channel install as the ratchet job's step of this name:
+        # 3 min is that measured bound (#708, python-tests.yml).
         timeout-minutes: 3
         shell: bash
         run: |
@@ -391,6 +398,9 @@ jobs:
 
       - name: Pins within one sweep of their members' defaults
         if: steps.scope.outputs.run == 'true'
+        # `atlas-pin-drift.py --timeout 20 --jobs 8`: each member costs at most three
+        # bounded git calls (ls-remote, fetch, rev-list) at 20 s, 60 s; 28 recorded members
+        # in 4 waves of 8 is 240 s, so 5 min covers that and keeps 60 s spare.
         timeout-minutes: 5
         shell: bash
         # Redirect-then-cat, not a pipe: the default shell has no pipefail, so
@@ -415,6 +425,9 @@ jobs:
 
       - name: Compile recorded Aequitas -> Eunomia pins
         if: always() && steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
+        # `atlas-pin-compile.py`'s own deadlines: two 30 s archives, 60 s of `cargo metadata`
+        # and 180 s of `cargo check` make 300 s, so 6 min is that arithmetic plus a minute of
+        # probe setup rather than a round number.
         timeout-minutes: 6
         shell: bash
         run: |

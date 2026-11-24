@@ -28,6 +28,9 @@ jobs:
   report:
     name: Fleet queue/minutes report
     runs-on: ubuntu-latest
+    # Seven days of fleet runs read page by page from the Actions API, then a prune of the
+    # retained report ring through the same API. Nothing here is compute; 15 min covers
+    # pagination across the fleet, the script's retries and a rate-limit back-off.
     timeout-minutes: 15
     steps:
       - name: Checkout repository

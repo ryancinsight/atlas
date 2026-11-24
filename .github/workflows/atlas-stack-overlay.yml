@@ -65,6 +65,9 @@ jobs:
   overlay-check:
     name: Stack overlay coherence (requirements satisfiable + locks match)
     runs-on: ubuntu-latest
+    # A shallow member checkout at each default head, one `atlas-stack-overlay.py check`
+    # (4.9 s here), and the log upload. 5 min is 60x the script and covers the member
+    # fetch, which dominates on a cold runner.
     timeout-minutes: 5
     steps:
       - name: Checkout

@@ -37,6 +37,9 @@ jobs:
   adr-index:
     name: ADR index is current
     runs-on: ubuntu-latest
+    # Two checkouts and one ADR index comparison: `scripts/adr-index.py check` reads every
+    # ADR header and takes 8.9 s on a warm desktop checkout here, so 5 min is 34x that and
+    # leaves the first cold read of the clone inside the bound too.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
