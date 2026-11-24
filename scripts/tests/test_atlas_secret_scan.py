@@ -19,7 +19,7 @@ from pathlib import Path
 from unittest import mock
 
 from readonly_tree import clear_readonly_tree
-from process_tree_support import HANG_GUARD_SECONDS, NEVER_ENDS
+from process_tree_support import HANG_GUARD_SECONDS, NEVER_ENDS, is_running
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-secret-scan.py"
 _SPEC = importlib.util.spec_from_file_location("atlas_secret_scan", SCRIPT)
@@ -60,31 +60,6 @@ def token(rule: str) -> str:
 def _git(root: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(root), *args], check=True,
                           capture_output=True, text=True, env=GIT_ENV).stdout.strip()
-
-
-def _is_running(pid: int) -> bool:
-    """Whether process `pid` is active after process-tree cleanup returns."""
-    if os.name == "nt":
-        import ctypes
-
-        kernel = ctypes.windll.kernel32  # type: ignore[attr-defined]
-        handle = kernel.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
-        if not handle:
-            return False
-        try:
-            # WAIT_OBJECT_0: the process has exited.
-            return kernel.WaitForSingleObject(handle, 0) != 0
-        finally:
-            kernel.CloseHandle(handle)
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    try:
-        # A killed process is a zombie until its parent reaps it.
-        return Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split(") ")[-1][0] != "Z"
-    except OSError:
-        return True
 
 
 class RuleTestCase(unittest.TestCase):
@@ -504,7 +479,7 @@ class PushedRangeTestCase(unittest.TestCase):
                 b"", HANG_GUARD_SECONDS,
             )
             self.assertEqual(status, 0)
-            self.assertFalse(_is_running(int(pid_path.read_text())))
+            self.assertFalse(is_running(int(pid_path.read_text())))
 
     def test_a_command_past_its_deadline_is_reported(self) -> None:
         with self.assertRaises(subprocess.TimeoutExpired):
