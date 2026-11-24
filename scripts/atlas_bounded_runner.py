@@ -16,14 +16,15 @@ deadline, so orientation finds a run whose runner outlived its limit. A tag may
 be read mid-write; ``overdue`` skips it with a warning, and likewise a tag whose
 ``started`` or ``deadline`` is not a finite number, without hiding another run.
 
-The command follows ``--``. The exit status is the command's own, 124 at the
-deadline and 125 when the runner failed. Each 124 and 125 of the runner prints
-a ``stage:`` line on stderr: ``store`` (no tag could be created and the command
-did not run, or an end file could not be created and the status is unchanged),
-``cleanup`` (retiring the tree failed) or ``launch`` (the command could not be
-started or supervised). A command's own 124, 125 or 2 carries no ``stage:``
-line. Neither does the runner's own exit 2 (bad arguments, no command), which
-also writes no tag. ``--deadline`` must be finite and greater than zero.
+The command follows ``--``. The exit status is the command's own, 124 when the
+deadline retired the tree (``stage: deadline`` on stderr) and 125 when the
+runner failed, with ``stage: store`` (no tag could be created; the command did
+not run), ``stage: cleanup`` (retiring the tree failed) or ``stage: launch``
+(any other failure to start or supervise the command). An end file that cannot
+be created prints ``stage: store: could not close`` and leaves the status as it
+was. A command's own 124, 125 or 2 carries no ``stage:`` line. Neither does the
+runner's own exit 2 (bad arguments, no command), which also writes no tag.
+``--deadline`` must be finite and greater than zero.
 
 Oracle: ``scripts/tests/test_atlas_bounded_runner.py``.
 """
