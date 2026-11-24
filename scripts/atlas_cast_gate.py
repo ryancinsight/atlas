@@ -17,6 +17,15 @@ on a new cast. This gate is the enforcement:
   into it neither raises nor lowers the package's count. Its added lines pass
   only under `cast_module_fault`, no file of its package mounted twice
   (`clippy::duplicate_mod`, force-warned), and the base count;
+- a pushed package whose `.rs` text holds a `cfg` or `cfg_attr` predicate naming
+  `clippy` fails (`cfg_clippy_problems`): clippy-driver sets `cfg(clippy)` and
+  rustc does not, so code under `cfg(not(clippy))` is compiled only by the run
+  that skips it, and code under `cfg(clippy)` by no build the gate counts. The
+  scan reads the package's tracked `.rs` files with comments and strings blanked,
+  and refuses a file that names `clippy` and does not lex. A predicate built by
+  macro substitution (`#[cfg(not($p))]`) or written as a `cfg_select!` arm
+  (`not(clippy) => { ... }`, which rustc 1.97.0 compiled here) has no `cfg(`
+  token and is not seen;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -86,13 +95,14 @@ import argparse
 import json
 import os
 import pathlib
+import posixpath
 import re
 import shutil
 import subprocess
 import sys
 import time
 import tomllib
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
@@ -110,8 +120,6 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 # rather than count the rest of the package and pass.
 CFG_PREDICATE = re.compile(r"\b(cfg|cfg_attr)\s*\(")
 CLIPPY_PREDICATE = re.compile(r"\bclippy\b")
-CFG_CLIPPY_HINT = r"cfg(_attr)?[[:space:]]*\([^)]*clippy"
-
 
 
 @dataclass(frozen=True, order=True)
@@ -431,29 +439,11 @@ def code_without_comments_or_strings(text: str) -> str:
     be read as one. Offsets and line breaks survive the blanking so a fault can
     name the line the predicate is written on.
     """
-    out: list[str] = []
-    index = 0
-    while index < len(text):
-        if text.startswith("/*", index):
-            start, depth, index = index, 1, index + 2
-            while depth:
-                close, opened = text.find("*/", index), text.find("/*", index)
-                if close < 0:
-                    raise ValueError("an unclosed block comment")
-                depth, index = ((depth + 1, opened + 2) if 0 <= opened < close
-                                else (depth - 1, close + 2))
-            out.append(re.sub(r"[^\n]", " ", text[start:index]))
-            continue
-        match = TOKEN.match(text, index)
-        if match is None:
-            out.append(text[index])
-            index += 1
-            continue
-        kind, chunk = match.lastgroup, match.group()
-        out.append(re.sub(r"[^\n]", " ", chunk) if kind in ("comment", "string", "char")
-                   else chunk)
-        index = match.end()
-    return "".join(out)
+    return "".join(
+        re.sub(r"[^\n]", " ", text[start:end]) if kind in ("comment", "string", "char")
+        else text[start:end]
+        for kind, start, end in spans(text)
+    )
 
 
 def matching_paren(code: str, opening: int) -> int:
@@ -498,64 +488,63 @@ def cfg_clippy_lines(text: str) -> list[int]:
     return found
 
 
-def tip_paths(repo: pathlib.Path, tip: str) -> list[str]:
-    """Every tracked path at `tip`."""
-    return subprocess.run(
-        ["git", "-C", str(repo), "ls-tree", "-r", "--name-only", tip],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
-    ).stdout.splitlines()
-
-
-def pushed_package_roots(repo: pathlib.Path, tip: str,
-                         packages: Iterable[str]) -> list[str]:
-    """Directories of the named packages at `tip`, ``""`` for the root one."""
+def package_sources(repo: pathlib.Path, tip: str, packages: Iterable[str]) -> list[str]:
+    """The tracked `.rs` paths at `tip` that belong to the named packages: those
+    whose nearest ancestor directory holding a `Cargo.toml` is a named
+    package's. A package no manifest names has none; a root package does not
+    own the directories of the workspace members below it."""
+    paths = git_paths(repo, tip)
+    manifests = [path for path in paths if is_manifest(path)]
+    holders = {posixpath.dirname(path) for path in manifests}
     wanted = frozenset(packages)
-    if not wanted:
-        return []
-    roots: list[str] = []
-    listing = tip_paths(repo, tip)
-    for path in listing:
-        if path != "Cargo.toml" and not path.endswith("/Cargo.toml"):
-            continue
-        text = git_file(repo, tip, path)
-        if text is None:
-            continue
-        try:
-            if package_name(tomllib.loads(text)) in wanted:
-                roots.append("" if path == "Cargo.toml" else path[: -len("/Cargo.toml")])
-        except tomllib.TOMLDecodeError:
-            continue
-    return roots
+    owned = {directory for name, directory in package_directories(repo, tip, manifests)
+             if name in wanted}
+
+    def owner(path: str) -> str:
+        directory = posixpath.dirname(path)
+        while directory and directory not in holders:
+            directory = posixpath.dirname(directory)
+        return directory
+
+    return [path for path in paths if path.endswith(".rs") and owner(path) in owned]
 
 
 def cfg_clippy_problems(repo: pathlib.Path, tip: str,
                         packages: Iterable[str]) -> list[str]:
     """One problem per `cfg` predicate naming `clippy` in a pushed package.
 
-    `git grep` narrows the search to files that could hold one on a single
-    line; the lexer then decides whether the hit is code and whether the
-    predicate -- not a `cfg_attr` body -- names `clippy`.
+    The scan covers the package's tracked `.rs` files and no other text. A
+    file holds such a predicate only if the word `clippy` occurs in it, so
+    `git grep` for the word narrows the files the lexer reads; the lexer then
+    decides whether a hit is code and whether the predicate -- not a
+    `cfg_attr` body -- names `clippy`. A file that names `clippy` and does not
+    lex is refused, since its predicates cannot be read.
     """
-    roots = pushed_package_roots(repo, tip, packages)
-    if not roots and not list(packages):
+    sources = package_sources(repo, tip, packages)
+    if not sources:
         return []
-    command = ["git", "-C", str(repo), "grep", "-n", "-I", "-E", CFG_CLIPPY_HINT, tip]
-    if roots and "" not in roots:
-        command += ["--", *roots]
-    run = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
-                         errors="replace")
+    command = ["git", "-C", str(repo), "grep", "-l", "-z", "-a", "-w", "-F", "clippy",
+               tip, "--", "*.rs"]
+    run = subprocess.run(command, capture_output=True)
     if run.returncode not in (0, 1):  # 1: no hit, not a failure
-        raise subprocess.CalledProcessError(run.returncode, command,
-                                            output=run.stdout, stderr=run.stderr)
-    paths = sorted({fields[1] for line in run.stdout.splitlines()
-                    if len(fields := line.split(":", 2)) == 3})
+        raise subprocess.CalledProcessError(run.returncode, command, output=run.stdout,
+                                            stderr=run.stderr)
+    named = {entry.removeprefix(f"{tip}:")
+             for entry in run.stdout.decode("utf-8", errors="replace").split("\0")}
     problems: list[str] = []
-    for path in paths:
-        for line in cfg_clippy_lines(git_file(repo, tip, path) or ""):
+    for path in sorted(named.intersection(sources)):
+        try:
+            lines = cfg_clippy_lines(git_file(repo, tip, path) or "")
+        except ValueError as error:
             problems.append(
-                f"{path}:{line}: a `cfg` predicate names `clippy`, which clippy-driver "
-                "sets and rustc does not, so the gate cannot count the code it guards"
-            )
+                f"{path}: cannot be read as Rust ({error}), so the gate cannot tell "
+                "whether a `cfg` predicate names `clippy`")
+            continue
+        problems += [
+            f"{path}:{line}: a `cfg` predicate names `clippy`, which clippy-driver sets "
+            "and rustc does not, so the gate cannot count the code it guards"
+            for line in lines
+        ]
     return problems
 
 
@@ -867,12 +856,32 @@ def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
     return run.stdout.decode("utf-8", errors="replace")
 
 
-def git_manifests(repo: pathlib.Path, revision: str) -> list[str]:
-    """Every manifest path at `revision`."""
-    run = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "--name-only", revision],
-                         capture_output=True, check=True)
-    return [line for line in run.stdout.decode("utf-8", errors="replace").splitlines()
-            if line == "Cargo.toml" or line.endswith("/Cargo.toml")]
+def git_paths(repo: pathlib.Path, revision: str) -> list[str]:
+    """Every tracked path at `revision`."""
+    run = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "-z", "--name-only",
+                          revision], capture_output=True, check=True)
+    return [path for path in run.stdout.decode("utf-8", errors="replace").split("\0") if path]
+
+
+def is_manifest(path: str) -> bool:
+    """Whether `path` is a `Cargo.toml`."""
+    return posixpath.basename(path) == "Cargo.toml"
+
+
+def package_directories(repo: pathlib.Path, revision: str,
+                        manifests: Iterable[str]) -> list[tuple[str, str]]:
+    """The (package, manifest directory) of each manifest at `revision` that
+    parses and declares a package; the root directory is ``""``."""
+    found = []
+    for path in manifests:
+        text = git_file(repo, revision, path)
+        try:
+            name = package_name(tomllib.loads(text)) if text is not None else None
+        except tomllib.TOMLDecodeError:
+            continue
+        if name:
+            found.append((name, posixpath.dirname(path)))
+    return found
 
 
 def package_name(manifest: dict) -> str | None:
@@ -953,20 +962,14 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
     if name:
         packages.add(name)
     excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
-    manifests = git_manifests(repo, base)
+    manifests = [path for path in git_paths(repo, base) if is_manifest(path)]
     for member in workspace.get("members", []):
         if not isinstance(member, str):
             continue
-        for manifest in member_manifests(member, manifests):
-            directory = "" if manifest == "Cargo.toml" else manifest[: -len("/Cargo.toml")]
-            if any(is_excluded(directory, entry) for entry in excluded):
-                continue
-            text = git_file(repo, base, manifest)
-            if text is None:
-                continue
-            member_package = package_name(tomllib.loads(text))
-            if member_package:
-                packages.add(member_package)
+        for name, directory in package_directories(
+                repo, base, member_manifests(member, manifests)):
+            if not any(is_excluded(directory, entry) for entry in excluded):
+                packages.add(name)
     return frozenset(packages)
 
 
@@ -1156,12 +1159,13 @@ CAST_LINTS = frozenset(f"clippy::{name}" for name in (
     "ptr_offset_with_cast ref_as_ptr unnecessary_cast").split())
 
 
-def lex(text: str) -> list[tuple[str, str]]:
-    """The (kind, text) Rust tokens of `text`, comments (nested) and space
-    dropped. An unclosed literal or comment, or a stray character, raises."""
-    tokens: list[tuple[str, str]] = []
+def spans(text: str) -> Iterator[tuple[str, int, int]]:
+    """The (kind, start, end) of every Rust token of `text`, space and comments
+    (block ones nested) included. An unclosed literal or comment, or a stray
+    character, raises."""
     index = 0
     while index < len(text):
+        start = index
         if text.startswith("/*", index):
             depth, index = 1, index + 2
             while depth:
@@ -1170,13 +1174,18 @@ def lex(text: str) -> list[tuple[str, str]]:
                     raise ValueError("an unclosed block comment")
                 depth, index = ((depth + 1, opened + 2) if 0 <= opened < close
                                 else (depth - 1, close + 2))
+            yield "comment", start, index
         elif match := TOKEN.match(text, index):
-            if match.lastgroup not in ("space", "comment"):
-                tokens.append((match.lastgroup, match.group()))
             index = match.end()
+            yield match.lastgroup, start, index
         else:
             raise ValueError(f"no token at offset {index}")
-    return tokens
+
+
+def lex(text: str) -> list[tuple[str, str]]:
+    """The (kind, text) Rust tokens of `text`, comments and space dropped."""
+    return [(kind, text[start:end]) for kind, start, end in spans(text)
+            if kind not in ("space", "comment")]
 
 
 def attributes(tokens: list[tuple[str, str]]) -> list[tuple[int, int, bool, str]]:
