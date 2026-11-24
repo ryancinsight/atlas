@@ -1,7 +1,6 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
-<a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — todo
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
@@ -35,7 +34,6 @@
 <a id="atlas-identity-lease-starvation"></a>- [ATLAS-IDENTITY-LEASE-STARVATION](backlog/atlas-identity-lease-starvation.md) — Gated pushes starve on the 900 s identity-lease wait [verification] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
-<a id="atlas-identity-suite-runtime"></a>- [ATLAS-IDENTITY-SUITE-RUNTIME](backlog/atlas-identity-suite-runtime.md) — Five build-identity tests run for minutes against a 60 s budget [tightening] [patch] — todo
 <a id="atlas-jfnk-matrix-free-gmres-001"></a>- [ATLAS-JFNK-MATRIX-FREE-GMRES-001](backlog/atlas-jfnk-matrix-free-gmres-001.md) — Converge CFDrs's iterative solvers onto Athena [minor] — todo
 <a id="atlas-kwavers-alloc-probe-deny-docs-2026-08-21"></a>- [ATLAS-KWAVERS-ALLOC-PROBE-DENY-DOCS-2026-08-21](backlog/atlas-kwavers-alloc-probe-deny-docs-2026-08-21.md) — Pilot deny(missing_docs) [patch] — todo
 <a id="atlas-kwavers-book-fence-2026-08-19"></a>- [ATLAS-KWAVERS-BOOK-FENCE-2026-08-19](backlog/atlas-kwavers-book-fence-2026-08-19.md) — restore truthful mdBook fence semantics [patch] — todo
