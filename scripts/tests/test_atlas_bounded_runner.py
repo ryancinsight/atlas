@@ -4,7 +4,10 @@ At the limit the exit is 124 and names the limit and the stage, the grandchild
 process no longer exists, and the end file records the deadline outcome. A
 completing command keeps its status and output. A run the runner cannot start,
 cannot create a tag for, or cannot clean up exits 125 with its stage named, and
-a run whose tree may survive gets no end file. Any session string tags a run inside the store.
+a run whose tree may survive gets no end file. A tag store that fails or is held open by a
+reader never changes the command's status, and any session string tags a run
+inside the store. ``overdue`` lists runs with no end file past their deadline,
+skips unreadable files with a warning, and reads each tag file once.
 """
 
 from __future__ import annotations
@@ -17,6 +20,8 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -91,6 +96,10 @@ def read_tags(target: Path) -> list[dict[str, object]]:
             tag.update(json.loads(end.read_text(encoding="utf-8")))
         tags.append(tag)
     return tags
+
+
+def finished(status: int) -> mock.Mock:
+    return mock.Mock(return_value=subprocess.CompletedProcess(["x"], status))
 
 
 class RunTests(unittest.TestCase):
@@ -204,6 +213,121 @@ class FaultTests(unittest.TestCase):
         self.assertEqual(result.returncode, 125, result.stderr)
         self.assertIn("stage: store", result.stderr)
         self.assertFalse(marker.exists(), "the command did not run")
+
+    def test_a_tag_that_cannot_be_closed_leaves_the_exit_status(self) -> None:
+        target = scratch(self) / "target"
+
+        def run(*arguments: object, **options: object) -> subprocess.CompletedProcess[str]:
+            [opened] = store_of(target).glob("*.json")
+            opened.with_suffix(".end.json").write_text("{}", encoding="utf-8")
+            return subprocess.CompletedProcess(["x"], 9)
+
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            self.assertEqual(run_in_process(target, *RUN, run=mock.Mock(side_effect=run)), 9)
+        self.assertIn("stage: store: could not close", stderr.getvalue())
+
+    def test_a_reader_holding_a_tag_open_cannot_change_the_exit_status(self) -> None:
+        target = scratch(self) / "target"
+        holding, release = threading.Event(), threading.Event()
+        readers = []
+
+        def hold(path: Path) -> None:
+            with path.open(encoding="utf-8"):
+                holding.set()
+                release.wait(HANG_GUARD_SECONDS)
+
+        def run(*arguments: object, **options: object) -> subprocess.CompletedProcess[str]:
+            [opened] = store_of(target).glob("*.json")
+            readers.append(threading.Thread(target=hold, args=(opened,)))
+            readers[0].start()
+            self.assertTrue(holding.wait(HANG_GUARD_SECONDS))
+            return subprocess.CompletedProcess(["x"], 9)
+
+        try:
+            status = run_in_process(target, *RUN, run=mock.Mock(side_effect=run))
+        finally:
+            release.set()
+            readers[0].join()
+        self.assertEqual(status, 9)
+        [tag] = read_tags(target)
+        self.assertEqual((tag["outcome"], tag["returncode"]), ("exit", 9))
+        self.assertEqual(atlas_bounded_runner.overdue_tags(store_of(target), time.time() + 1e6), [])
+
+    def test_a_taken_tag_name_is_never_overwritten(self) -> None:
+        target = scratch(self) / "target"
+        taken = store_of(target) / f"100-{os.getpid()}.json"
+        taken.parent.mkdir(parents=True)
+        taken.write_text("{}", encoding="utf-8")
+        with mock.patch.object(atlas_bounded_runner.time, "time_ns", return_value=100):
+            self.assertEqual(run_in_process(target, *RUN, run=finished(0)), 0)
+        self.assertEqual(taken.read_text(encoding="utf-8"), "{}")
+        names = sorted(path.name for path in taken.parent.iterdir())
+        self.assertEqual(names, [taken.name, f"101-{os.getpid()}.end.json", f"101-{os.getpid()}.json"])
+
+
+class OverdueTests(unittest.TestCase):
+    def test_unreadable_files_are_skipped_and_leftovers_ignored(self) -> None:
+        store = scratch(self)
+        files = {
+            "late.json": '{"id": "late", "started": 1.0, "deadline": 1.0}',
+            "broken.json": "{", "list.json": "[]", "foreign.json": '{"id": "x"}',
+            "7-7.json.part": "{", "8-8.end.json": "{",
+        }
+        for name, text in files.items():
+            (store / name).write_text(text, encoding="utf-8")
+        with contextlib.redirect_stderr(io.StringIO()) as warnings:
+            found = atlas_bounded_runner.overdue_tags(store, now=100.0)
+        self.assertEqual([tag["id"] for tag in found], ["late"])
+        for name in ("broken.json", "list.json", "foreign.json"):
+            self.assertIn(f"skipped {name}", warnings.getvalue())
+        for leftover in ("7-7", "8-8"):
+            self.assertNotIn(leftover, warnings.getvalue())
+
+    def test_each_tag_file_is_read_once_and_end_files_never(self) -> None:
+        store = scratch(self)
+        for name in ("1-1.json", "1-1.end.json", "2-2.json"):
+            (store / name).write_text('{"id": "t", "started": 1.0, "deadline": 1.0}', encoding="utf-8")
+        read, original = [], Path.read_text
+
+        def recording(path: Path, *arguments: object, **options: object) -> str:
+            read.append(path.name)
+            return original(path, *arguments, **options)
+
+        with mock.patch.object(Path, "read_text", recording):
+            found = atlas_bounded_runner.overdue_tags(store, now=100.0)
+        self.assertEqual(read, ["1-1.json", "2-2.json"])
+        self.assertEqual(len(found), 1)
+
+    def test_the_command_prints_each_open_late_tag(self) -> None:
+        target = scratch(self) / "target"
+        store = store_of(target)
+        store.mkdir(parents=True)
+        now = time.time()
+        tags = {
+            "1-1": {"id": "late", "started": now - 100.0, "deadline": 10.0},
+            "2-2": {"id": "in-time", "started": now, "deadline": 3600.0},
+            "3-3": {"id": "closed", "started": now - 100.0, "deadline": 10.0},
+        }
+        for stem, tag in tags.items():
+            (store / f"{stem}.json").write_text(json.dumps(tag), encoding="utf-8")
+        (store / "3-3.end.json").write_text('{"id": "closed", "outcome": "exit"}', encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()) as listing:
+            status = run_in_process(target, "overdue")
+        self.assertEqual(status, 0)
+        self.assertEqual([json.loads(line)["id"] for line in listing.getvalue().splitlines()], ["late"])
+
+
+class TagStoreTests(unittest.TestCase):
+    def test_the_store_falls_back_to_the_shared_target_when_unconfigured(self) -> None:
+        shared = scratch(self) / "shared"
+        lookup = mock.patch.object(
+            atlas_bounded_runner.atlas_target_dir, "shared_target_for", return_value=shared
+        )
+        with mock.patch.dict(os.environ), lookup as shared_target_for:
+            del os.environ["CARGO_TARGET_DIR"]
+            store = atlas_bounded_runner.tag_store()
+        self.assertEqual(store, store_of(shared))
+        shared_target_for.assert_called_once_with(SCRIPTS.parent)
 
 
 if __name__ == "__main__":

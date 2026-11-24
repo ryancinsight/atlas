@@ -11,7 +11,8 @@ launches and ``<stamp>-<pid>.end.json`` with its outcome when the command ends,
 each by exclusive create and never rewritten, so a reader holding a tag open
 cannot disturb the runner. The session stays inside the tag, never in a file
 name. A run has no end file when its runner died or when retiring its tree
-failed (a descendant may survive); that open tag marks it for a later sweep.
+failed (a descendant may survive); ``overdue`` lists such runs once past their
+deadline, so orientation finds a run whose runner outlived its limit.
 
 Callable from bash, pwsh and cmd alike: the command follows ``--`` as argv. The
 exit status is the command's own on completion, 124 when the deadline retired
@@ -26,7 +27,9 @@ than zero.
 
 The tag store is ``.atlas/bounded-runner`` under ``$CARGO_TARGET_DIR`` and, when
 the variable is unset, under the shared target beside this checkout's common
-Git directory (:func:`atlas_target_dir.shared_target_for`).
+Git directory (:func:`atlas_target_dir.shared_target_for`). A tag is visible
+as soon as it is created, so a reader may catch one mid-write; ``overdue``
+skips it with a warning and lists it on the next call.
 
 Oracle: ``scripts/tests/test_atlas_bounded_runner.py``.
 """
@@ -110,6 +113,26 @@ def _cleanup_fault(error: BaseException) -> int:
     return EXIT_RUNNER_FAULT
 
 
+def overdue_tags(store: Path, now: float) -> list[dict[str, object]]:
+    """Tags of runs with no end file whose deadline passed before ``now``.
+
+    Each tag file is read at most once and nothing is written.
+    """
+    tags = []
+    for path in sorted(store.glob("*.json")):
+        if path.name.endswith(END_SUFFIX):
+            continue
+        try:
+            tag = json.loads(path.read_text(encoding="utf-8"))
+            late = now > tag["started"] + tag["deadline"]
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f"atlas-bounded-runner: skipped {path.name}: {error!r}", file=sys.stderr)
+            continue
+        if late and not path.with_suffix(END_SUFFIX).exists():
+            tags.append(tag)
+    return tags
+
+
 def _run(args: argparse.Namespace) -> int:
     command = list(args.command)
     if command and command[0] == "--":
@@ -164,6 +187,12 @@ def _run(args: argparse.Namespace) -> int:
     return result.returncode
 
 
+def _overdue(args: argparse.Namespace) -> int:
+    for tag in overdue_tags(tag_store(), time.time()):
+        print(json.dumps(tag, sort_keys=True))
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="atlas-bounded-runner",
@@ -178,6 +207,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--item", default="", help="item id tagging the run")
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- followed by the command")
     run.set_defaults(handler=_run)
+    listing = modes.add_parser("overdue", help="list open tags past their deadline")
+    listing.set_defaults(handler=_overdue)
     args = parser.parse_args(argv)
     return args.handler(args)
 
