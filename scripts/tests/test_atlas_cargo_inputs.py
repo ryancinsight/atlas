@@ -189,24 +189,42 @@ def test_cli_emits_lf_records_from_crlf_paths(tmp_path: Path) -> None:
 
 
 _ROOT_PACKAGE = '[package]\nname = "root"\nversion = "0.1.0"\n'
+_MAIN = ("root",)
+_BS = "\x5c\x5c"
 
 
 def _root_metadata(root: Path) -> dict:
     return _metadata(root, [("root-id", "root", "Cargo.toml", None)])
 
 
-def _gated(
+def _repository(
     tmp_path: Path, files: dict[str, str], changed: list[str], manifest: str = _ROOT_PACKAGE
-) -> tuple[str, ...]:
+) -> Path:
     root = _repo(tmp_path)
     _write(root, "Cargo.toml", manifest)
     _write(root, "src/lib.rs", "pub fn root() {}\n")
-    for path, content in files.items():
+    for path, content in {**files, **dict.fromkeys(changed, "prose\n")}.items():
         _write(root, path, content)
-    for path in changed:
-        _write(root, path, "prose\n")
     _commit(root, "base")
+    return root
+
+
+def _owned(root: Path, changed: list[str]) -> tuple[str, ...]:
     return cargo_input_owners(root, "Cargo.toml", _root_metadata(root), changed).packages
+
+
+def _gated(tmp_path: Path, files: dict[str, str], changed: list[str], manifest: str = _ROOT_PACKAGE):
+    return _owned(_repository(tmp_path, files, changed, manifest), changed)
+
+
+_STD_ONLY = (
+    '#![cfg_attr(not(feature = "std"), no_std)]\n#![deny(missing_docs)]\n'
+    "/// Docs name `docs/adr/0002-x.md` and https://docs.rs/root without including them.\n"
+    "#[derive(Debug, Clone, PartialEq)]\npub struct A;\n"
+    "macro_rules! twice { ($x:expr) => { $x + $x }; }\n"
+    '#[path = "other.rs"]\nmod other;\n'
+    'pub fn f() -> usize { println!("{}", twice!(1)); include_str!("../docs/other.md").len() }\n'
+)
 
 
 @pytest.mark.parametrize(
@@ -214,104 +232,92 @@ def _gated(
     [
         ["docs/adr/0002-rate-constant-typing.md", "backlog.md"],
         ["docs/book/cpu_topology.md", "docs/book/topology_epoch.md", "CHANGELOG.md"],
+        ["docs/X.markdown", "docs/OTHER2.MD"],
     ],
 )
-def test_unreferenced_markdown_owns_no_root_package(tmp_path: Path, changed: list[str]) -> None:
-    lib = '#![deny(missing_docs)]\npub const A: &str = "my_docs";\npub const B: &str = "docs.rs";\n'
-    files = {"src/lib.rs": lib, "README.md": "readme\n"}
+def test_markdown_no_target_can_read_owns_no_root_package(tmp_path: Path, changed: list[str]) -> None:
+    build = 'fn main() { println!("cargo:rerun-if-changed=build.rs"); }\n'
+    manifest = _ROOT_PACKAGE + 'readme = "README.md"\n'
+    files = {"src/lib.rs": _STD_ONLY, "src/other.rs": "\n", "build.rs": build}
 
-    assert _gated(tmp_path, files, changed, _ROOT_PACKAGE + 'readme = "README.md"\n') == ()
+    assert _gated(tmp_path, files, changed, manifest) == ()
 
 
-_SOURCES = {
-    "quoted-directory": ("src/lib.rs", 'pub const D: &str = "docs";\n', "docs/adr/0001-x.md"),
-    "doc-comment-url": ("src/lib.rs", "//! https://host/docs/adr/\n", "docs/adr/0001-x.md"),
-    "build-script-read-dir": (
-        "build.rs",
-        'fn main() { std::fs::read_dir("docs/book").unwrap(); }\n',
-        "docs/book/ch1.md",
+def _one(text: str, changed: str = "docs/x.md", at: str = "src/lib.rs") -> tuple[dict[str, str], str]:
+    return {at: text}, changed
+
+
+_INC = 'const T: &str = include_str!("../docs/x.md");\n'
+_G = "guide/intro.md"
+_CASES = {
+    "include-str": _one(_INC),
+    "include-bytes": _one('static B: &[u8] = include_bytes!("../docs/x.md");\n'),
+    "include-in-doc-attribute": _one('#![doc = include_str!("../docs/x.md")]\n'),
+    "include-of-same-name-elsewhere": _one(_INC, "other/x.md"),
+    "include-path-case": _one('const T: &str = include_str!("../DOCS/X.MD");\n'),
+    "includer-in-tests": _one(_INC, at="tests/it.rs"),
+    "includer-in-sibling-crate": _one(_INC, at="crates/b/src/lib.rs"),
+    "includer-in-target-module": _one(_INC, at="src/target/mod.rs"),
+    "includer-in-target-directory": _one(_INC, at="target/gen.rs"),
+    "includer-below-nested-git": _one(_INC, at="vendor/.git/hook.rs"),
+    "includer-in-uppercase-extension": (
+        {"src/lib.rs": '#[path = "inc.RS"]\nmod inc;\n', "src/inc.RS": _INC},
+        "docs/x.md",
     ),
-    "concat-built-path": (
-        "src/lib.rs",
-        'pub const T: &str = include_str!(concat!("../docs/", "intro", ".md"));\n',
-        "docs/intro.md",
-    ),
-    "macro-built-stem": (
-        "src/lib.rs",
-        'macro_rules! chapter { ($n:literal) => { include_str!(concat!("../book/", $n, ".md")) }; }\n'
-        'pub const C: &str = chapter!("intro");\n',
-        "book/intro.md",
-    ),
-    "test-reads-directory": (
-        "tests/corpus.rs",
-        'fn corpus() { std::fs::read_dir("tests/corpus").unwrap(); }\n',
-        "tests/corpus/case1.md",
-    ),
-    "stem-quoted-root-level": ("src/lib.rs", 'pub const S: &str = "changelog";\n', "CHANGELOG.md"),
-    "name-before-separator": ("src/lib.rs", 'pub const N: &str = "x.md/";\n', "x.md"),
-    "backslash-separator": (
-        "src/lib.rs",
-        'pub const W: &str = "docs\\\\book";\n',
-        "docs/book/x.md",
-    ),
-    "text-case": ("src/lib.rs", 'pub const D: &str = "DOCS";\n', "docs/x.md"),
-    "path-case": ("src/lib.rs", 'pub const D: &str = "docs";\n', "Docs/X.md"),
-    "extension-with-dot": (
-        "src/lib.rs",
-        'pub fn f(n: &str) -> bool { n.ends_with(".md") }\n',
-        "zzz/q.md",
-    ),
-    "extension-bare": (
-        "src/lib.rs",
-        'pub fn f(e: &std::ffi::OsStr) -> bool { e == "md" }\n',
-        "zzz/q.md",
-    ),
-    "extension-markdown": (
-        "src/lib.rs",
-        'pub fn f(n: &str) -> bool { n.ends_with(".markdown") }\n',
-        "zzz/q.md",
-    ),
-    "extension-glob": ("src/lib.rs", 'pub const G: &str = "*.md,*.txt";\n', "zzz/q.md"),
-    "includer-in-tests": ("tests/it.rs", 'const D: &str = "docs";\n', "docs/x.md"),
-    "includer-in-examples": ("examples/e.rs", 'const D: &str = "docs";\n', "docs/x.md"),
-    "includer-in-sibling-crate": ("crates/b/src/lib.rs", 'const D: &str = "docs";\n', "docs/x.md"),
-    "includer-in-target-module": ("src/target/mod.rs", 'const D: &str = "docs";\n', "docs/x.md"),
-    "includer-in-target-directory": ("target/gen.rs", 'const D: &str = "docs";\n', "docs/x.md"),
-    "includer-below-nested-git": ("vendor/.git/hook.rs", 'const D: &str = "docs";\n', "docs/x.md"),
+    "build-script-reads-manifest-directory": _one('fn main() { std::fs::read_dir(env!("CARGO_MANIFEST_DIR")); }\n', _G, "build.rs"),
+    "build-script-reads-listed-paths": _one('fn main() { std::fs::read_to_string("chapters.txt"); }\n', _G, "build.rs"),
+    "test-runs-git-ls-files": _one('fn t() { std::process::Command::new("git").arg("ls-files"); }\n', _G, "tests/tidy.rs"),
+    "path-reads-directory": _one("fn t(p: &std::path::Path) { let _ = p.read_dir(); }\n", _G),
+    "reads-environment": _one('fn t() { let _ = std::env::var("DOC_DIR"); }\n', _G),
+    "calls-foreign-function": _one('extern "C" { fn system(c: *const u8) -> i32; }\n', _G),
+    "runs-inline-assembly": _one('fn t() { unsafe { core::arch::asm!("nop"); } }\n', _G),
+    "runs-global-assembly": _one('core::arch::global_asm!("nop");\n', _G),
+    "runs-naked-assembly": _one('#[unsafe(naked)] extern fn t() { naked_asm!("ret"); }\n', _G),
+    "doctest-reads-directory": _one('/// ```\n/// std::fs::read_dir(".");\n/// ```\npub fn f() {}\n', _G),
+    "code-after-block-comment-marker": _one('/*\n// */ std::fs::read_dir(".");\n', _G),
+    "include-argument-from-fragments": _one('const T: &str = include_str!(concat!("../do", "cs/x.m", "d"));\n'),
+    "include-argument-raw-string": _one('const T: &str = include_str!(r"../docs/y");\n', "c/n.md"),
+    "include-argument-with-escape": _one(f'const T: &str = include_str!("..{_BS}docs{_BS}y");\n', "c/n.md"),
+    "include-of-rust-text-in-another-file": ({"src/lib.rs": 'include!("t.in");\n', "src/t.in": _INC}, "docs/x.md"),
+    "path-attribute-to-non-rust-file": ({"src/lib.rs": '#[path = "t.in"]\nmod t;\n', "src/t.in": _INC}, "docs/x.md"),
+    "path-attribute-raw-string": ({"src/lib.rs": '#[path = r"t.in"]\nmod t;\n', "src/t.in": _INC}, "docs/x.md"),
+    "cargo-config": _one("[build]\njobs = 1\n", at=".cargo/config.toml"),
+    "cargo-config-without-extension": _one("[build]\njobs = 1\n", at=".cargo/config"),
+    "nextest-config": _one("[profile.default]\n", at=".config/nextest.toml"),
+    "sibling-manifest-declares-dependency": _one('[package]\nname = "b"\n[dependencies]\nh = "1"\n', at="crates/b/Cargo.toml"),
+    "sibling-manifest-cannot-be-parsed": _one("[[", at="crates/b/Cargo.toml"),
 }
 
 
-@pytest.mark.parametrize("case", sorted(_SOURCES))
-def test_markdown_a_rust_source_can_read_gates(tmp_path: Path, case: str) -> None:
-    includer, text, changed = _SOURCES[case]
+@pytest.mark.parametrize("case", sorted(_CASES))
+def test_markdown_the_repository_can_read_keeps_the_origin_main_owner(tmp_path: Path, case: str) -> None:
+    files, changed = _CASES[case]
 
-    assert _gated(tmp_path, {includer: text}, [changed]) == ("root",)
+    assert _gated(tmp_path, files, [changed]) == _MAIN
 
 
-def _repository_with_docs(tmp_path: Path) -> Path:
-    root = _repo(tmp_path)
-    _write(root, "Cargo.toml", _ROOT_PACKAGE)
-    _write(root, "src/lib.rs", "pub fn root() {}\n")
-    _write(root, "docs/x.md", "prose\n")
-    _commit(root, "base")
-    return root
+def test_symlink_keeps_the_origin_main_owner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repository(tmp_path, {"docs/real.md": "prose\n", "docs/link.md": "real.md"}, ["docs/x.md"])
+    monkeypatch.setattr(os.path, "islink", lambda path: Path(path).name == "link.md")
+
+    assert _owned(root, ["docs/real.md"]) == _MAIN
 
 
 def test_repository_git_directory_is_not_scanned(tmp_path: Path) -> None:
-    root = _repository_with_docs(tmp_path)
-    _write(root, ".git/refs/spelled.rs", 'const D: &str = "docs";\n')
+    files = {".git/refs/spelled.rs": 'fn f() { std::fs::read_dir("."); }\n'}
 
-    assert cargo_input_owners(root, "Cargo.toml", _root_metadata(root), ["docs/x.md"]).packages == ()
+    assert _gated(tmp_path, files, ["docs/x.md"]) == ()
 
 
 _MANIFEST_CLAIMS = [
     ('readme = "docs/readme.md"\n', "docs/readme.md", True),
     ('readme = "./docs/Readme.md"\n', "docs/readme.md", True),
-    ('readme = "docs\\\\readme.md"\n', "docs/readme.md", True),
-    ("readme = true\n", "README.md", True),
+    (f'readme = "docs{_BS}readme.md"\n', "docs/readme.md", True),
     ("", "README.md", True),
     ("readme = false\n", "README.md", False),
     ('readme = "other.md"\n', "docs/x.md", False),
+    ("", "docs/x.markdown", False),
+    ("", "docs/X.MD", False),
     ('license-file = "docs/LICENSE.md"\n', "docs/LICENSE.md", True),
     ('include = ["docs/packaged/*.md"]\n', "docs/packaged/x.md", True),
     ('include = ["docs/**/*.md"]\n', "docs/top.md", True),
@@ -327,8 +333,25 @@ _MANIFEST_CLAIMS = [
     ("license-file.workspace = true\n", "docs/x.md", True),
     ("include.workspace = true\n", "docs/x.md", True),
     ("exclude.workspace = true\n", "docs/x.md", True),
+    ("exclude = [1]\n", "docs/x.md", True),
+    ('exclude = ["*.md"]\n', "docs/x.md", False),
     ("build.workspace = true\n", "docs/x.md", True),
-    ("include = [1]\n", "docs/x.md", True),
+    ("version = =\n", "docs/x.md", True),
+    ('build = "tools/build.md"\n', "docs/x.md", True),
+    ('build = "build.rs"\n', "docs/x.md", False),
+    ('"build" = "gen.txt"\n', "docs/x.md", True),
+    ('[lib]\npath = "src/lib.rs"\n', "docs/x.md", False),
+    ('[[bin]]\nname = "b"\npath = "lit/main.md"\n', "docs/x.md", True),
+    ('[[test]]\nname = "t"\n"path" = "tests/t.txt"\n', "docs/x.md", True),
+    ('[dependencies]\nhelper = "1"\n', "docs/x.md", True),
+    ('[dev-dependencies]\nhelper = "1"\n', "docs/x.md", True),
+    ('[build-dependencies]\nhelper = "1"\n', "docs/x.md", True),
+    ('[dev_dependencies]\nhelper = "1"\n', "docs/x.md", True),
+    ('[build_dependencies]\nhelper = "1"\n', "docs/x.md", True),
+    ('[dependencies.helper]\nversion = "1"\n', "docs/x.md", True),
+    ("[target.'cfg(unix)'.dependencies]\nhelper = \"1\"\n", "docs/x.md", True),
+    ('[workspace.dependencies]\nhelper = "1"\n', "docs/x.md", True),
+    ("[dependencies]\n", "docs/x.md", False),
 ]
 
 
@@ -336,83 +359,46 @@ _MANIFEST_CLAIMS = [
 def test_manifest_fields_decide_whether_markdown_gates(
     tmp_path: Path, extra: str, changed: str, gates: bool
 ) -> None:
-    packages = _gated(tmp_path, {}, [changed], _ROOT_PACKAGE + extra)
-
-    assert packages == (("root",) if gates else ())
+    assert _gated(tmp_path, {}, [changed], _ROOT_PACKAGE + extra) == (_MAIN if gates else ())
 
 
-@pytest.mark.parametrize(
-    "manifest",
-    [
-        _ROOT_PACKAGE + "version = =\n",
-        '[workspace]\nmembers = []\nnote = """\n[package]\n"""\n',
-    ],
-)
-def test_manifest_that_cannot_be_interpreted_claims_every_file(
-    tmp_path: Path, manifest: str
+def test_package_table_inside_a_string_is_not_a_package(tmp_path: Path) -> None:
+    manifest = '[workspace]\nmembers = []\nnote = """\n[package]\n"""\n'
+
+    assert _gated(tmp_path, {}, ["docs/x.md"], manifest) == _MAIN
+
+
+@pytest.mark.parametrize(("owner", "attribute", "name"), [(os, "scandir", "hidden"), (Path, "read_text", "locked.rs")])
+def test_unreadable_input_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, owner: object, attribute: str, name: str
 ) -> None:
-    assert _gated(tmp_path, {}, ["docs/x.md"], manifest) == ("root",)
+    root = _repository(tmp_path, {"src/locked.rs": "\n", "src/hidden/x.rs": "\n"}, ["docs/x.md"])
+    real = getattr(owner, attribute)
 
+    def fault(subject: object, *arguments: object, **keywords: object) -> object:
+        if Path(subject).name == name:
+            raise PermissionError(13, "denied", str(subject))
+        return real(subject, *arguments, **keywords)
 
-def test_unlistable_directory_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    root = _repository_with_docs(tmp_path)
-    (root / "src" / "hidden").mkdir()
-    real = os.scandir
-
-    def scandir(path: str = ".") -> object:
-        if Path(path).name == "hidden":
-            raise PermissionError(13, "denied", str(path))
-        return real(path)
-
-    monkeypatch.setattr(os, "scandir", scandir)
+    monkeypatch.setattr(owner, attribute, fault)
 
     with pytest.raises(PermissionError):
-        cargo_input_owners(root, "Cargo.toml", _root_metadata(root), ["docs/x.md"])
-
-
-def test_unreadable_source_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    root = _repository_with_docs(tmp_path)
-    _write(root, "src/locked.rs", "pub fn locked() {}\n")
-    real = Path.read_text
-
-    def read_text(self: Path, *arguments: object, **keywords: object) -> str:
-        if self.name == "locked.rs":
-            raise PermissionError(13, "denied", str(self))
-        return real(self, *arguments, **keywords)
-
-    monkeypatch.setattr(Path, "read_text", read_text)
-
-    with pytest.raises(PermissionError):
-        cargo_input_owners(root, "Cargo.toml", _root_metadata(root), ["docs/x.md"])
+        _owned(root, ["docs/x.md"])
 
 
 def test_undecodable_source_is_still_scanned(tmp_path: Path) -> None:
-    root = _repository_with_docs(tmp_path)
-    (root / "src" / "lib.rs").write_bytes(b'\xff\xfe\nconst D: &str = "docs";\n')
+    root = _repository(tmp_path, {}, ["docs/x.md"])
+    (root / "src" / "lib.rs").write_bytes(b"\xff\xfe\nfn f() { std::fs::read_dir(\".\"); }\n")
 
-    owners = cargo_input_owners(root, "Cargo.toml", _root_metadata(root), ["docs/x.md"])
-
-    assert owners.packages == ("root",)
-
-
-def test_markdown_deleted_but_still_included_gates(tmp_path: Path) -> None:
-    root = _repo(tmp_path)
-    _write(root, "Cargo.toml", _ROOT_PACKAGE)
-    _write(root, "src/lib.rs", 'pub const TEXT: &str = include_str!("../docs/gone.md");\n')
-    _commit(root, "base")
-
-    owners = cargo_input_owners(root, "Cargo.toml", _root_metadata(root), ["docs/gone.md"])
-
-    assert owners.packages == ("root",)
+    assert _owned(root, ["docs/x.md"]) == _MAIN
 
 
 def test_markdown_in_member_crate_is_judged_against_its_own_manifest(tmp_path: Path) -> None:
     root = _repo(tmp_path)
     _write(root, "Cargo.toml", '[workspace]\nmembers = ["crates/foo"]\n')
     _write(root, "crates/foo/Cargo.toml", '[package]\nname = "foo"\nversion = "0.1.0"\nreadme = "README.md"\n')
-    _write(root, "crates/foo/src/lib.rs", "pub fn foo() {}\n")
-    _write(root, "crates/foo/README.md", "readme\n")
-    _write(root, "crates/foo/docs/notes.md", "notes\n")
+    for path in ("src/lib.rs", "README.md", "docs/notes.md"):
+        _write(root, f"crates/foo/{path}", "pub fn foo() {}\n" if path.endswith(".rs") else "prose\n")
     _commit(root, "base")
     metadata = _metadata(root, [("foo-id", "foo", "crates/foo/Cargo.toml", None)])
 

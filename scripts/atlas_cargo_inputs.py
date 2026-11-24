@@ -55,8 +55,16 @@ def _skip_non_cargo(repository_path: str) -> bool:
 
 
 _PROSE_SUFFIXES = (".md", ".markdown")
-_PATH_BOUNDARY = frozenset('"/\\')
-_EXTENSION_LITERALS = ('.md"', '"md"', ".markdown", "*.md")
+_PROGRAM_FILES = frozenset({"config", "config.toml", "nextest.toml"})
+_DEPENDENCY_TABLES = frozenset(
+    {"dependencies", "dev-dependencies", "build-dependencies", "dev_dependencies", "build_dependencies"}
+)
+_CAPABILITY = re.compile(
+    r"\b(?:fs|process|env|read_dir|extern|asm|global_asm|naked_asm)\b|\binclude\s*!"
+    r'|\bpath\s*=(?!\s*"[^"\x5c]*\.rs")'
+)
+_INCLUDE_CALL = re.compile(r"\binclude_(?:str|bytes)\s*!")
+_INCLUDE_LITERAL = re.compile(r'\binclude_(?:str|bytes)\s*!\s*\(\s*"([^"\x5c]*)"\s*\)')
 _UNSUPPORTED_GLOB = re.compile(r"[\[\]\\]")
 
 
@@ -64,61 +72,60 @@ def _raise(error: OSError) -> None:
     raise error
 
 
-def _rust_source_text(root: Path) -> str:
-    """Concatenate every Rust source under `root`, lowercased.
+def _manifest_runs_unscanned_code(node: object) -> bool:
+    """Whether a parsed manifest declares a dependency or a target path not ending `.rs`."""
+    if isinstance(node, list):
+        return any(_manifest_runs_unscanned_code(item) for item in node)
+    return isinstance(node, dict) and any(
+        (key in _DEPENDENCY_TABLES and bool(value))
+        or (key in {"path", "build"} and isinstance(value, str) and not value.lower().endswith(".rs"))
+        or _manifest_runs_unscanned_code(value)
+        for key, value in node.items()
+    )
 
-    Only the root `.git` is skipped, so `target` or `.git` directories deeper
-    in the tree are scanned. An unreadable directory or file raises: the
-    caller exits non-zero and the hook blocks the push.
+
+def _scan(root: Path) -> tuple[str, bool]:
+    """The lowercased Rust sources under `root`, and whether tracked files run other code.
+
+    Other code is a symlink, a Cargo or nextest config, or a manifest that
+    declares a dependency, cannot be parsed or names a target not ending `.rs`.
+    Only the root `.git` is skipped; an unreadable path raises, so the hook blocks.
     """
-    chunks: list[str] = []
+    rust, other = [], False
     top = os.fspath(root)
     for directory, subdirectories, names in os.walk(root, onerror=_raise):
         if directory == top and ".git" in subdirectories:
             subdirectories.remove(".git")
+        other = other or any(os.path.islink(os.path.join(directory, n)) for n in (*names, *subdirectories))
         for name in names:
-            if name.endswith(".rs"):
-                path = Path(directory) / name
-                chunks.append(path.read_text(encoding="utf-8", errors="replace").lower())
-    return "\n".join(chunks)
+            lowered, path = name.lower(), Path(directory) / name
+            if lowered.endswith(".rs"):
+                rust.append(path.read_text(encoding="utf-8", errors="replace").lower())
+            elif lowered in _PROGRAM_FILES:
+                other = True
+            elif lowered == "cargo.toml":
+                try:
+                    manifest = tomllib.loads(path.read_text(encoding="utf-8"))
+                    other = other or _manifest_runs_unscanned_code(manifest)
+                except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+                    other = True
+    return "\n".join(rust), other
 
 
 class _RustSources:
-    """The lowercased text of every Rust source, and the file spellings found in it."""
+    """What the Rust sources of a repository can make Cargo read."""
 
     def __init__(self, root: Path) -> None:
-        self._text = _rust_source_text(root)
-        self._extension = any(literal in self._text for literal in _EXTENSION_LITERALS)
-        self._bounded: dict[str, bool] = {}
-
-    def _spells(self, component: str) -> bool:
-        """Whether `component` occurs with a quote or path separator on both sides."""
-        if component not in self._bounded:
-            text, found = self._text, False
-            start = text.find(component)
-            while start != -1 and not found:
-                end = start + len(component)
-                found = (
-                    start > 0
-                    and end < len(text)
-                    and text[start - 1] in _PATH_BOUNDARY
-                    and text[end] in _PATH_BOUNDARY
-                )
-                start = text.find(component, start + 1)
-            self._bounded[component] = found
-        return self._bounded[component]
+        text, other = _scan(root)
+        literals = _INCLUDE_LITERAL.findall(text)
+        self._unscanned = (
+            other or _CAPABILITY.search(text) is not None or len(literals) != len(_INCLUDE_CALL.findall(text))
+        )
+        self._included = {literal.rsplit("/", 1)[-1] for literal in literals}
 
     def may_read(self, relative: PurePosixPath) -> bool:
-        """Whether some source text can name `relative`, its stem or an ancestor directory.
-
-        A source containing `.md"`, `"md"`, `.markdown` or `*.md` also counts:
-        a directory walk filtering by extension reaches any Markdown file
-        without spelling it.
-        """
-        if self._extension:
-            return True
-        keys = (relative.name, relative.stem, *relative.parts[:-1])
-        return any(self._spells(key.lower()) for key in keys if key)
+        """Whether the proof that no source reads `relative` fails."""
+        return self._unscanned or relative.name.lower() in self._included
 
 
 def _text_list(value: object) -> list[str] | None:
@@ -195,25 +202,22 @@ def _manifest_claims(manifest: Path, package_relative: str) -> bool:
 def _is_prose_only(
     root: Path, package_directory: PurePosixPath, changed_path: str, sources: list[_RustSources]
 ) -> bool:
-    """A Markdown file no package target, readme or `include` pattern can reach.
+    """A Markdown file that no Cargo step can read, proved from the repository text.
 
-    Reachability is decided from text, not by running Cargo, and errs toward
-    the gate. A file is reachable when the manifest names it (`readme`,
-    `license-file`, an `include` pattern, or the default `README.md`), or when
-    any Rust source in the repository, comments included and case ignored,
-    spells its name, its stem or an ancestor directory bounded on both sides
-    by a quote or a path separator, or contains `.md"`, `"md"`, `.markdown`
-    or `*.md`. A reader that spells a path as string literals (`include_str!`,
-    `#[path]`, `concat!`-built paths, a build script or test reading a named
-    directory) therefore reaches the file through one of those spellings. The
-    cost is breadth: a source containing `"docs"` or a URL with `/docs/` makes
-    every file under `docs/` reachable, and any `include_str!("x.md")` makes
-    every Markdown file reachable.
+    False keeps origin/main's package owner. True needs all of:
+    1. the package manifest does not claim the file (`_manifest_claims`);
+    2. no tracked file runs code outside the scanned Rust text (`_scan`): no
+       symlink, Cargo or nextest config, dependency in any manifest, or
+       target path not ending `.rs`;
+    3. the Rust text, doc comments included, names no `fs`, `process`, `env`,
+       `read_dir`, `extern`, `asm` or `include!`, has no `path` but a plain
+       `.rs` literal, and passes every `include_str!` and `include_bytes!` one
+       plain literal whose last component is not the file's name (`_RustSources`).
 
-    Not covered: a reader that spells no component and no extension, such as a
-    build script or test reading every file under `.` and filtering by content.
-    Gating on any directory enumeration (`read_dir`, `walkdir`, `glob`) would
-    catch it; this function does not.
+    Premise: without a dependency or foreign code, std opens a path only
+    through those names, so the file is read only by a literal inclusion.
+    Cost: a crate with a dependency, or a source that touches the file system
+    or environment, gates every Markdown file under it.
     """
     path = PurePosixPath(changed_path)
     if path.suffix.lower() not in _PROSE_SUFFIXES:
