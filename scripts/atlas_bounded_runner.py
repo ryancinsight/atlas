@@ -1,20 +1,28 @@
 #!/usr/bin/env python3
 """One committed runner for every agent process: bounded, tagged.
 
-``run`` launches a command through :func:`process_tree.run` with a deadline:
-at the deadline the whole process tree (the root and every descendant) is
-retired and the exit reports the limit and the stage. Every run is tagged with
-its session, item, command and deadline in the tag store under the shared
-target's ``.atlas/`` directory, and the tag is closed with the run's outcome
-when the run ends, whatever ends it. ``overdue`` lists the tags of runs still
-open past their deadline, so orientation finds a run whose runner outlived its
-limit. A tag file is named by time and runner pid; the session stays inside it.
+``run`` launches a command through :func:`process_tree.run` with a deadline: at
+the deadline the whole process tree is retired and the exit reports the limit
+and the stage. Every run is tagged with its session, item, command and deadline
+in the tag store under the shared target's ``.atlas/`` directory.
 
-Callable from bash, pwsh and cmd alike: the command follows ``--`` and is
-passed as argv. The exit status is the command's own on completion, 124 when
-the deadline retired the tree and 125 when the runner itself failed (stage
-``cleanup``: retiring the tree failed; ``launch``: the command could not start).
-``--deadline`` must be finite and greater than zero.
+The store is append-only. A run creates ``<stamp>-<pid>.json`` before it
+launches and ``<stamp>-<pid>.end.json`` with its outcome when the command ends,
+each by exclusive create and never rewritten, so a reader holding a tag open
+cannot disturb the runner. The session stays inside the tag, never in a file
+name. A run has no end file when its runner died or when retiring its tree
+failed (a descendant may survive); that open tag marks it for a later sweep.
+
+Callable from bash, pwsh and cmd alike: the command follows ``--`` as argv. The
+exit status is the command's own on completion, 124 when the deadline retired
+the tree and 125 when the runner itself failed, with a ``stage:`` line on
+stderr: ``store`` (no tag could be created, so the command did not run),
+``cleanup`` (retiring the tree failed; no end file is written) or ``launch``
+(the command could not start). An end file that cannot be created is reported
+as stage ``store`` and leaves the exit status unchanged. A command that itself
+exits 124, 125 or 2 differs from the runner only by the missing ``stage:`` line
+and the end file's outcome ``exit``. ``--deadline`` must be finite and greater
+than zero.
 
 The tag store is ``.atlas/bounded-runner`` under ``$CARGO_TARGET_DIR`` and, when
 the variable is unset, under the shared target beside this checkout's common
@@ -39,6 +47,9 @@ import process_tree
 
 EXIT_DEADLINE = 124
 EXIT_RUNNER_FAULT = 125
+END_SUFFIX = ".end.json"
+# The note process_tree.run adds to an exception when retiring the tree failed too.
+CLEANUP_NOTE = "process-tree cleanup failed"
 
 
 def _seconds(text: str) -> float:
@@ -52,7 +63,7 @@ def _seconds(text: str) -> float:
 
 
 def tag_store() -> Path:
-    """Directory holding one JSON tag per run, under the shared target."""
+    """Directory holding the tag files of every run, under the shared target."""
     configured = os.environ.get("CARGO_TARGET_DIR")
     if configured:
         target = Path(configured)
@@ -61,32 +72,42 @@ def tag_store() -> Path:
     return target / ".atlas" / "bounded-runner"
 
 
-def _write_tag(store: Path, tag: dict[str, object]) -> None:
+def _create(path: Path, tag: dict[str, object]) -> None:
+    with path.open("x", encoding="utf-8") as handle:
+        handle.write(json.dumps(tag, indent=2, sort_keys=True) + "\n")
+
+
+def _open_tag(store: Path, tag: dict[str, object]) -> Path:
     store.mkdir(parents=True, exist_ok=True)
-    path = store / f"{tag['id']}.json"
-    partial = path.with_suffix(".json.part")
-    partial.write_text(json.dumps(tag, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(partial, path)
-
-
-def overdue_tags(store: Path, now: float) -> list[dict[str, object]]:
-    """Tags of runs never closed whose deadline passed before ``now``."""
-    tags = []
-    for path in sorted(store.glob("*.json")):
+    stamp = time.time_ns()
+    while True:
+        path = store / f"{stamp}-{os.getpid()}.json"
         try:
-            tag = json.loads(path.read_text(encoding="utf-8"))
-            late = "ended" not in tag and now > tag["started"] + tag["deadline"]
-        except (OSError, ValueError, KeyError, TypeError) as error:
-            print(f"atlas-bounded-runner: skipped {path.name}: {error!r}", file=sys.stderr)
-            continue
-        if late:
-            tags.append(tag)
-    return tags
+            _create(path, {**tag, "id": path.stem})
+        except FileExistsError:
+            stamp += 1
+        else:
+            return path
 
 
-def _close(store: Path, tag: dict[str, object], outcome: str, **fields: object) -> None:
-    tag.update(ended=time.time(), outcome=outcome, **fields)
-    _write_tag(store, tag)
+def _close_tag(opened: Path, outcome: str, **fields: object) -> None:
+    end = {"id": opened.stem, "ended": time.time(), "outcome": outcome, **fields}
+    try:
+        _create(opened.with_suffix(END_SUFFIX), end)
+    except OSError as error:
+        print(
+            f"atlas-bounded-runner: stage: store: could not close {opened.name}: {error!r}",
+            file=sys.stderr,
+        )
+
+
+def _survivor_possible(error: BaseException) -> bool:
+    return any(CLEANUP_NOTE in note for note in getattr(error, "__notes__", ()))
+
+
+def _cleanup_fault(error: BaseException) -> int:
+    print(f"atlas-bounded-runner: stage: cleanup: {error}", file=sys.stderr)
+    return EXIT_RUNNER_FAULT
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -97,7 +118,6 @@ def _run(args: argparse.Namespace) -> int:
         print("atlas-bounded-runner: a command is required after --", file=sys.stderr)
         return 2
     tag: dict[str, object] = {
-        "id": f"{time.time_ns()}-{os.getpid()}",
         "session": args.session,
         "item": args.item,
         "command": command,
@@ -105,14 +125,23 @@ def _run(args: argparse.Namespace) -> int:
         "runner_pid": os.getpid(),
         "started": time.time(),
     }
-    store = tag_store()
-    _write_tag(store, tag)
+    try:
+        opened = _open_tag(tag_store(), tag)
+    except (OSError, RuntimeError) as error:
+        print(
+            f"atlas-bounded-runner: stage: store: could not create the tag, "
+            f"the command did not run: {error!r}",
+            file=sys.stderr,
+        )
+        return EXIT_RUNNER_FAULT
     try:
         result = process_tree.run(
             command, timeout=args.deadline, output_mode=process_tree.OutputMode.INHERIT
         )
     except process_tree.ProcessTreeTimeout as error:
-        _close(store, tag, "deadline")
+        if error.cleanup_error is not None:
+            return _cleanup_fault(error)
+        _close_tag(opened, "deadline")
         print(
             f"atlas-bounded-runner: stage: deadline: {args.deadline} s exceeded; "
             f"process tree retired ({error})",
@@ -120,24 +149,19 @@ def _run(args: argparse.Namespace) -> int:
         )
         return EXIT_DEADLINE
     except process_tree.ProcessTreeCleanupError as error:
-        _close(store, tag, "cleanup")
-        print(f"atlas-bounded-runner: stage: cleanup: {error}", file=sys.stderr)
-        return EXIT_RUNNER_FAULT
+        return _cleanup_fault(error)
     except Exception as error:
-        _close(store, tag, "launch", error=repr(error))
-        print(f"atlas-bounded-runner: stage: launch: {error!r}", file=sys.stderr)
+        notes = "".join(f"\n{note}" for note in getattr(error, "__notes__", ()))
+        print(f"atlas-bounded-runner: stage: launch: {error!r}{notes}", file=sys.stderr)
+        if not _survivor_possible(error):
+            _close_tag(opened, "launch", error=repr(error))
         return EXIT_RUNNER_FAULT
-    except BaseException:
-        _close(store, tag, "interrupted")
+    except BaseException as error:
+        if not _survivor_possible(error):
+            _close_tag(opened, "interrupted")
         raise
-    _close(store, tag, "exit", returncode=result.returncode)
+    _close_tag(opened, "exit", returncode=result.returncode)
     return result.returncode
-
-
-def _overdue(args: argparse.Namespace) -> int:
-    for tag in overdue_tags(tag_store(), time.time()):
-        print(json.dumps(tag, sort_keys=True))
-    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -154,8 +178,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--item", default="", help="item id tagging the run")
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- followed by the command")
     run.set_defaults(handler=_run)
-    listing = modes.add_parser("overdue", help="list open tags past their deadline")
-    listing.set_defaults(handler=_overdue)
     args = parser.parse_args(argv)
     return args.handler(args)
 

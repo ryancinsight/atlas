@@ -1,10 +1,11 @@
 """Oracle: the bounded runner retires the whole tree at its deadline.
 
 At the limit the exit is 124 and names the limit and the stage, the grandchild
-process no longer exists, and the tag is closed with the deadline outcome. A
-completing command keeps its status and output; a run that cannot start exits 125
-with its tag closed; any session string tags a run inside the store; ``overdue``
-lists open tags past their deadline and no closed one.
+process no longer exists, and the end file records the deadline outcome. A
+completing command keeps its status and output. A run the runner cannot start
+or cannot clean up, or whose tag it cannot create, exits 125 with its stage named, and only a run whose tree
+cannot survive gets an end file, and any session string tags a run inside the
+store.
 """
 
 from __future__ import annotations
@@ -17,17 +18,18 @@ import signal
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 from unittest import mock
 
 import atlas_bounded_runner
-from process_tree import ProcessTreeCleanupError
+from process_tree import ProcessTreeCleanupError, ProcessTreeTimeout
 from process_tree_support import EXPIRY_HOLD_SECONDS, HANG_GUARD_SECONDS, is_running
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 RUNNER = SCRIPTS / "atlas_bounded_runner.py"
+RUN = ("run", "--deadline", str(HANG_GUARD_SECONDS), "--session", "s", "--", "x")
+EXITS_WITH_FIVE = (sys.executable, "-c", "raise SystemExit(5)")
 
 # Runs the runner's entry point with its deadline clock started at the
 # grandchild's readiness report, so no machine speed changes the outcome.
@@ -53,7 +55,6 @@ PARENT = (
     "subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2]])\n"
     "threading.Event().wait()\n"
 )
-EXITS_WITH_FIVE = [sys.executable, "-c", "raise SystemExit(5)"]
 
 
 def scratch(test: unittest.TestCase) -> Path:
@@ -68,8 +69,11 @@ def run_runner(target: Path, *arguments: str) -> subprocess.CompletedProcess[str
                           timeout=HANG_GUARD_SECONDS, env=environment)
 
 
-def run_in_process(target: Path, *arguments: str) -> int:
-    with mock.patch.dict(os.environ, {"CARGO_TARGET_DIR": str(target)}):
+def run_in_process(target: Path, *arguments: str, run: mock.Mock | None = None) -> int:
+    with contextlib.ExitStack() as patches:
+        patches.enter_context(mock.patch.dict(os.environ, {"CARGO_TARGET_DIR": str(target)}))
+        if run is not None:
+            patches.enter_context(mock.patch.object(atlas_bounded_runner.process_tree, "run", run))
         return atlas_bounded_runner.main(list(arguments))
 
 
@@ -78,8 +82,15 @@ def store_of(target: Path) -> Path:
 
 
 def read_tags(target: Path) -> list[dict[str, object]]:
-    paths = sorted(store_of(target).glob("*.json"))
-    return [json.loads(path.read_text(encoding="utf-8")) for path in paths]
+    """Each run's tag with its end file, when it has one, merged in."""
+    tags = []
+    for path in sorted(store_of(target).glob("*[0-9].json")):
+        tag = json.loads(path.read_text(encoding="utf-8"))
+        end = path.with_suffix(".end.json")
+        if end.exists():
+            tag.update(json.loads(end.read_text(encoding="utf-8")))
+        tags.append(tag)
+    return tags
 
 
 class RunTests(unittest.TestCase):
@@ -109,7 +120,6 @@ class RunTests(unittest.TestCase):
         [tag] = read_tags(root / "target")
         self.assertEqual((tag["session"], tag["item"]), ("oracle:deadline", "ITEM-1"))
         self.assertEqual((tag["deadline"], tag["outcome"]), (EXPIRY_HOLD_SECONDS, "deadline"))
-        self.assertIn("ended", tag)
 
     def test_exit_status_and_output_pass_through(self) -> None:
         target = scratch(self) / "target"
@@ -132,39 +142,18 @@ class RunTests(unittest.TestCase):
                 target = scratch(self) / "target"
                 arguments = ("run", "--deadline", "30", "--session", session, "--", *EXITS_WITH_FIVE)
                 self.assertEqual(run_in_process(target, *arguments), 5)
-                [written] = [path for path in target.rglob("*") if path.is_file()]
-                self.assertEqual(written.parent, store_of(target))
-                self.assertRegex(written.name, r"^\d+-\d+\.json$")
+                written = [path for path in target.rglob("*") if path.is_file()]
+                self.assertEqual({path.parent for path in written}, {store_of(target)})
+                for path in written:
+                    self.assertRegex(path.name, r"^\d+-\d+(\.end)?\.json$")
                 [tag] = read_tags(target)
                 self.assertEqual(tag["session"], session)
-
-    def assert_closed(self, target: Path, outcome: str) -> None:
-        [tag] = read_tags(target)
-        self.assertEqual(tag["outcome"], outcome)
-        self.assertEqual(run_runner(target, "overdue").stdout, "", "no run is left open")
-
-    def test_a_command_that_cannot_start_exits_125_with_its_tag_closed(self) -> None:
-        target = scratch(self) / "target"
-        result = run_runner(target, "run", "--deadline", "1", "--session", "s:1", "--", "no-such-command-xyz")
-        self.assertEqual(result.returncode, 125, result.stderr)
-        self.assertIn("stage: launch", result.stderr)
-        self.assert_closed(target, "launch")
-
-    def test_a_cleanup_failure_exits_125_with_its_tag_closed(self) -> None:
-        target = scratch(self) / "target"
-        failure = ProcessTreeCleanupError("a descendant survived")
-        with mock.patch.object(atlas_bounded_runner.process_tree, "run", side_effect=failure):
-            with contextlib.redirect_stderr(io.StringIO()) as stderr:
-                status = run_in_process(target, "run", "--deadline", "1", "--session", "s:2", "--", "x")
-        self.assertEqual(status, 125)
-        self.assertIn("stage: cleanup", stderr.getvalue())
-        self.assert_closed(target, "cleanup")
 
     def test_an_invalid_deadline_is_refused_before_any_tag_is_written(self) -> None:
         for deadline in ("0", "-1", "nan", "inf", "-inf", "abc"):
             with self.subTest(deadline=deadline):
                 target = scratch(self) / "target"
-                arguments = ("run", f"--deadline={deadline}", "--session", "s:3", "--", "x")
+                arguments = ("run", f"--deadline={deadline}", "--session", "s", "--", "x")
                 with contextlib.redirect_stderr(io.StringIO()) as stderr:
                     with self.assertRaises(SystemExit) as refused:
                         run_in_process(target, *arguments)
@@ -173,60 +162,48 @@ class RunTests(unittest.TestCase):
                 self.assertFalse(target.exists(), "no tag store is created")
 
 
-class TagStoreTests(unittest.TestCase):
-    def test_unreadable_files_are_skipped_with_a_warning(self) -> None:
-        store = scratch(self)
-        (store / "late.json").write_text('{"id": "late", "started": 1.0, "deadline": 1.0}', encoding="utf-8")
-        skipped = {"broken.json": "{", "list.json": "[]", "foreign.json": '{"id": "x"}'}
-        for name, text in skipped.items():
-            (store / name).write_text(text, encoding="utf-8")
-        with contextlib.redirect_stderr(io.StringIO()) as warnings:
-            found = atlas_bounded_runner.overdue_tags(store, now=100.0)
-        self.assertEqual([tag["id"] for tag in found], ["late"])
-        for name in skipped:
-            self.assertIn(f"skipped {name}", warnings.getvalue())
-
-    def test_the_command_prints_each_open_late_tag(self) -> None:
+class FaultTests(unittest.TestCase):
+    def test_a_command_that_cannot_start_exits_125_with_its_end_file(self) -> None:
         target = scratch(self) / "target"
-        now = time.time()
-        for tag in (
-            {"id": "late", "started": now - 100.0, "deadline": 10.0},
-            {"id": "in-time", "started": now, "deadline": 3600.0},
-            {"id": "closed", "started": now - 100.0, "deadline": 10.0, "ended": now - 95.0},
-        ):
-            atlas_bounded_runner._write_tag(store_of(target), tag)
-        with contextlib.redirect_stdout(io.StringIO()) as listing:
-            status = run_in_process(target, "overdue")
-        self.assertEqual(status, 0)
-        self.assertEqual([json.loads(line)["id"] for line in listing.getvalue().splitlines()], ["late"])
+        result = run_runner(target, "run", "--deadline", "30", "--session", "s", "--", "no-such-command-xyz")
+        self.assertEqual(result.returncode, 125, result.stderr)
+        self.assertIn("stage: launch", result.stderr)
+        [tag] = read_tags(target)
+        self.assertEqual(tag["outcome"], "launch")
 
-    def test_the_store_falls_back_to_the_shared_target_when_unconfigured(self) -> None:
-        shared = scratch(self) / "shared"
-        lookup = mock.patch.object(
-            atlas_bounded_runner.atlas_target_dir, "shared_target_for", return_value=shared
+    def test_an_end_file_is_written_unless_a_tree_may_survive(self) -> None:
+        survivor = RuntimeError("boom")
+        survivor.add_note("process-tree cleanup failed: pid 7")
+        cases = (  # error, status (None: re-raised), stderr text, end-file outcome (None: no end file)
+            (ProcessTreeCleanupError("pid 7"), 125, "stage: cleanup", None),
+            (ProcessTreeTimeout(["x"], 1.0, None, None, "pid 7"), 125, "stage: cleanup", None),
+            (survivor, 125, "process-tree cleanup failed: pid 7", None),
+            (RuntimeError("boom"), 125, "stage: launch", "launch"),
+            (KeyboardInterrupt(), None, "", "interrupted"),
         )
-        with mock.patch.dict(os.environ), lookup as shared_target_for:
-            del os.environ["CARGO_TARGET_DIR"]
-            store = atlas_bounded_runner.tag_store()
-        self.assertEqual(store, store_of(shared))
-        shared_target_for.assert_called_once_with(SCRIPTS.parent)
+        for error, status, text, outcome in cases:
+            with self.subTest(error=repr(error)):
+                target = scratch(self) / "target"
+                run = mock.Mock(side_effect=error)
+                with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    if status is None:
+                        with self.assertRaises(KeyboardInterrupt):
+                            run_in_process(target, *RUN, run=run)
+                    else:
+                        self.assertEqual(run_in_process(target, *RUN, run=run), status)
+                self.assertIn(text, stderr.getvalue())
+                [tag] = read_tags(target)
+                self.assertEqual(tag.get("outcome"), outcome)
 
-    def test_a_tag_is_replaced_whole_and_leaves_no_partial_file(self) -> None:
-        store = scratch(self)
-        observed = []
-        replace = os.replace
-
-        def observing_replace(partial: str, final: str) -> None:
-            replaced = Path(final).exists() and json.loads(Path(final).read_text(encoding="utf-8"))
-            observed.append((json.loads(Path(partial).read_text(encoding="utf-8")), replaced))
-            replace(partial, final)
-
-        with mock.patch.object(atlas_bounded_runner.os, "replace", observing_replace):
-            atlas_bounded_runner._write_tag(store, {"id": "t", "n": 1})
-            atlas_bounded_runner._write_tag(store, {"id": "t", "n": 2})
-        first, second = {"id": "t", "n": 1}, {"id": "t", "n": 2}
-        self.assertEqual(observed, [(first, False), (second, first)])
-        self.assertEqual([path.name for path in store.iterdir()], ["t.json"])
+    def test_a_store_that_cannot_be_created_stops_the_run_before_the_command(self) -> None:
+        root = scratch(self)
+        (root / "file").write_text("x", encoding="utf-8")
+        marker = root / "ran"
+        command = (sys.executable, "-c", f"open({str(marker)!r}, 'w')")
+        result = run_runner(root / "file", "run", "--deadline", "30", "--session", "s", "--", *command)
+        self.assertEqual(result.returncode, 125, result.stderr)
+        self.assertIn("stage: store", result.stderr)
+        self.assertFalse(marker.exists(), "the command did not run")
 
 
 if __name__ == "__main__":
