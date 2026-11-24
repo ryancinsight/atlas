@@ -60,7 +60,10 @@ holds the ones the base's workspace had: a package the base never had carries
 no count there, so its casts are judged by the row that records them, and a
 crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
-absent from it. `--zero-base-package` records the proven standalone exception.
+absent from it. A base manifest `tomllib` rejects leaves the membership unread:
+the gate says so and holds every named package to its base count, so a push
+that raises no count lands, the one repairing the manifest included.
+`--zero-base-package` records the proven standalone exception.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
     atlas_cast_gate.py new-standalone-owners --repo <dir> --base <sha> \
         --tip <sha> --manifest fuzz/Cargo.toml [--manifest ...]
@@ -765,11 +768,15 @@ class Revision:
             capture_output=True, check=True).stdout.decode("utf-8", errors="replace")
         self.repo = repo
         self.blobs: dict[str, str] = {}
+        links = set()
         for entry in listing.split("\0"):
             fields, _, path = entry.partition("\t")
             if path and fields.split()[1] == "blob":  # a gitlink is a commit
                 self.blobs[path] = fields.split()[2]
+                if fields.split()[0] == "120000":
+                    links.add(path)
         self.paths = list(self.blobs)
+        self.links = frozenset(links)
         self._texts: dict[str, str] = {}
         self._reader: subprocess.Popen[bytes] | None = None
 
@@ -785,7 +792,8 @@ class Revision:
             reader.stdout.close()
 
     def read(self, path: str) -> str | None:
-        """The text of `path`, or None when the revision tracks no such file."""
+        """The text of the blob at `path`, which for a symbolic link (`links`) is
+        the path it names; None when the revision tracks no such file."""
         oid = self.blobs.get(path)
         if oid is None:
             return None
@@ -1522,8 +1530,12 @@ def check(args: argparse.Namespace) -> int:
     try:
         held = held_to_base(repo, args.base, args.base_package, base)
     except ManifestError as error:
-        held = frozenset()
-        problems.append(str(error))
+        # No candidate is shown absent from the base, so each is held to its
+        # count there: a package the push adds is then held to zero until the
+        # manifest parses, and a push that raises no count is not refused.
+        held = frozenset(args.base_package)
+        print(f"cast gate: {error}; every `--base-package` is held to its count at "
+              "the pushed base", file=sys.stderr)
     held |= frozenset(args.zero_base_package)
     doubled = {s.package for s in found if not s.line}
     found, base = {s for s in found if s.line}, {s for s in base if s.line}
