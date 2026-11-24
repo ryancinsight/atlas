@@ -2424,3 +2424,126 @@ def test_a_package_without_a_clippy_predicate_still_passes(tmp_path, capsys):
     )
     assert _check_hidden(repo, base, tip, rules, sites) == 0
     assert "predicate names `clippy`" not in capsys.readouterr().err
+
+
+def test_target_roots_follow_the_manifest_and_auto_discovery():
+    tree = [
+        "Cargo.toml", "src/lib.rs", "src/main.rs", "src/bin/tool.rs",
+        "src/bin/tool/main.rs", "tests/a.rs", "tests/nested/b.rs",
+        "examples/e.rs", "benches/bench.rs",
+    ]
+    roots = gate.target_roots({"package": {"name": "x"}}, "", tree)
+    for expected in ("src/lib.rs", "src/main.rs", "src/bin/tool.rs",
+                     "src/bin/tool/main.rs", "tests/a.rs", "examples/e.rs",
+                     "benches/bench.rs"):
+        assert expected in roots, (expected, roots)
+    assert "tests/nested/b.rs" not in roots
+    disabled = gate.target_roots({"package": {"name": "x", "autobins": False}}, "", tree)
+    assert "src/main.rs" not in disabled
+    assert "src/bin/tool.rs" not in disabled
+
+
+def test_mount_detection_ignores_comments_and_strings_and_sees_path_attributes():
+    assert gate.mounts_cast_module("mod cast;\n", "src/lib.rs", "src/cast.rs")
+    assert gate.mounts_cast_module(
+        '#[path = "cast.rs"]\nmod again;\n', "src/main.rs", "src/cast.rs")
+    assert not gate.mounts_cast_module(
+        "// mod cast;\n", "src/lib.rs", "src/cast.rs")
+    assert not gate.mounts_cast_module(
+        'const S: &str = "mod cast;";\n', "src/lib.rs", "src/cast.rs")
+
+
+def _cast_target_repo(tmp_path, files, manifest_extra=""):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n' + manifest_extra)
+    for name, text in files.items():
+        path = repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    tip = commit(repo, "targets")
+    rules = tmp_path / "rules.json"
+    rules.write_text(
+        '{"cast_modules": {"m": {"core": "src/cast.rs"}}, '
+        '"counts": {"m": {"core": 0}}}')
+    sites = tmp_path / "sites.json"
+    sites.write_text("[]")
+    return repo, tip, rules, sites
+
+
+def _check_targets(repo, tip, rules, sites):
+    return gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--tip", tip,
+                      "--package", "core", "--sites", str(sites)])
+
+
+CAST_FIXTURE = '#![expect(clippy::as_conversions, reason = "fixture")]\npub fn x() {}\n'
+
+
+def test_a_cast_module_mounted_by_two_crate_targets_fails(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
+        "src/cast.rs": CAST_FIXTURE,
+        "src/lib.rs": "mod cast;\npub use cast::x;\n",
+        "src/main.rs": "mod cast;\nfn main() {}\n",
+    })
+    assert _check_targets(repo, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "more than one crate target" in err
+    assert "src/lib.rs" in err and "src/main.rs" in err
+    assert "core" in err
+
+
+def test_a_path_mount_from_a_second_target_fails(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
+        "src/cast.rs": CAST_FIXTURE,
+        "src/lib.rs": "mod cast;\npub use cast::x;\n",
+        "src/main.rs": '#[path = "cast.rs"]\nmod again;\nfn main() {}\n',
+    })
+    assert _check_targets(repo, tip, rules, sites) == 1
+    assert "more than one crate target" in capsys.readouterr().err
+
+
+def test_a_test_target_mounting_the_cast_module_fails(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
+        "src/cast.rs": CAST_FIXTURE,
+        "src/lib.rs": "mod cast;\npub use cast::x;\n",
+        "tests/x.rs": '#[path = "../src/cast.rs"]\nmod cast;\n',
+    })
+    assert _check_targets(repo, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "more than one crate target" in err
+    assert "tests/x.rs" in err
+
+
+def test_an_example_target_mounting_the_cast_module_fails(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
+        "src/cast.rs": CAST_FIXTURE,
+        "src/lib.rs": "mod cast;\npub use cast::x;\n",
+        "examples/x.rs": '#[path = "../src/cast.rs"]\nmod cast;\nfn main() {}\n',
+    })
+    assert _check_targets(repo, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "more than one crate target" in err
+    assert "examples/x.rs" in err
+
+
+def test_a_single_lib_mount_passes(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
+        "src/cast.rs": CAST_FIXTURE,
+        "src/lib.rs": "mod cast;\npub use cast::x;\n",
+    })
+    assert _check_targets(repo, tip, rules, sites) == 0
+    assert "more than one crate target" not in capsys.readouterr().err
+
+
+def test_a_disabled_auto_bin_is_not_a_second_target(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path,
+        {"src/cast.rs": CAST_FIXTURE,
+         "src/lib.rs": "mod cast;\npub use cast::x;\n",
+         "src/main.rs": "mod cast;\nfn main() {}\n"},
+        manifest_extra="autobins = false\n",
+    )
+    assert _check_targets(repo, tip, rules, sites) == 0
+    assert "more than one crate target" not in capsys.readouterr().err
