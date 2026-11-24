@@ -34,6 +34,7 @@
 <a id="atlas-identity-lease-starvation"></a>- [ATLAS-IDENTITY-LEASE-STARVATION](backlog/atlas-identity-lease-starvation.md) — Gated pushes starve on the 900 s identity-lease wait [verification] — todo
 <a id="atlas-identity-midrun-git-edit"></a>- [ATLAS-IDENTITY-MIDRUN-GIT-EDIT](backlog/atlas-identity-midrun-git-edit.md) — Stamp a trusted Git package whose checkout moved during a failed run [patch] — todo
 <a id="atlas-identity-overlay-locked-metadata"></a>- [ATLAS-IDENTITY-OVERLAY-LOCKED-METADATA](backlog/atlas-identity-overlay-locked-metadata.md) — Read the overlay's dependency graph without refusing its lock [patch] — todo
+<a id="atlas-identity-suite-runtime"></a>- [ATLAS-IDENTITY-SUITE-RUNTIME](backlog/atlas-identity-suite-runtime.md) — Five build-identity tests run for minutes against a 60 s budget [tightening] [patch] — todo
 <a id="atlas-jfnk-matrix-free-gmres-001"></a>- [ATLAS-JFNK-MATRIX-FREE-GMRES-001](backlog/atlas-jfnk-matrix-free-gmres-001.md) — Converge CFDrs's iterative solvers onto Athena [minor] — todo
 <a id="atlas-kwavers-alloc-probe-deny-docs-2026-08-21"></a>- [ATLAS-KWAVERS-ALLOC-PROBE-DENY-DOCS-2026-08-21](backlog/atlas-kwavers-alloc-probe-deny-docs-2026-08-21.md) — Pilot deny(missing_docs) [patch] — todo
 <a id="atlas-kwavers-book-fence-2026-08-19"></a>- [ATLAS-KWAVERS-BOOK-FENCE-2026-08-19](backlog/atlas-kwavers-book-fence-2026-08-19.md) — restore truthful mdBook fence semantics [patch] — todo
