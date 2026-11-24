@@ -721,5 +721,86 @@ class CheckWiringTestCase(unittest.TestCase):
         locks.assert_called_once_with({}, True)
 
 
+class RequirementSatisfactionTestCase(unittest.TestCase):
+    """`satisfies` must apply Cargo's semantics, not pass comparators blindly.
+
+    The overlay emits a local patch only when the local version satisfies the
+    consumer's declared requirement. A requirement the evaluator cannot read
+    used to read as satisfied, which turned the requirement-lag half of
+    `check` into a no-op for every comparator form.
+    """
+
+    def test_range_requirement_rejects_a_version_outside_the_range(self) -> None:
+        self.assertFalse(_overlay.satisfies("0.50.0", ">=0.46.4, <0.49.0"))
+        self.assertTrue(_overlay.satisfies("0.48.0", ">=0.46.4, <0.49.0"))
+        self.assertFalse(_overlay.satisfies("0.46.3", ">=0.46.4, <0.49.0"))
+
+    def test_comparators_use_the_cargo_reference_examples(self) -> None:
+        cases = [
+            ("1.2.3", "=1.2.3", True),
+            ("1.2.4", "=1.2.3", False),
+            ("1.2.2", ">1.2.3", False),
+            ("1.2.4", ">1.2.3", True),
+            ("1.2.3", ">=1.2.3", True),
+            ("1.2.2", ">=1.2.3", False),
+            ("1.2.2", "<1.2.3", True),
+            ("1.2.3", "<1.2.3", False),
+            ("1.2.3", "<=1.2.3", True),
+            ("1.2.4", "<=1.2.3", False),
+            # The regression: the old evaluator returned True for all of these.
+            ("0.1.0", ">=1.0.0", False),
+            ("9.9.9", "<1.0.0", False),
+        ]
+        for version, requirement, expected in cases:
+            with self.subTest(version=version, requirement=requirement):
+                self.assertIs(_overlay.satisfies(version, requirement), expected)
+
+    def test_caret_tilde_and_wildcard_bounds(self) -> None:
+        cases = [
+            ("1.2.3", "^1.2.3", True),
+            ("1.9.0", "^1.2.3", True),
+            ("2.0.0", "^1.2.3", False),
+            ("0.2.3", "^0.2.3", True),
+            ("0.3.0", "^0.2.3", False),
+            ("0.0.3", "^0.0.3", True),
+            ("0.0.4", "^0.0.3", False),
+            ("0.0.9", "^0.0", True),
+            ("0.1.0", "^0.0", False),
+            ("0.9.0", "^0", True),
+            ("1.0.0", "^0", False),
+            ("1.2.3", "~1.2.3", True),
+            ("1.2.9", "~1.2.3", True),
+            ("1.3.0", "~1.2.3", False),
+            ("1.9.0", "~1", True),
+            ("2.0.0", "~1", False),
+            ("1.9.0", "1.*", True),
+            ("2.0.0", "1.*", False),
+            ("1.2.9", "1.2.*", True),
+            ("1.3.0", "1.2.*", False),
+            # A bare version keeps its caret meaning.
+            ("0.4.0", "0.3.0", False),
+            ("0.3.9", "0.3.0", True),
+        ]
+        for version, requirement, expected in cases:
+            with self.subTest(version=version, requirement=requirement):
+                self.assertIs(_overlay.satisfies(version, requirement), expected)
+
+    def test_pre_release_requires_a_pre_release_requirement(self) -> None:
+        self.assertFalse(_overlay.satisfies("1.0.0-rc.1", "^1.0.0"))
+        self.assertTrue(_overlay.satisfies("1.0.0-rc.2", ">=1.0.0-rc.1, <1.0.0"))
+        self.assertTrue(_overlay.satisfies("1.0.0", ">=1.0.0-rc.1"))
+
+    def test_malformed_requirement_raises_rather_than_passing(self) -> None:
+        for requirement in (">=1.2.3,", "1.2.3.4", "abc", ">= ", "1.2.3 1.2.4"):
+            with self.subTest(requirement=requirement):
+                with self.assertRaises(_overlay.RequirementSyntaxError):
+                    _overlay.satisfies("1.2.3", requirement)
+
+    def test_wildcard_and_empty_requirements_pass_every_version(self) -> None:
+        for requirement in ("*", "", "  "):
+            with self.subTest(requirement=requirement):
+                self.assertTrue(_overlay.satisfies("0.0.1", requirement))
+
+
 if __name__ == "__main__":
     unittest.main()

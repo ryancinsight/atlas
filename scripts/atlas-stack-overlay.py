@@ -547,39 +547,171 @@ def set_enabled(enabled: bool) -> None:
     CONFIG.write_text(text.replace(body, "\n".join(lines)), encoding="utf-8")
 
 
-def satisfies(version: str, requirement: str) -> bool:
-    """Caret-semantics check: does `version` satisfy `requirement`?
+class RequirementSyntaxError(ValueError):
+    """A version requirement this evaluator cannot interpret."""
 
-    Covers the requirement forms the stack actually declares (`*`, bare
-    `1.2.3`, and explicit `^`). Anything else is reported as unknown rather
-    than silently passed.
+
+_VERSION_CORE_RE = re.compile(r"^(?:0|[1-9]\d*)$")
+_OPERATOR_RE = re.compile(r"^(>=|<=|>|<|=|~|\^)\s*(.+)$")
+_WILDCARDS = frozenset({"*", "x", "X"})
+# A requirement component is an integer, a wildcard/unspecified component
+# (`*`, `x`, or one the caller omitted), or a pre-release identifier.
+_Component = int | None
+
+
+def _parse_requirement_version(
+    text: str,
+) -> tuple[tuple[_Component, _Component, _Component], tuple[str, ...]]:
+    """Split `1.2.3-rc.1` into numeric components and pre-release identifiers.
+
+    An omitted or wildcard component becomes ``None`` so the caller can tell
+    `^1.2` (minor declared) from `^1` (minor unspecified): the caret's upper
+    bound depends on that difference. A component after a ``None`` is a
+    malformed requirement rather than a shorter one.
+    """
+    core, sep, pre = text.strip().partition("-")
+    identifiers = tuple(pre.split(".")) if sep else ()
+    pieces = core.split(".") if core else []
+    if not pieces or len(pieces) > 3:
+        raise RequirementSyntaxError(f"unsupported version requirement {text!r}")
+    components: list[_Component] = []
+    for piece in pieces:
+        if piece in _WILDCARDS:
+            components.append(None)
+        elif _VERSION_CORE_RE.match(piece):
+            components.append(int(piece))
+        else:
+            raise RequirementSyntaxError(f"unsupported version requirement {text!r}")
+    while len(components) < 3:
+        components.append(None)
+    seen_unspecified = False
+    for component in components:
+        if component is None:
+            seen_unspecified = True
+        elif seen_unspecified:
+            raise RequirementSyntaxError(f"unsupported version requirement {text!r}")
+    return (components[0], components[1], components[2]), identifiers
+
+
+def _version_key(
+    components: tuple[_Component, _Component, _Component],
+    pre: tuple[str, ...],
+) -> tuple[int, int, int, tuple[tuple[int, int | str], ...]]:
+    """Total order matching Cargo's: release sorts after its pre-releases."""
+    major, minor, patch = (0 if c is None else c for c in components)
+    pre_key = tuple(
+        (0, int(identifier)) if identifier.isdigit() else (1, identifier)
+        for identifier in pre
+    )
+    return major, minor, patch, pre_key
+
+
+def _order(left: tuple, right: tuple) -> int:
+    """-1, 0, or 1 for two keys; a release exceeds its own pre-releases."""
+    left_core, right_core = left[:3], right[:3]
+    if left_core != right_core:
+        return -1 if left_core < right_core else 1
+    left_pre, right_pre = left[3], right[3]
+    if not left_pre or not right_pre:
+        if not left_pre and not right_pre:
+            return 0
+        return 1 if not left_pre else -1
+    if left_pre == right_pre:
+        return 0
+    return -1 if left_pre < right_pre else 1
+
+
+def _upper_bound(
+    components: tuple[_Component, _Component, _Component],
+    caret: bool,
+) -> tuple[int, int, int] | None:
+    """The exclusive upper bound for a caret or tilde lower bound.
+
+    ``None`` means unbounded (a bare ``*``). Caret and tilde differ only in
+    which component they bump: caret follows the leading nonzero one, tilde
+    always follows the minor.
+    """
+    major, minor, patch = components
+    if major is None:
+        return None
+    if not caret:
+        if minor is None:
+            return major + 1, 0, 0
+        return major, minor + 1, 0
+    if major > 0:
+        return major + 1, 0, 0
+    if minor is None:
+        return 1, 0, 0
+    if minor > 0:
+        return 0, minor + 1, 0
+    if patch is None:
+        return 0, 1, 0
+    return 0, 0, patch + 1
+
+
+def _make_predicate(
+    operator: str,
+    components: tuple[_Component, _Component, _Component],
+    pre: tuple[str, ...],
+):
+    lower = _version_key(components, pre)
+    if operator == "=" and all(c is not None for c in components):
+        return lambda have: _order(have, lower) == 0
+    if operator in ("^", "~", "="):
+        bound = _upper_bound(components, caret=operator == "^")
+        upper = None if bound is None else (*bound, ())
+        return lambda have: _order(have, lower) >= 0 and (
+            upper is None or _order(have, upper) < 0
+        )
+    comparators = {
+        "<": lambda result: result < 0,
+        "<=": lambda result: result <= 0,
+        ">": lambda result: result > 0,
+        ">=": lambda result: result >= 0,
+    }
+    accepts = comparators[operator]
+    return lambda have: accepts(_order(have, lower))
+
+
+def satisfies(version: str, requirement: str) -> bool:
+    """Does `version` satisfy `requirement` with Cargo's semantics?
+
+    Supports the forms the stack declares: `*`, a bare version and `^` (caret),
+    `~` (tilde), `=`, `<`, `<=`, `>`, `>=`, and comma-joined comparator sets
+    such as `>=0.46.4, <0.49.0`. An unparsable form raises
+    `RequirementSyntaxError` rather than passing the check, because a
+    requirement the evaluator cannot read is a gate it cannot apply.
+
+    Pre-release rule: a pre-release version satisfies a requirement only when
+    that requirement names a pre-release, matching Cargo.
     """
     requirement = requirement.strip()
     if requirement in ("*", ""):
         return True
-    if requirement[0] in "<>=~":
-        return True  # not used in-stack; do not guess
-    req = requirement.removeprefix("^")
-
-    def parts(text: str) -> list[int]:
-        out = []
-        for chunk in text.split("-")[0].split("."):
-            try:
-                out.append(int(chunk))
-            except ValueError:
-                out.append(0)
-        while len(out) < 3:
-            out.append(0)
-        return out[:3]
-
-    have, want = parts(version), parts(req)
-    if have < want:
+    have = _version_key(*_parse_requirement_version(version))
+    predicates = []
+    requirement_has_pre = False
+    for group in requirement.split(","):
+        group = group.strip()
+        if not group:
+            raise RequirementSyntaxError(
+                f"empty comparator in requirement {requirement!r}"
+            )
+        operator = "^"
+        body = group
+        match = _OPERATOR_RE.match(group)
+        if match:
+            operator, body = match.group(1), match.group(2)
+        elif any(piece in _WILDCARDS for piece in body.split(".")):
+            # A bare wildcard (`1.*`, `1.2.x`) is a wildcard requirement; a
+            # bare version with no wildcard (`1.2`) keeps its caret meaning.
+            operator = "~"
+        components, pre = _parse_requirement_version(body)
+        requirement_has_pre = requirement_has_pre or bool(pre)
+        predicates.append(_make_predicate(operator, components, pre))
+    if have[3] and not requirement_has_pre:
         return False
-    # Caret: leading nonzero component must match.
-    for i in range(3):
-        if want[i] != 0:
-            return have[:i + 1] == want[:i + 1]
-    return True
+    return all(predicate(have) for predicate in predicates)
 
 
 def check_locks(
