@@ -2346,3 +2346,61 @@ def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tm
     assert cast_module_push(tmp_path, capsys, module, "#[macro_use]\n" + MOUNT + USES, found,
                             held=False, base_module=module, before={CAST_MODULE_SITE})[1:] == (
         1, faults(MACRO, "11:20", "17:9"))
+
+
+def test_a_revision_reads_every_blob_through_one_process(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    init(repo)
+    big = "pub fn f() {}\r\n" * 20000
+    (repo / "src").mkdir()
+    (repo / "src" / "a b.rs").write_bytes(big.encode())
+    accented = "src/uni\N{LATIN SMALL LETTER E WITH ACUTE}.rs"
+    (repo / accented).write_bytes(b"mod x;\xff\n")
+    tip = commit(repo, "files")
+    started = []
+    real = subprocess.Popen
+    monkeypatch.setattr(gate.subprocess, "Popen",
+                        lambda *args, **kwargs: started.append(args) or real(*args, **kwargs))
+    with gate.Revision(repo, tip) as tree:
+        assert sorted(tree.paths) == ["src/a b.rs", accented]
+        assert tree.read("src/a b.rs") == big
+        assert tree.read(accented) == "mod x;\N{REPLACEMENT CHARACTER}\n"
+        assert tree.read("src/absent.rs") is None
+    readers = [command[0] for command in started if "cat-file" in command[0]]
+    assert len(readers) == 1
+
+
+MULTILINE_TABLE = 'metadata = {\n  note = "x",\n}\n'  # cargo parses it; tomllib does not
+MEMBER_MANIFEST = '[package]\nname = "p"\nversion = "0.1.0"\n'
+
+
+def test_a_manifest_tomllib_rejects_names_its_path_and_error(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/p"]\n')
+    (repo / "crates" / "p").mkdir(parents=True)
+    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST + MULTILINE_TABLE)
+    base = commit(repo, "base")
+    message = r"crates/p/Cargo\.toml does not parse as TOML here \("
+    with pytest.raises(gate.ManifestError, match=message):
+        gate.base_workspace_packages(repo, base)
+
+
+def test_a_base_manifest_only_cargo_parses_refuses_the_push(tmp_path, capsys):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/p"]\n')
+    (repo / "crates" / "p" / "src").mkdir(parents=True)
+    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST + MULTILINE_TABLE)
+    (repo / "crates" / "p" / "src" / "lib.rs").write_text("pub fn f() {}\n")
+    base = commit(repo, "base")
+    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST)
+    tip = commit(repo, "the manifest becomes TOML 1.0")
+    rules = tmp_path / "rules.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"p": 0}}}')
+    sites = tmp_path / "sites.json"
+    sites.write_text("[]")
+    assert gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--package", "p", "--sites", str(sites),
+                      "--base-package", "p"]) == 1
+    assert "cast gate: crates/p/Cargo.toml does not parse as TOML here" in capsys.readouterr().err

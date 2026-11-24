@@ -86,6 +86,7 @@ import argparse
 import json
 import os
 import pathlib
+import posixpath
 import re
 import shutil
 import subprocess
@@ -722,12 +723,81 @@ def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
     return run.stdout.decode("utf-8", errors="replace")
 
 
-def git_manifests(repo: pathlib.Path, revision: str) -> list[str]:
-    """Every manifest path at `revision`."""
-    run = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "--name-only", revision],
-                         capture_output=True, check=True)
-    return [line for line in run.stdout.decode("utf-8", errors="replace").splitlines()
-            if line == "Cargo.toml" or line.endswith("/Cargo.toml")]
+class ManifestError(ValueError):
+    """A manifest `tomllib` rejects. Cargo accepts TOML that `tomllib` does not
+    (a multi-line inline table), so the gate cannot tell which package the
+    file declares and must not read the package as absent."""
+
+    def __init__(self, path: str, error: Exception) -> None:
+        super().__init__(f"{path} does not parse as TOML here ({error}), so the gate "
+                         "cannot tell which package it declares")
+        self.path = path
+
+
+class Revision:
+    """The tracked files of one revision. Blobs are read through one `git
+    cat-file --batch` process, started on the first read, so a scan that reads
+    thousands of files pays for one process, not one per file."""
+
+    def __init__(self, repo: pathlib.Path, revision: str) -> None:
+        listing = subprocess.run(
+            ["git", "-C", str(repo), "ls-tree", "-r", "-z", revision],
+            capture_output=True, check=True).stdout.decode("utf-8", errors="replace")
+        self.repo = repo
+        self.blobs: dict[str, str] = {}
+        for entry in listing.split("\0"):
+            fields, _, path = entry.partition("\t")
+            if path and fields.split()[1] == "blob":  # a gitlink is a commit
+                self.blobs[path] = fields.split()[2]
+        self.paths = list(self.blobs)
+        self._texts: dict[str, str] = {}
+        self._reader: subprocess.Popen[bytes] | None = None
+
+    def __enter__(self) -> Revision:
+        return self
+
+    def __exit__(self, *exception: object) -> None:
+        reader = self._reader
+        if reader is not None:
+            assert reader.stdin is not None and reader.stdout is not None
+            reader.stdin.close()
+            reader.wait()
+            reader.stdout.close()
+
+    def read(self, path: str) -> str | None:
+        """The text of `path`, or None when the revision tracks no such file."""
+        oid = self.blobs.get(path)
+        if oid is None:
+            return None
+        if path not in self._texts:
+            if self._reader is None:
+                self._reader = subprocess.Popen(
+                    ["git", "-C", str(self.repo), "cat-file", "--batch"],
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            reader = self._reader
+            assert reader.stdin is not None and reader.stdout is not None
+            reader.stdin.write(f"{oid}\n".encode())
+            reader.stdin.flush()
+            size = int(reader.stdout.readline().split()[2])
+            self._texts[path] = reader.stdout.read(size + 1)[:size].decode(
+                "utf-8", errors="replace")
+        return self._texts[path]
+
+    def manifest_at(self, path: str) -> dict | None:
+        """The parsed manifest at `path`; None when none is tracked there; an
+        unparseable one raises `ManifestError`."""
+        text = self.read(path)
+        if text is None:
+            return None
+        try:
+            return tomllib.loads(text)
+        except tomllib.TOMLDecodeError as error:
+            raise ManifestError(path, error) from error
+
+
+def is_manifest(path: str) -> bool:
+    """Whether `path` is a `Cargo.toml`."""
+    return posixpath.basename(path) == "Cargo.toml"
 
 
 def package_name(manifest: dict) -> str | None:
@@ -794,35 +864,33 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
 
     The root manifest at `base` names the members, and each member manifest
     names its package. A repository that is one package is its own workspace.
+    A manifest `tomllib` rejects raises `ManifestError`.
     """
-    root = git_file(repo, base, "Cargo.toml")
-    if root is None:
-        return frozenset()
-    data = tomllib.loads(root)
-    workspace = data.get("workspace")
-    if not isinstance(workspace, dict):
+    with Revision(repo, base) as tree:
+        data = tree.manifest_at("Cargo.toml")
+        if data is None:
+            return frozenset()
+        workspace = data.get("workspace")
+        if not isinstance(workspace, dict):
+            name = package_name(data)
+            return frozenset({name}) if name else frozenset()
+        packages = set()
         name = package_name(data)
-        return frozenset({name}) if name else frozenset()
-    packages = set()
-    name = package_name(data)
-    if name:
-        packages.add(name)
-    excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
-    manifests = git_manifests(repo, base)
-    for member in workspace.get("members", []):
-        if not isinstance(member, str):
-            continue
-        for manifest in member_manifests(member, manifests):
-            directory = "" if manifest == "Cargo.toml" else manifest[: -len("/Cargo.toml")]
-            if any(is_excluded(directory, entry) for entry in excluded):
+        if name:
+            packages.add(name)
+        excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
+        manifests = [path for path in tree.paths if is_manifest(path)]
+        for member in workspace.get("members", []):
+            if not isinstance(member, str):
                 continue
-            text = git_file(repo, base, manifest)
-            if text is None:
-                continue
-            member_package = package_name(tomllib.loads(text))
-            if member_package:
-                packages.add(member_package)
-    return frozenset(packages)
+            for manifest in member_manifests(member, manifests):
+                directory = posixpath.dirname(manifest)
+                if any(is_excluded(directory, entry) for entry in excluded):
+                    continue
+                name = package_name(tree.manifest_at(manifest) or {})
+                if name:
+                    packages.add(name)
+        return frozenset(packages)
 
 
 def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
@@ -1225,7 +1293,12 @@ def check(args: argparse.Namespace) -> int:
         base |= read_sites(pathlib.Path(path))
     repo = pathlib.Path(args.repo)
     added = pushed_additions(repo, args.base or None, args.tip)
-    held = held_to_base(repo, args.base, args.base_package, base)
+    problems = []
+    try:
+        held = held_to_base(repo, args.base, args.base_package, base)
+    except ManifestError as error:
+        held = frozenset()
+        problems.append(str(error))
     held |= frozenset(args.zero_base_package)
     doubled = {s.package for s in found if not s.line}
     found, base = {s for s in found if s.line}, {s for s in base if s.line}
@@ -1235,8 +1308,8 @@ def check(args: argparse.Namespace) -> int:
         if package in doubled and (fault is None or not fault.endswith(COPIES)):
             fault = f"shares its package with a file clippy finds mounted twice{COPIES}"
         modules[package] = (path, fault)
-    problems = violations(args.member, found, added, args.package, baseline, base,
-                          held, modules)
+    problems += violations(args.member, found, added, args.package, baseline, base,
+                           held, modules)
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:
