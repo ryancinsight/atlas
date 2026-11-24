@@ -72,7 +72,7 @@ jobs:
     if: github.event_name != 'schedule' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     # The script suite runs once, partitioned, in `script-tests`.
-    # bound: 181 s (run 45274225788) -> 10 min = 3.31x
+    # bound: 181 s (run 45274225788) -> 10 min = 3.314x
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -115,7 +115,7 @@ jobs:
         run: python3 -m pip install --quiet -r scripts/requirements-test.txt
 
       - name: Setup recorded consumer toolchain
-        # bound: 9 s (run 45290135398) -> 3 min = 20.00x
+        # bound: 9 s (run 45290135398) -> 3 min = 20.000x
         timeout-minutes: 3
         shell: bash
         run: |
@@ -292,7 +292,7 @@ jobs:
     if: always() && github.event_name != 'schedule'
     needs: [workflow-lint, conformance-check, script-tests]
     runs-on: ubuntu-latest
-    # bound: 3 s (run 45290135398) -> 1 min = 20.00x
+    # bound: 3 s (run 45290135398) -> 1 min = 20.000x
     timeout-minutes: 1
     steps:
       - name: Require every conformance verdict
@@ -322,7 +322,7 @@ jobs:
     # gitlink changes, so on an ordinary pull request this job costs a checkout
     # and exits. The budget covers the scheduled run, which reads 28 remotes
     # and initialises 28 members.
-    # bound: 98 s (run 44984553425) -> 15 min = 9.18x
+    # bound: 98 s (run 44984553425) -> 15 min = 9.183x
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -386,7 +386,7 @@ jobs:
 
       - name: Setup recorded consumer toolchain
         if: steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
-        # bound: 7 s (run 44984553425) -> 3 min = 25.71x
+        # bound: 7 s (run 44984553425) -> 3 min = 25.714x
         timeout-minutes: 3
         shell: bash
         run: |
@@ -397,8 +397,10 @@ jobs:
         if: steps.scope.outputs.run == 'true'
         # Two 20 s listing calls (`member_urls`, `recorded_gitlinks`), then the 28
         # gitlinks at origin/main bc593fbd6 in ceil(28 / 8) = 4 waves of three 20 s git
-        # calls each (ls-remote, fetch, rev-list), with `--timeout 20 --jobs 8`.
-        # bound: 20 * 2 + 60 * 4 s (scripts/atlas-pin-drift.py) -> 5 min = 1.07x
+        # calls each (ls-remote, fetch, rev-list), with `--timeout 20 --jobs 8`. The sum
+        # leaves out up to 10 s of process-tree cleanup after a timed-out call, which
+        # ATLAS-PIN-COMPILE-STEP-BOUND tracks.
+        # bound: 20 * 2 + 60 * 4 s (scripts/atlas-pin-drift.py) -> 5 min = 1.071x
         timeout-minutes: 5
         shell: bash
         # Redirect-then-cat, not a pipe: the default shell has no pipefail, so
@@ -423,9 +425,11 @@ jobs:
 
       - name: Compile recorded Aequitas with its Eunomia dependency
         if: always() && steps.scope.outputs.run == 'true' && github.event_name == 'schedule'
-        # Two 30 s archives, 60 s of `cargo metadata` and 180 s of `cargo check`, the
-        # longest path through `compile_recorded_pair`.
-        # bound: 30 * 2 + 60 + 180 s (scripts/atlas-pin-compile.py) -> 6 min = 1.20x
+        # The script's own deadlines sum to 420 s, above this 360 s bound: two
+        # `member_pins` calls (one in `main`, one in `compile_recorded_pair`) of two 30 s
+        # git calls each, two 30 s archives, 60 s of `cargo metadata` and 180 s of
+        # `cargo check`. ATLAS-PIN-COMPILE-STEP-BOUND tracks the mismatch.
+        # bound: 4 s (run 44984553425) -> 6 min = 90.000x
         timeout-minutes: 6
         shell: bash
         run: |

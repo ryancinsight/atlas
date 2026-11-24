@@ -9,14 +9,18 @@ the bound's own indent, in this form:
 `<minutes>` is the YAML value. `<seconds>` is one integer or a sum of products of integers
 (`20 * 2 + 60 * 4`). `<source>` is `run <id>`, a hosted run in which the job or step took that
 long, or a `scripts/` path whose deadlines the arithmetic adds up. `<ratio>` is
-`<minutes> * 60 / <seconds>` truncated to two decimals, and the bound must not be below the
-duration it explains. Moving the bound, the figure or the ratio without the others fails.
+`<minutes> * 60 / <seconds>` truncated to three decimals, and the bound must not be below the
+duration it explains. Three decimals pin a figure to the second for every figure here, so moving the bound,
+the figure or the ratio without the others fails.
 
-A measured figure is the longest duration of that job or step among the ten latest completed
-runs on `main` of the workflow that runs it, read on 2026-11-24 from
+A measured figure is the longest duration of that job or step among the runs of the workflow
+that runs it on `main`, among the ten latest completed ones when read, in which the job
+concluded success (a step's job counts, whatever else failed in other jobs), read on
+2026-11-24 from
 `gh run list --workflow <file> --branch main --limit 10` and
 `gh api repos/ryancinsight/atlas/actions/runs/<id>/jobs` (`started_at` to `completed_at`,
-whole seconds). A reusable workflow's jobs are read from its caller's runs. This test checks
+whole seconds). A reusable workflow's jobs are read from its caller's runs, or from its own standalone runs
+when it has them. A ten-run maximum is a sample, not a ceiling. This test checks
 the arithmetic and that a `scripts/` source exists; it cannot reread a run.
 
 `REMAINING` maps each workflow whose bounds have no hosted run to source here to its bound
@@ -42,7 +46,7 @@ JOB_KEY = re.compile(r"^  [a-z0-9][a-z0-9-]*:")
 DERIVATION = re.compile(
     r"bound: (?P<seconds>\d+(?: [*+] \d+)*) s "
     r"\((?P<source>run \d{8,}|scripts/[A-Za-z0-9_./-]+)\) "
-    r"-> (?P<minutes>\d+) min = (?P<ratio>\d+\.\d\d)x(?!\d)")
+    r"-> (?P<minutes>\d+) min = (?P<ratio>\d+\.\d{3})x(?!\d)")
 REMAINING = {
     "adr-index-guard.yml": (5,),
     "artifact-budget.yml": (5,),
@@ -150,9 +154,9 @@ def seconds_of(expression: str) -> int:
 
 
 def ratio_text(minutes: int, seconds: int) -> str:
-    """`minutes * 60 / seconds` truncated to two decimals, without float rounding."""
-    hundredths = minutes * 6000 // seconds
-    return f"{hundredths // 100}.{hundredths % 100:02d}"
+    """`minutes * 60 / seconds` truncated to three decimals, without float rounding."""
+    thousandths = minutes * 60000 // seconds
+    return f"{thousandths // 1000}.{thousandths % 1000:03d}"
 
 
 def derivation_faults(bound: Bound, root: Path = ROOT) -> list[str]:
@@ -248,41 +252,57 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(comment_above(lines, 1, 8), "")
 
     def test_a_derivation_that_adds_up_has_no_fault(self) -> None:
-        note = "Hosted maximum. bound: 181 s (run 45274225788) -> 10 min = 3.31x"
+        note = "Hosted maximum. bound: 181 s (run 45274225788) -> 10 min = 3.314x"
         self.assertEqual(derivation_faults(self.bound(10, note)), [])
 
     def test_a_sum_of_products_is_evaluated(self) -> None:
         self.assertEqual(seconds_of("20 * 2 + 60 * 4"), 280)
-        self.assertEqual(ratio_text(5, 280), "1.07")
+        self.assertEqual(ratio_text(5, 280), "1.071")
 
     def test_a_moved_bound_with_its_comment_untouched_fails(self) -> None:
-        note = "bound: 181 s (run 45274225788) -> 10 min = 3.31x"
+        note = "bound: 181 s (run 45274225788) -> 10 min = 3.314x"
         self.assertEqual(derivation_faults(self.bound(20, note)),
-                         ["derives 10 min, YAML sets 20", "ratio 3.31x, recomputed 6.62x"])
+                         ["derives 10 min, YAML sets 20", "ratio 3.314x, recomputed 6.629x"])
 
     def test_a_moved_bound_and_minutes_with_the_old_figure_fails_on_the_ratio(self) -> None:
-        note = "bound: 181 s (run 45274225788) -> 20 min = 3.31x"
-        self.assertEqual(derivation_faults(self.bound(20, note)), ["ratio 3.31x, recomputed 6.62x"])
+        note = "bound: 181 s (run 45274225788) -> 20 min = 3.314x"
+        self.assertEqual(derivation_faults(self.bound(20, note)), ["ratio 3.314x, recomputed 6.629x"])
+
+    def test_a_figure_moved_by_one_second_with_its_ratio_text_fails(self) -> None:
+        plain = re.compile(r"bound: ([0-9]+) s")
+        checked = 0
+        for bound in cases():
+            found = plain.search(bound.comment)
+            if bound.workflow in REMAINING or not found or "run " not in bound.comment:
+                continue
+            for step in (-1, 1):
+                moved = plain.sub(f"bound: {int(found[1]) + step} s", bound.comment)
+                with self.subTest(f"{bound.label} {step:+d} s"):
+                    self.assertNotEqual(
+                        derivation_faults(Bound(bound.workflow, bound.role, bound.line,
+                                                bound.value, moved)), [])
+            checked += 1
+        self.assertGreater(checked, 10)
 
     def test_a_placeholder_is_not_a_derivation(self) -> None:
-        for text in ("TODO", "", "bound: TODO", "bound: 181 s -> 10 min = 3.31x",
+        for text in ("TODO", "", "bound: TODO", "bound: 181 s -> 10 min = 3.314x",
                      "10 min is the stack's floor"):
             with self.subTest(text):
                 self.assertEqual(len(derivation_faults(self.bound(10, text))), 1)
 
     def test_a_bound_below_the_duration_it_explains_fails(self) -> None:
-        note = "bound: 700 s (run 45274225788) -> 10 min = 0.85x"
+        note = "bound: 700 s (run 45274225788) -> 10 min = 0.857x"
         self.assertEqual(derivation_faults(self.bound(10, note)),
                          ["10 min is below the 700 s it explains"])
 
     def test_a_script_source_must_exist(self) -> None:
-        note = "bound: 60 s (scripts/no-such-script.py) -> 5 min = 5.00x"
+        note = "bound: 60 s (scripts/no-such-script.py) -> 5 min = 5.000x"
         self.assertEqual(derivation_faults(self.bound(5, note)),
                          ["scripts/no-such-script.py does not exist"])
 
     def test_a_second_derivation_in_one_comment_fails(self) -> None:
-        note = ("bound: 181 s (run 45274225788) -> 10 min = 3.31x "
-                "bound: 90 s (run 45274225788) -> 10 min = 6.66x")
+        note = ("bound: 181 s (run 45274225788) -> 10 min = 3.314x "
+                "bound: 90 s (run 45274225788) -> 10 min = 6.666x")
         self.assertEqual(len(derivation_faults(self.bound(10, note))), 1)
 
     def test_a_comment_that_quotes_another_bound_disagrees(self) -> None:

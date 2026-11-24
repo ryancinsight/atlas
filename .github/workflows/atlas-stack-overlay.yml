@@ -65,7 +65,7 @@ jobs:
   overlay-check:
     name: Stack overlay coherence (requirements satisfiable + locks match)
     runs-on: ubuntu-latest
-    # bound: 106 s (run 44878188429) -> 5 min = 2.83x
+    # bound: 106 s (run 44878188429) -> 5 min = 2.830x
     timeout-minutes: 5
     steps:
       - name: Checkout

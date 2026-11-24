@@ -28,7 +28,7 @@ jobs:
   report:
     name: Fleet queue/minutes report
     runs-on: ubuntu-latest
-    # bound: 550 s (run 36389407302) -> 15 min = 1.63x
+    # bound: 550 s (run 36389407302) -> 15 min = 1.636x
     timeout-minutes: 15
     steps:
       - name: Checkout repository

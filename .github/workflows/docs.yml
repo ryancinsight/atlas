@@ -69,7 +69,7 @@ jobs:
   docs-link-check:
     name: Dead-link + mdbook build
     runs-on: ubuntu-latest
-    # bound: 227 s (run 35602871321) -> 15 min = 3.96x
+    # bound: 227 s (run 35602871321) -> 15 min = 3.964x
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -151,7 +151,7 @@ jobs:
   docs-link-smoke-test-filters:
     name: Detector filter regression (single-char + LaTeX)
     runs-on: ubuntu-latest
-    # bound: 123 s (run 37067012589) -> 5 min = 2.43x
+    # bound: 123 s (run 37067012589) -> 5 min = 2.439x
     timeout-minutes: 5
     steps:
       - name: Checkout
