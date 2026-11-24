@@ -57,7 +57,6 @@ def _skip_non_cargo(repository_path: str) -> bool:
 _PROSE_SUFFIXES = (".md", ".markdown")
 _PATH_BOUNDARY = frozenset('"/\\')
 _EXTENSION_LITERALS = ('.md"', '"md"', ".markdown", "*.md")
-_UNSUPPORTED_GLOB = re.compile(r"[\[\]\\]")
 
 
 def _raise(error: OSError) -> None:
@@ -127,36 +126,6 @@ def _text_list(value: object) -> list[str] | None:
     return None
 
 
-def _include_matches(pattern: str, candidate: str) -> bool:
-    """Whether a `.gitignore`-style `include` pattern selects `candidate` or an ancestor of it.
-
-    `*`, `?`, `**` (also matching zero directories), a leading `/` and a trailing
-    `/` are interpreted. A character class or escape selects every file; a
-    negation only narrows the list and is skipped.
-    """
-    if pattern.startswith("!"):
-        return False
-    if _UNSUPPORTED_GLOB.search(pattern):
-        return True
-    body = pattern.removeprefix("./").rstrip("/")
-    segments = body.lstrip("/").split("/")
-    expression = "" if "/" in body else "(?:.*/)?"
-    for index, segment in enumerate(segments):
-        last = index == len(segments) - 1
-        if segment == "**":
-            expression += ".*" if last else "(?:[^/]+/)*"
-        else:
-            translated = "".join(
-                {"*": "[^/]*", "?": "[^/]"}.get(char) or re.escape(char) for char in segment
-            )
-            expression += translated if last else translated + "/"
-    parts = candidate.split("/")
-    return any(
-        re.fullmatch(expression, "/".join(parts[: count + 1]), re.IGNORECASE)
-        for count in range(len(parts))
-    )
-
-
 def _names(value: object, claimed: str) -> bool:
     """Whether a manifest path value is the claimed file, or is not a string at all."""
     if not isinstance(value, str):
@@ -167,9 +136,9 @@ def _names(value: object, claimed: str) -> bool:
 def _manifest_claims(manifest: Path, package_relative: str) -> bool:
     """Whether the package manifest can make Cargo read or package the file.
 
-    A malformed manifest, or a `readme`, `license-file`, `include`, `exclude`
-    or `build` value not interpreted here (`readme.workspace = true`, a
-    non-string), claims every file.
+    A manifest with an `include` key claims every file, as does a malformed
+    manifest or a `readme`, `license-file`, `exclude` or `build` value not
+    interpreted here (`readme.workspace = true`, a non-string).
     """
     try:
         document = tomllib.loads(manifest.read_text(encoding="utf-8"))
@@ -185,21 +154,19 @@ def _manifest_claims(manifest: Path, package_relative: str) -> bool:
     license_file = package.get("license-file")
     if license_file is not None and _names(license_file, claimed):
         return True
-    if any(key in package and _text_list(package[key]) is None for key in ("include", "exclude")):
+    if "include" in package or ("exclude" in package and _text_list(package["exclude"]) is None):
         return True
-    if not isinstance(package.get("build", False), (str, bool)):
-        return True
-    return any(_include_matches(glob, claimed) for glob in package.get("include", []))
+    return not isinstance(package.get("build", False), (str, bool))
 
 
 def _is_prose_only(
     root: Path, package_directory: PurePosixPath, changed_path: str, sources: list[_RustSources]
 ) -> bool:
-    """A Markdown file no package target, readme or `include` pattern can reach.
+    """A Markdown file no package target or manifest field can reach.
 
     Reachability is decided from text, not by running Cargo, and errs toward
     the gate. A file is reachable when the manifest names it (`readme`,
-    `license-file`, an `include` pattern, or the default `README.md`), or when
+    `license-file`, the default `README.md`) or has an `include` key, or when
     any Rust source in the repository, comments included and case ignored,
     spells its name, its stem or an ancestor directory bounded on both sides
     by a quote or a path separator, or contains `.md"`, `"md"`, `.markdown`
