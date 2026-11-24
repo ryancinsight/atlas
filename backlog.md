@@ -134,3 +134,4 @@
 <a id="atlas-sec-chrono-advisory"></a>- [ATLAS-SEC-CHRONO-ADVISORY](backlog/atlas-sec-chrono-advisory.md) — Clear the chrono advisory from every member's audited graph [patch] — todo
 <a id="atlas-lock-restore-proof"></a>- [ATLAS-LOCK-RESTORE-PROOF](backlog/atlas-lock-restore-proof.md) — Restore only proven overlay lock rewrites [patch] — todo
 <a id="atlas-stable-stack-001"></a>- [ATLAS-STABLE-STACK-001](backlog/atlas-stable-stack-001.md) — Qualify every member at a stable major [major] — todo
+<a id="atlas-aequitas-scalar-aliases"></a>- [ATLAS-AEQUITAS-SCALAR-ALIASES](backlog/atlas-aequitas-scalar-aliases.md) — Report and then schedule module-level primitive scalar aliases [tightening] [patch] — todo
