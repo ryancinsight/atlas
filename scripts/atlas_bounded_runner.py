@@ -11,7 +11,10 @@ The store is append-only: ``<stamp>-<pid>.json`` is created before launch and
 ``<stamp>-<pid>.end.json`` when the command ends, each by exclusive create and
 never rewritten, so a reader holding a tag open cannot disturb the runner. The
 session stays inside the tag. A run whose runner died, or whose tree could not
-be retired, has no end file.
+be retired, has no end file; ``overdue`` lists such runs once past their
+deadline, so orientation finds a run whose runner outlived its limit. A tag may
+be read mid-write; ``overdue`` skips it with a warning, and likewise a tag whose
+``started`` or ``deadline`` is not a finite number, without hiding another run.
 
 The command follows ``--``. The exit status is the command's own, 124 when the
 deadline retired the tree (``stage: deadline`` on stderr) and 125 when the
@@ -103,6 +106,35 @@ def _cleanup_fault(error: BaseException) -> int:
     return EXIT_RUNNER_FAULT
 
 
+def _is_seconds(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def overdue_tags(store: Path, now: float) -> list[dict[str, object]]:
+    """Tags of runs with no end file whose deadline passed before ``now``.
+
+    Each tag file is read at most once and nothing is written. A file whose
+    ``started`` or ``deadline`` is not a finite number, or that cannot be read
+    or parsed, is skipped with a warning and never hides another run.
+    """
+    tags = []
+    for path in sorted(store.glob("*.json")):
+        if path.name.endswith(END_SUFFIX):
+            continue
+        try:
+            tag = json.loads(path.read_text(encoding="utf-8"))
+            started, deadline = tag["started"], tag["deadline"]
+            if not (_is_seconds(started) and _is_seconds(deadline)):
+                raise ValueError("started and deadline must be finite numbers")
+            late = now > started + deadline
+        except (OSError, ValueError, KeyError, TypeError, ArithmeticError, RecursionError) as error:
+            print(f"atlas-bounded-runner: skipped {path.name}: {error!r}", file=sys.stderr)
+            continue
+        if late and not path.with_suffix(END_SUFFIX).exists():
+            tags.append(tag)
+    return tags
+
+
 def _run(args: argparse.Namespace) -> int:
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not command:
@@ -149,6 +181,17 @@ def _run(args: argparse.Namespace) -> int:
     return result.returncode
 
 
+def _overdue(args: argparse.Namespace) -> int:
+    try:
+        store = tag_store()
+    except RuntimeError as error:
+        print(f"atlas-bounded-runner: stage: store: {error!r}", file=sys.stderr)
+        return EXIT_RUNNER_FAULT
+    for tag in overdue_tags(store, time.time()):
+        print(json.dumps(tag, sort_keys=True))
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="atlas-bounded-runner",
@@ -163,6 +206,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--item", default="", help="item id tagging the run")
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- followed by the command")
     run.set_defaults(handler=_run)
+    listing = modes.add_parser("overdue", help="list open tags past their deadline")
+    listing.set_defaults(handler=_overdue)
     args = parser.parse_args(argv)
     return args.handler(args)
 
