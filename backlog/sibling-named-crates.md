@@ -1,8 +1,9 @@
 <a id="sibling-named-crates"></a>
-## ATLAS-SIBLING-NAMED-CRATES-2026-09-04 - Nine crates are named after a sibling member, not a concern [arch] [major] - todo
+## ATLAS-SIBLING-NAMED-CRATES-2026-09-04 - Six crates are named after a sibling member, not a concern [arch] [major] - todo
 outcome: no crate in the stack carries a `<host>-<sibling>` name; the required-dependency graph over publishable crates is closed and acyclic; each renamed crate is named for the concern it owns, the dependency staying a manifest fact.
-open — 5 remaining renames (each needs the meta ADR first, since it's a public-API break for published members; basis 1412e1f9502c: `coeus-hephaestus` and `coeus-leto` are absent from coeus `crates/`, `coeus-cpu` is present): `asclepius-coeus`, `athena-hephaestus`, `athena-leto`, `tyche-consus`, `tyche-moirai`.
+open — 6 remaining renames (each needs the meta ADR first, since it's a public-API break for published members; basis 1412e1f9502c, a scan of every `[package]` name on the 28 member default branches for a hyphen-separated component equal to another member's name: `coeus-hephaestus` and `coeus-leto` are absent from coeus `crates/`, `coeus-cpu` is present): `apollo-leto-interop`, `asclepius-coeus`, `athena-hephaestus`, `athena-leto`, `tyche-consus`, `tyche-moirai`.
 open — closure defect: 14 publishable crates depend on a `publish = false` crate (`ares-harmonia`/now `ares-coupling` still `publish=false`, `cfd-2d`, `cfd-optim`, 5 `helios-*`, 5 `kwavers-*`), blocked on graduating `harmonia`, `hyperion`, `horae`, `asclepius-coeus` to publishable — resolves 13 of the 14 without any rename.
 release authority (carried from the former publish-graph item, same outcome): each remaining `publish = false` crate flips at the final step of its own bootstrap publish (the `ATLAS-PUB-006` unblocker chain), and renaming or flipping one is a breaking release-authority change, never an implicit compatibility rename.
 acceptance: crate-name scan reports zero `<host>-<sibling>` names; `publish-order.py` reports an empty BLOCKED section; both counted in `scripts/atlas-conformance.py` as classes ratcheted to zero.
 method: meta ADR first (rename + graduation decisions are not mechanical), then per-member items in dependency order.
+priority: architecture

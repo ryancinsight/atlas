@@ -65,10 +65,10 @@
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the locked bump guard and require it [patch] — todo
 <a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
-<a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — No published wheel covers ARM Linux or musl [patch] — todo
+<a id="python-pipeline-pin-divergence"></a>- [ATLAS-PYTHON-PIPELINE-PINS-2026-09-04](backlog/python-pipeline-pin-divergence.md) — The conformance scan does not count distinct `python-wheels.yml` pins [patch] — todo
 <a id="atlas-python-wheels-floor"></a>- [ATLAS-PYTHON-WHEELS-FLOOR](backlog/atlas-python-wheels-floor.md) — Shared wheel workflow admits a Python floor its test step cannot install [verification] — todo
 <a id="atlas-ritk-fssurf-013"></a>- [ATLAS-RITK-FSSURF-013](backlog/atlas-ritk-fssurf-013.md) — FreeSurfer surface formats and label table [minor] — todo
-<a id="sibling-named-crates"></a>- [ATLAS-SIBLING-NAMED-CRATES-2026-09-04](backlog/sibling-named-crates.md) — Nine crates are named after a sibling member, not a concern [arch] [major] — todo
+<a id="sibling-named-crates"></a>- [ATLAS-SIBLING-NAMED-CRATES-2026-09-04](backlog/sibling-named-crates.md) — Six crates are named after a sibling member, not a concern [arch] [major] — todo
 <a id="atlas-stack-leto-churn-017"></a>- [ATLAS-STACK-LETO-CHURN-017](backlog/atlas-stack-leto-churn-017.md) — Upstream working-tree churn blocks consumer verification — todo
 <a id="atlas-stale-checkout-findings-223"></a>- [ATLAS-STALE-CHECKOUT-FINDINGS-223](backlog/atlas-stale-checkout-findings-223.md) — Gates measure the checkout, and 8 of 25 members are behind [patch] — todo
 <a id="atlas-standalone-crates-build"></a>- [ATLAS-STANDALONE-CRATES-BUILD](backlog/atlas-standalone-crates-build.md) — Make the five unbuildable standalone crates compile [patch] — todo
