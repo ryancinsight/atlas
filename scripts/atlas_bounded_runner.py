@@ -22,8 +22,8 @@ runner failed, with ``stage: store`` (no tag could be created; the command did
 not run), ``stage: cleanup`` (retiring the tree failed) or ``stage: launch``
 (any other failure to start or supervise the command). An end file that cannot
 be created prints ``stage: store: could not close`` and leaves the status as it
-was. A command's own 124, 125 or 2 carries no ``stage:`` line. Neither does the
-runner's own exit 2 (bad arguments, no command), which also writes no tag.
+was. Apart from that line a command's own 124, 125 or 2 prints no ``stage:``
+line, and neither does the runner's own 2 (bad arguments, no command; no tag).
 ``--deadline`` must be finite and greater than zero.
 
 Oracle: ``scripts/tests/test_atlas_bounded_runner.py``.
