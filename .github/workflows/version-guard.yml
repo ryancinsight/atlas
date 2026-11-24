@@ -87,6 +87,7 @@ jobs:
   sweep:
     name: Toolchain preflight + coherence scan
     runs-on: ubuntu-latest
+    # bound: 97 s (run 44799005470) -> 20 min = 12.371x
     timeout-minutes: 20
     steps:
       - name: Checkout

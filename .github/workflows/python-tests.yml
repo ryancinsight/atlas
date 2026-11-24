@@ -10,6 +10,7 @@ jobs:
   pytest-fast:
     name: Run pytest (fast)
     runs-on: ubuntu-latest
+    # bound: 577 s (run 45069017750) -> 10 min = 1.039x
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -39,6 +40,7 @@ jobs:
           python -m pip install -r scripts/requirements-test.txt
 
       - name: Setup recorded fast-suite toolchains
+        # bound: 11 s (run 40776129780) -> 3 min = 16.363x
         timeout-minutes: 3
         shell: bash
         run: |
@@ -96,6 +98,7 @@ jobs:
   pytest-slow:
     name: Run pytest (slow)
     runs-on: ubuntu-latest
+    # bound: 488 s (run 44963956257) -> 15 min = 1.844x
     timeout-minutes: 15
     env:
       RUSTUP_TOOLCHAIN: 1.97.0
@@ -126,6 +129,7 @@ jobs:
           python -m pip install -r scripts/requirements-test.txt
 
       - name: Setup recorded consumer toolchain
+        # bound: 11 s (run 45274225788) -> 3 min = 16.363x
         timeout-minutes: 3
         shell: bash
         env:
@@ -145,12 +149,14 @@ jobs:
 
       - name: Install cargo-semver-checks for the locked SemVer comparison test
         # scripts/tests/test_atlas_semver_pr.py skips without both.
+        # bound: 3 s (run 45274225788) -> 3 min = 60.000x
         timeout-minutes: 3
         uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
           tool: cargo-semver-checks@0.51.0
 
       - name: Install the pinned rustdoc nightly
+        # bound: 9 s (run 45069017750) -> 3 min = 20.000x
         timeout-minutes: 3
         run: rustup toolchain install nightly-2026-08-01 --profile minimal
 
@@ -198,6 +204,7 @@ jobs:
   windows-lock-protocol:
     name: Native Windows lock protocol
     runs-on: windows-latest
+    # bound: 18 s (run 45074147825) -> 5 min = 16.666x
     timeout-minutes: 5
     steps:
       - name: Checkout
