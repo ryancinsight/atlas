@@ -63,9 +63,9 @@ _CAPABILITY = re.compile(
     r"\b(?:fs|process|env|read_dir|extern|asm|global_asm|naked_asm)\b|\binclude\s*!"
     r'|\bpath\s*=(?!\s*"[^"\x5c]*\.rs")'
 )
+_UNSUPPORTED_GLOB = re.compile(r"[^\w./*?!-]")
 _INCLUDE_CALL = re.compile(r"\binclude_(?:str|bytes)\s*!")
 _INCLUDE_LITERAL = re.compile(r'\binclude_(?:str|bytes)\s*!\s*\(\s*"([^"\x5c]*)"\s*\)')
-_UNSUPPORTED_GLOB = re.compile(r"[\[\]\\]")
 
 
 def _raise(error: OSError) -> None:
@@ -135,11 +135,13 @@ def _text_list(value: object) -> list[str] | None:
 
 
 def _include_matches(pattern: str, candidate: str) -> bool:
-    """Whether a `.gitignore`-style `include` pattern selects `candidate` or an ancestor of it.
+    """Whether an `include` pattern selects `candidate` or an ancestor of it.
 
-    `*`, `?`, `**` (also matching zero directories), a leading `/` and a trailing
-    `/` are interpreted. A character class or escape selects every file; a
-    negation only narrows the list and is skipped.
+    Implements `*` and `?` (neither crosses `/`), `**` as a whole segment, a
+    leading `./` or `/`, a trailing `/` and a leading `!` (a negation only
+    narrows the list, so it is skipped), with case ignored. A pattern holding
+    any other character, whitespace included, claims every file, so what this
+    does not implement never releases a file.
     """
     if pattern.startswith("!"):
         return False
@@ -205,7 +207,9 @@ def _is_prose_only(
     """A Markdown file that no Cargo step can read, proved from the repository text.
 
     False keeps origin/main's package owner. True needs all of:
-    1. the package manifest does not claim the file (`_manifest_claims`);
+    1. the package manifest does not claim the file (`_manifest_claims`: its
+       `readme`, `license-file` or an `include` pattern selects it, or a value
+       is not interpreted);
     2. no tracked file runs code outside the scanned Rust text (`_scan`): no
        symlink, Cargo or nextest config, dependency in any manifest, or
        target path not ending `.rs`;

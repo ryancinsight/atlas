@@ -254,6 +254,7 @@ _CASES = {
     "include-bytes": _one('static B: &[u8] = include_bytes!("../docs/x.md");\n'),
     "include-in-doc-attribute": _one('#![doc = include_str!("../docs/x.md")]\n'),
     "include-of-same-name-elsewhere": _one(_INC, "other/x.md"),
+    "include-of-uppercase-file-name": _one(_INC, "docs/X.MD"),
     "include-path-case": _one('const T: &str = include_str!("../DOCS/X.MD");\n'),
     "includer-in-tests": _one(_INC, at="tests/it.rs"),
     "includer-in-sibling-crate": _one(_INC, at="crates/b/src/lib.rs"),
@@ -272,7 +273,7 @@ _CASES = {
     "calls-foreign-function": _one('extern "C" { fn system(c: *const u8) -> i32; }\n', _G),
     "runs-inline-assembly": _one('fn t() { unsafe { core::arch::asm!("nop"); } }\n', _G),
     "runs-global-assembly": _one('core::arch::global_asm!("nop");\n', _G),
-    "runs-naked-assembly": _one('#[unsafe(naked)] extern fn t() { naked_asm!("ret"); }\n', _G),
+    "runs-naked-assembly": _one('fn t() { naked_asm!("ret"); }\n', _G),
     "doctest-reads-directory": _one('/// ```\n/// std::fs::read_dir(".");\n/// ```\npub fn f() {}\n', _G),
     "code-after-block-comment-marker": _one('/*\n// */ std::fs::read_dir(".");\n', _G),
     "include-argument-from-fragments": _one('const T: &str = include_str!(concat!("../do", "cs/x.m", "d"));\n'),
@@ -286,6 +287,7 @@ _CASES = {
     "nextest-config": _one("[profile.default]\n", at=".config/nextest.toml"),
     "sibling-manifest-declares-dependency": _one('[package]\nname = "b"\n[dependencies]\nh = "1"\n', at="crates/b/Cargo.toml"),
     "sibling-manifest-cannot-be-parsed": _one("[[", at="crates/b/Cargo.toml"),
+    "sibling-manifest-in-uppercase": _one('[dependencies]\nh = "1"\n', at="crates/b/CARGO.TOML"),
 }
 
 
@@ -319,16 +321,30 @@ _MANIFEST_CLAIMS = [
     ("", "docs/x.markdown", False),
     ("", "docs/X.MD", False),
     ('license-file = "docs/LICENSE.md"\n', "docs/LICENSE.md", True),
+    ('include = ["src/**"]\n', "docs/x.md", False),
     ('include = ["docs/packaged/*.md"]\n', "docs/packaged/x.md", True),
     ('include = ["docs/**/*.md"]\n', "docs/top.md", True),
     ('include = ["docs/**/*.md"]\n', "docs/a/b/deep.md", True),
     ('include = ["docs/*.md"]\n', "docs/sub/x.md", False),
+    ('include = ["docs/*"]\n', "docs/sub/x.md", True),
     ('include = ["/NOTES.md"]\n', "NOTES.md", True),
     ('include = ["/NOTES.md"]\n', "sub/NOTES.md", False),
+    ('include = ["DOCS/X.MD"]\n', "docs/x.md", True),
     ('include = ["NOTES.md"]\n', "sub/NOTES.md", True),
     ('include = ["guide/"]\n', "guide/ch1.md", True),
+    ('include = ["guide/"]\n', "a/guide/ch1.md", True),
+    ('include = ["doc?/x.md"]\n', "docs/x.md", True),
+    ('include = ["docs?x.md"]\n', "docs/x.md", False),
+    ('include = ["./docs/x.md"]\n', "docs/x.md", True),
+    ('include = ["docs/x.md "]\n', "docs/x.md", True),
+    ('include = ["docs/x.md\t"]\n', "docs/x.md", True),
+    ('include = ["docs/{a,b}.md"]\n', "docs/a.md", True),
+    ('include = ["{docs,book}/**"]\n', "book/x.md", True),
     ('include = ["[ab].md"]\n', "unrelated/z.md", True),
+    (f'include = ["docs/x{_BS}.md"]\n', "unrelated/z.md", True),
     ('include = ["!docs/x.md", "src/**"]\n', "docs/x.md", False),
+    ('include = ["!docs/x.md", "src/**"]\n', "!docs/x.md", False),
+    ('include = ["docs/**", "!docs/x.md"]\n', "docs/x.md", True),
     ("readme.workspace = true\n", "docs/x.md", True),
     ("license-file.workspace = true\n", "docs/x.md", True),
     ("include.workspace = true\n", "docs/x.md", True),
@@ -341,6 +357,7 @@ _MANIFEST_CLAIMS = [
     ('build = "build.rs"\n', "docs/x.md", False),
     ('"build" = "gen.txt"\n', "docs/x.md", True),
     ('[lib]\npath = "src/lib.rs"\n', "docs/x.md", False),
+    ('[lib]\npath = "SRC/LIB.RS"\n', "docs/x.md", False),
     ('[[bin]]\nname = "b"\npath = "lit/main.md"\n', "docs/x.md", True),
     ('[[test]]\nname = "t"\n"path" = "tests/t.txt"\n', "docs/x.md", True),
     ('[dependencies]\nhelper = "1"\n', "docs/x.md", True),
@@ -384,6 +401,14 @@ def test_unreadable_input_raises(
 
     with pytest.raises(PermissionError):
         _owned(root, ["docs/x.md"])
+
+
+def test_undecodable_sibling_manifest_keeps_the_origin_main_owner(tmp_path: Path) -> None:
+    root = _repository(tmp_path, {}, ["docs/x.md"])
+    (root / "crates" / "b").mkdir(parents=True)
+    (root / "crates" / "b" / "Cargo.toml").write_bytes(b"\xff\xfe")
+
+    assert _owned(root, ["docs/x.md"]) == _MAIN
 
 
 def test_undecodable_source_is_still_scanned(tmp_path: Path) -> None:
