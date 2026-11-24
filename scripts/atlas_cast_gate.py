@@ -102,6 +102,16 @@ HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
 HISTORICAL_CAST_PROFILE = "cast-history"
 HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+# `cfg(...)` and `cfg_attr(...)` name their predicate in the first argument.
+# `clippy` is a real cfg set by clippy-driver and not by rustc, so code under
+# `cfg(not(clippy))` compiles only in the clippy run -- which then skips it --
+# and code under `cfg(clippy)` compiles only where the gate is looking. Both
+# are unmeasurable, and a gate that cannot see a cast must refuse the push
+# rather than count the rest of the package and pass.
+CFG_PREDICATE = re.compile(r"\b(cfg|cfg_attr)\s*\(")
+CLIPPY_PREDICATE = re.compile(r"\bclippy\b")
+CFG_CLIPPY_HINT = r"cfg(_attr)?[[:space:]]*\([^)]*clippy"
+
 
 
 @dataclass(frozen=True, order=True)
@@ -412,6 +422,141 @@ def pushed_additions(repo: pathlib.Path, base: str | None, tip: str) -> dict[str
     # Bytes, decoded without newline translation: text mode would turn a
     # carriage return inside a source line into a line break.
     return added_lines(diff.decode("utf-8", errors="replace"))
+
+
+def code_without_comments_or_strings(text: str) -> str:
+    """`text` with comments and literals blanked, newlines kept in place.
+
+    A `cfg` predicate inside a comment or a string is not code, so it must not
+    be read as one. Offsets and line breaks survive the blanking so a fault can
+    name the line the predicate is written on.
+    """
+    out: list[str] = []
+    index = 0
+    while index < len(text):
+        if text.startswith("/*", index):
+            start, depth, index = index, 1, index + 2
+            while depth:
+                close, opened = text.find("*/", index), text.find("/*", index)
+                if close < 0:
+                    raise ValueError("an unclosed block comment")
+                depth, index = ((depth + 1, opened + 2) if 0 <= opened < close
+                                else (depth - 1, close + 2))
+            out.append(re.sub(r"[^\n]", " ", text[start:index]))
+            continue
+        match = TOKEN.match(text, index)
+        if match is None:
+            out.append(text[index])
+            index += 1
+            continue
+        kind, chunk = match.lastgroup, match.group()
+        out.append(re.sub(r"[^\n]", " ", chunk) if kind in ("comment", "string", "char")
+                   else chunk)
+        index = match.end()
+    return "".join(out)
+
+
+def matching_paren(code: str, opening: int) -> int:
+    """The index of the `)` closing the `(` at `opening`; unclosed raises."""
+    depth = 0
+    for index in range(opening, len(code)):
+        if code[index] == "(":
+            depth += 1
+        elif code[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise ValueError("an unclosed `cfg` predicate")
+
+
+def cfg_predicate(code: str, name: str, opening: int, closing: int) -> str:
+    """The predicate text of one `cfg`/`cfg_attr`; only the first argument of
+    `cfg_attr` is its predicate -- the rest is the attribute it applies."""
+    inner = code[opening + 1:closing]
+    if name == "cfg":
+        return inner
+    depth = 0
+    for index, char in enumerate(inner):
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif char == "," and depth == 0:
+            return inner[:index]
+    return inner
+
+
+def cfg_clippy_lines(text: str) -> list[int]:
+    """Lines whose `cfg`/`cfg_attr` predicate names `clippy`."""
+    code = code_without_comments_or_strings(text)
+    found: list[int] = []
+    for match in CFG_PREDICATE.finditer(code):
+        opening = code.find("(", match.start())
+        closing = matching_paren(code, opening)
+        if CLIPPY_PREDICATE.search(cfg_predicate(code, match.group(1), opening, closing)):
+            found.append(code.count("\n", 0, match.start()) + 1)
+    return found
+
+
+def tip_paths(repo: pathlib.Path, tip: str) -> list[str]:
+    """Every tracked path at `tip`."""
+    return subprocess.run(
+        ["git", "-C", str(repo), "ls-tree", "-r", "--name-only", tip],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
+    ).stdout.splitlines()
+
+
+def pushed_package_roots(repo: pathlib.Path, tip: str,
+                         packages: Iterable[str]) -> list[str]:
+    """Directories of the named packages at `tip`, ``""`` for the root one."""
+    wanted = frozenset(packages)
+    if not wanted:
+        return []
+    roots: list[str] = []
+    listing = tip_paths(repo, tip)
+    for path in listing:
+        if path != "Cargo.toml" and not path.endswith("/Cargo.toml"):
+            continue
+        text = git_file(repo, tip, path)
+        if text is None:
+            continue
+        try:
+            if package_name(tomllib.loads(text)) in wanted:
+                roots.append("" if path == "Cargo.toml" else path[: -len("/Cargo.toml")])
+        except tomllib.TOMLDecodeError:
+            continue
+    return roots
+
+
+def cfg_clippy_problems(repo: pathlib.Path, tip: str,
+                        packages: Iterable[str]) -> list[str]:
+    """One problem per `cfg` predicate naming `clippy` in a pushed package.
+
+    `git grep` narrows the search to files that could hold one on a single
+    line; the lexer then decides whether the hit is code and whether the
+    predicate -- not a `cfg_attr` body -- names `clippy`.
+    """
+    roots = pushed_package_roots(repo, tip, packages)
+    if not roots and not list(packages):
+        return []
+    command = ["git", "-C", str(repo), "grep", "-n", "-I", "-E", CFG_CLIPPY_HINT, tip]
+    if roots and "" not in roots:
+        command += ["--", *roots]
+    run = subprocess.run(command, capture_output=True, text=True, encoding="utf-8",
+                         errors="replace")
+    if run.returncode not in (0, 1):  # 1: no hit, not a failure
+        raise subprocess.CalledProcessError(run.returncode, command,
+                                            output=run.stdout, stderr=run.stderr)
+    paths = sorted({fields[1] for line in run.stdout.splitlines()
+                    if len(fields := line.split(":", 2)) == 3})
+    problems: list[str] = []
+    for path in paths:
+        for line in cfg_clippy_lines(git_file(repo, tip, path) or ""):
+            problems.append(
+                f"{path}:{line}: a `cfg` predicate names `clippy`, which clippy-driver "
+                "sets and rustc does not, so the gate cannot count the code it guards"
+            )
+    return problems
 
 
 def pushed_diff(repo: pathlib.Path, base: str | None, tip: str, form: list[str]) -> bytes:
@@ -1237,6 +1382,7 @@ def check(args: argparse.Namespace) -> int:
         modules[package] = (path, fault)
     problems = violations(args.member, found, added, args.package, baseline, base,
                           held, modules)
+    problems += cfg_clippy_problems(repo, args.tip, args.package)
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:

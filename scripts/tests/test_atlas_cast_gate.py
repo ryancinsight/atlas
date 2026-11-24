@@ -2346,3 +2346,81 @@ def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tm
     assert cast_module_push(tmp_path, capsys, module, "#[macro_use]\n" + MOUNT + USES, found,
                             held=False, base_module=module, before={CAST_MODULE_SITE})[1:] == (
         1, faults(MACRO, "11:20", "17:9"))
+
+
+def test_a_cfg_predicate_naming_clippy_is_found_by_line():
+    text = "\n".join((
+        "pub fn fine() {}",
+        "#[cfg(not(clippy))] pub fn hidden(x: u32) -> u64 { x as u64 }",
+        "#[cfg_attr(clippy, derive(Debug))] struct S;",
+        "#[cfg_attr(test, allow(clippy::unwrap_used, reason = \"test scope\"))] fn t() {}",
+        "// #[cfg(clippy)] in a comment is not code",
+        "const DOC: &str = \"#[cfg(clippy)]\";",
+        "#[cfg(all(test, not(clippy)))] fn both() {}",
+    ))
+    assert gate.cfg_clippy_lines(text) == [2, 3, 7]
+
+
+def _hidden_cast_repo(tmp_path, lib_source):
+    repo = tmp_path / "member"
+    init(repo)
+    (repo / "src").mkdir()
+    (repo / "Cargo.toml").write_text(
+        '[package]\nname = "hidden"\nversion = "0.1.0"\nedition = "2021"\n')
+    (repo / "src" / "lib.rs").write_text("pub fn fine() {}\n")
+    base = commit(repo, "base")
+    (repo / "src" / "lib.rs").write_text(lib_source)
+    tip = commit(repo, "tip")
+    rules = tmp_path / "rules.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"hidden": 0}}}')
+    sites = tmp_path / "sites.json"
+    sites.write_text("[]")
+    return repo, base, tip, rules, sites
+
+
+def _check_hidden(repo, base, tip, rules, sites):
+    return gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--base", base, "--tip", tip,
+                      "--package", "hidden", "--sites", str(sites)])
+
+
+def test_a_cast_under_cfg_not_clippy_cannot_pass_unmeasured(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path,
+        "pub fn fine() {}\n"
+        "#[cfg(not(clippy))]\n"
+        "pub fn hidden(x: u32) -> u64 { x as u64 }\n",
+    )
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "src/lib.rs:2" in err
+    assert "`cfg` predicate names `clippy`" in err
+
+
+def test_a_second_mount_under_cfg_not_clippy_cannot_pass_unmeasured(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path,
+        "pub fn fine() {}\n"
+        "#[cfg(not(clippy))]\n"
+        "#[path = \"cast.rs\"]\n"
+        "pub mod again;\n",
+    )
+    (repo / "src" / "cast.rs").write_text("pub fn cast(x: u32) -> u64 { x as u64 }\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "mount")
+    tip = git(repo, "rev-parse", "HEAD")
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "src/lib.rs:2" in err
+    assert "`cfg` predicate names `clippy`" in err
+
+
+def test_a_package_without_a_clippy_predicate_still_passes(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path,
+        'pub fn fine() {}\n'
+        '#[cfg_attr(test, allow(clippy::unwrap_used, reason = "test scope"))]\n'
+        "pub fn ok() {}\n",
+    )
+    assert _check_hidden(repo, base, tip, rules, sites) == 0
+    assert "predicate names `clippy`" not in capsys.readouterr().err
