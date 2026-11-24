@@ -59,8 +59,8 @@ class StaleReclaimTests(unittest.TestCase):
             key = subprocess.check_output([GIT, 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
             lock = root / 'atlas-push-locks' / key
             lock.mkdir(parents=True)
-            dead = subprocess.Popen([sys.executable, '-c', 'pass']); dead.wait()
-            (lock / 'pid').write_text(str(dead.pid) + '\n')
+            dead_pid = self.dead_pid()
+            (lock / 'pid').write_text(dead_pid + '\n')
             first = self.start(root)
             second = None
             try:
@@ -68,10 +68,6 @@ class StaleReclaimTests(unittest.TestCase):
                 second = self.start(root)
                 event = self.line(second)
                 self.send(first, 'resume')
-                if os.name == 'nt':
-                    self.assertEqual(self.line(first), '')
-                    self.assertEqual((lock / 'pid').read_text(), str(dead.pid) + '\n')
-                    return
                 self.assertEqual(self.line(first), 'ACQUIRED')
                 winner_pid = (lock / 'pid').read_text()
                 if event == 'OBSERVED':
@@ -87,6 +83,13 @@ class StaleReclaimTests(unittest.TestCase):
                             process.communicate('release\n', timeout=10)
                         else:
                             process.communicate(timeout=10)
+
+    def dead_pid(self):
+        # The hook probes the pid in its own namespace: Git Bash's on Windows.
+        if os.name == 'nt':
+            return subprocess.check_output([BASH, '-c', 'echo $$'], text=True).strip()
+        dead = subprocess.Popen([sys.executable, '-c', 'pass']); dead.wait()
+        return str(dead.pid)
 
     def fixture_lock(self, root):
         key = subprocess.check_output([GIT, 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
@@ -106,6 +109,33 @@ class StaleReclaimTests(unittest.TestCase):
                 self.assertNotIn('ACQUIRED', out)
                 self.assertTrue(lock.is_dir())
                 self.assertEqual((lock / 'pid').read_text() if owner is not None else None, owner)
+
+    @unittest.skipUnless(os.name == 'nt', 'start times identify Git Bash pids, which only Windows reuses')
+    def test_git_bash_owner_is_judged_by_pid_and_start_time(self):
+        holder = subprocess.Popen([BASH, '-c', 'echo $$; read -r _'], stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE, text=True)
+        self.addCleanup(holder.wait, 30)
+        self.addCleanup(holder.stdout.close)
+        self.addCleanup(holder.stdin.close)
+        live = holder.stdout.readline().strip()
+        stat = subprocess.check_output([BASH, '-c', 'cat /proc/$0/stat', live], text=True)
+        started = int(stat.rsplit(') ', 1)[1].split()[19])
+        cases = [  # (pid, recorded start time, reclaimed)
+            (self.dead_pid(), '1', True), (live, str(started + 1), True),
+            (live, str(started), False), (live, None, False), (live, 'garbage', False),
+            (live, '', False), ('9' * 10, '1', False)]
+        for pid, start, reclaimed in cases:
+            with self.subTest(pid=pid, start=start), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); lock = self.fixture_lock(root); lock.mkdir()
+                (lock / 'pid').write_text(pid + '\n')
+                if start is not None:
+                    (lock / 'start').write_text(start + '\n')
+                process = self.start(root, pause=False, cleanup=True)
+                out, err = process.communicate('release\n', timeout=10)
+                self.assertEqual(process.returncode == 0, reclaimed, err)
+                self.assertEqual('ACQUIRED' in out, reclaimed)
+                if not reclaimed:
+                    self.assertEqual((lock / 'pid').read_text(), pid + '\n')
 
     def test_abandoned_guard_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

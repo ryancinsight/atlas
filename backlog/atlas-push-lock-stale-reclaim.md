@@ -8,6 +8,6 @@
 - Blocked: final independent review and normal delivery gates; installed-hook/service holds remain. No installed hook or real lock is changed by these tests.
 - Residual: an abandoned guard is deliberately not auto-reaped. Recovery remains unavailable until its owner investigates; do not delete a potentially live guard. Native Windows/Linux validation remains outstanding.
 - Compatibility: serialization requires cooperating updated hooks. Mixed old unguarded versions remain outside this guarantee; preserve the existing deployment hold.
-- Windows: native Python never probes MSYS shell PIDs; existing incumbents are retained even if stale. Automatic recovery is unavailable there pending a proven same-namespace liveness protocol.
+- Windows: the hook probes the owner's MSYS pid with the shell's own `kill -0` and `/proc`, reclaims only a definite absence or a different recorded start time (`start` beside `pid`), and retains every ambiguity, a legacy lock without `start` included. The bounded runner releases the lock of the tree it retires at its deadline.
 - Separate unresolved scope: reusable-export reclamation and its weekly age sweep still use unguarded observations and path deletion. This ref-lock repair does not establish safety for that lifecycle.
 - Priority: correctness; no active locks may be deleted or gates bypassed during investigation.

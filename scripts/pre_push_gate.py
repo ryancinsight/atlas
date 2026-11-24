@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 import subprocess
@@ -15,6 +16,7 @@ import process_tree
 DEADLINE_SECONDS = 600
 LOG_TAIL_BYTES = 32768
 PROGRESS_PARENT_ENV = "ATLAS_GATE_PROGRESS_PARENT"
+PUSH_LOCK_RECORD = "push-lock"
 
 
 class ProgressDirectoryError(RuntimeError):
@@ -43,6 +45,41 @@ def _progress_log(progress: Path) -> None:
     if log.is_file():
         print("pre-push: final bounded gate log bytes:", file=sys.stderr)
         _emit(log.read_bytes()[-LOG_TAIL_BYTES:], sys.stderr)
+
+
+def _release_push_lock(progress: Path) -> None:
+    """Release the push lock whose owner this run's process tree held.
+
+    The retired tree is hard-killed, so the hook's exit trap never runs. The
+    hook records the lock path, owner pid and start time in `progress` when it
+    claims the lock. Like the hook, take the `<lock>.reclaim` guard (never
+    reaping an existing one) and remove the lock only while it still records
+    that owner. Call it only once the tree is gone.
+    """
+    try:
+        lock_path, owner_pid, owner_start = (
+            (progress / PUSH_LOCK_RECORD).read_text(encoding="utf-8").splitlines()
+        )
+    except (OSError, ValueError):
+        return
+    lock = Path(lock_path)
+    guard = lock.with_name(lock.name + ".reclaim")
+    try:
+        guard.mkdir()
+    except OSError:
+        return
+    try:
+        held_pid = (lock / "pid").read_text(encoding="utf-8").strip()
+        start_file = lock / "start"
+        held_start = start_file.read_text(encoding="utf-8").strip() if start_file.exists() else ""
+        if (held_pid, held_start) == (owner_pid, owner_start):
+            shutil.rmtree(lock)
+    except FileNotFoundError:
+        pass
+    except OSError as error:
+        print(f"pre-push: could not release the push lock {lock}: {error}", file=sys.stderr)
+    finally:
+        guard.rmdir()
 
 
 def _progress_directory() -> tuple[Path, tempfile.TemporaryDirectory[str] | None]:
@@ -216,6 +253,7 @@ def main() -> int:
             _progress_log(progress)
             cleanup_error = error.cleanup_error
             if cleanup_error is None:
+                _release_push_lock(progress)
                 retirement = "its process tree was retired"
             else:
                 retirement = (
@@ -236,6 +274,7 @@ def main() -> int:
             return 1
         _emit(result.stdout, sys.stdout)
         _emit(result.stderr, sys.stderr)
+        _release_push_lock(progress)
         _progress_report(progress)
         if result.returncode != 0:
             _progress_log(progress)
