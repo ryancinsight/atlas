@@ -131,11 +131,10 @@ SEMVER_CHECKS_TOOL = "cargo-semver-checks 0.51.0"
 # stalls here blocks collection of the whole file before any test's own budget
 # applies. Measured on a development host, ten runs each on 2026-11-24:
 # `cargo semver-checks --version` 0.09 s median and 0.10 s maximum, `rustup
-# toolchain list` 0.04 s. No hosted-runner figure exists for either probe. The
-# CI-to-host slowdown recorded in process_tree.py is 15x, measured on compute-bound
-# work, so it bounds a startup probe only loosely. 60 s is therefore a finite stall
-# detector, 600x the warm answer, not a derived limit; a probe past it reads as
-# not ready.
+# toolchain list` 0.04 s. No hosted-runner figure exists for either probe;
+# process_tree.py records a 15x CI-to-host slowdown, which puts the 0.10 s
+# maximum at 1.5 s. 60 s is therefore a finite stall detector, 40x that, not a
+# derived limit; a probe past it reads as not ready.
 PROBE_TIMEOUT_SECONDS = 60
 TOOLS = ("cargo", "git", "cargo-semver-checks", "rustup")
 PROBES = (["cargo", "semver-checks", "--version"], ["rustup", "toolchain", "list"])
