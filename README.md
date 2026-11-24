@@ -1029,7 +1029,11 @@ member, every unit constructed through `from_unit::<U>`, every public
 trait getter that returns a bare `f64` directly beneath a doc comment naming
 an SI unit, and every accessor whose name claims a unit other than the
 returned quantity's canonical one (for example a `_mm` method returning a
-metre-valued `Length`):
+metre-valued `Length`), and every module-level primitive scalar alias
+(`type Real = f64;`) together with any `(name, primitive)` alias defined in
+more than one file. The alias section is report-only: Eunomia owns the scalar
+law and Aequitas the dimension, and a duplicate alias has no owner, but the
+existing `--strict` findings are unchanged until the debt is scheduled:
 
 ```sh
 python scripts/atlas-aequitas-units.py

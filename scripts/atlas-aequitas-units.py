@@ -149,6 +149,15 @@ AEQUITAS_DEP = re.compile(
 )
 REV_FIELD = re.compile(r'rev\s*=\s*"([^"]+)"')
 VERSION_FIELD = re.compile(r'version\s*=\s*"([^"]+)"')
+# A module-level alias to a primitive erases both the scalar law Eunomia owns
+# and the dimension Aequitas would carry. Column 0 only: an associated-type
+# binding inside an `impl` or `trait` is indented and is not a module alias.
+SCALAR_ALIAS = re.compile(
+    r"^(?:pub(?:\([^)]*\))?\s+)?type\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+    r"(f32|f64|i8|i16|i32|i64|i128|isize|u8|u16|u32|u64|u128|usize)\s*;"
+)
+ALIAS_TEST_PARTS = {"tests", "benches", "examples"}
+ALIAS_TEST_FILE = re.compile(r"(?:^|_)tests?\.rs$")
 
 
 @dataclass
@@ -166,6 +175,8 @@ class Member:
     units_constructed: Counter = field(default_factory=Counter)
     untyped_si_getters: list[str] = field(default_factory=list)
     misleading_suffixes: list[str] = field(default_factory=list)
+    scalar_aliases: list[str] = field(default_factory=list)
+    duplicate_aliases: list[str] = field(default_factory=list)
 
     @property
     def conversion_balance(self) -> int:
@@ -186,6 +197,8 @@ class Member:
             "units_constructed": dict(self.units_constructed.most_common()),
             "untyped_si_getters": self.untyped_si_getters,
             "misleading_suffixes": self.misleading_suffixes,
+            "scalar_aliases": self.scalar_aliases,
+            "duplicate_aliases": self.duplicate_aliases,
         }
 
 
@@ -326,6 +339,45 @@ def _misleading_suffixes(member: Path) -> list[str]:
     return findings
 
 
+def _scalar_aliases(member: Path) -> tuple[list[str], list[str]]:
+    """Module-level primitive scalar aliases, and the ones defined more than once.
+
+    The scalar element law belongs to Eunomia and the dimension to Aequitas, so
+    a local `type Real = f64;` is the aliasing this audit can see. A repeated
+    `(name, primitive)` definition across files is redundancy as well: one
+    provider file should own the alias and the others should import it.
+    Test, bench and example sources are excluded because fixtures may alias
+    freely.
+    """
+    sites: list[tuple[str, int, str, str]] = []
+    for source in _sources(member):
+        rel = source.relative_to(member)
+        if (any(part in ALIAS_TEST_PARTS for part in rel.parts)
+                or ALIAS_TEST_FILE.search(rel.name)):
+            continue
+        try:
+            lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for number, line in enumerate(lines, 1):
+            match = SCALAR_ALIAS.match(line)
+            if match:
+                sites.append((rel.as_posix(), number, match.group(1), match.group(2)))
+    records = [
+        f"{path}:{line}: type {name} = {primitive};"
+        for path, line, name, primitive in sites
+    ]
+    by_key: dict[tuple[str, str], list[str]] = {}
+    for path, _, name, primitive in sites:
+        by_key.setdefault((name, primitive), []).append(path)
+    duplicates = [
+        f"{name} = {primitive} defined in {', '.join(sorted(set(paths)))}"
+        for (name, primitive), paths in sorted(by_key.items())
+        if len(set(paths)) > 1
+    ]
+    return records, duplicates
+
+
 def scan(member: Path) -> Member:
     """Collect one member's Aequitas footprint."""
     record = Member(name=member.name)
@@ -340,6 +392,7 @@ def scan(member: Path) -> Member:
         record.units_constructed.update(FROM_UNIT.findall(text))
     record.untyped_si_getters = _untyped_si_getters(member)
     record.misleading_suffixes = _misleading_suffixes(member)
+    record.scalar_aliases, record.duplicate_aliases = _scalar_aliases(member)
     return record
 
 
@@ -461,7 +514,8 @@ def report(records: list[Member], strict: bool, as_json: bool) -> int:
     print(f"aequitas default branch: {head or 'unresolved'}")
     print(f"aequitas cohort: {majority_rev or 'unresolved'} ({majority_count} members)")
     print()
-    header = f"{'member':14} {'locked':10} {'rev':11} {'refs':>6} {'from':>6} {'into':>6} {'quant':>6}"
+    header = (f"{'member':14} {'locked':10} {'rev':11} {'refs':>6} {'from':>6} "
+              f"{'into':>6} {'quant':>6} {'alias':>5}")
     print(header)
     for record in sorted(records, key=lambda item: -item.references):
         if not (record.references or record.locked_version):
@@ -469,7 +523,8 @@ def report(records: list[Member], strict: bool, as_json: bool) -> int:
         print(
             f"{record.name:14} {record.locked_version or '-':10} "
             f"{record.locked_rev or '-':11} {record.references:6} "
-            f"{record.from_base:6} {record.into_base:6} {record.quantities:6}"
+            f"{record.from_base:6} {record.into_base:6} {record.quantities:6} "
+            f"{len(record.scalar_aliases):5}"
         )
 
     units = Counter()
@@ -478,6 +533,28 @@ def report(records: list[Member], strict: bool, as_json: bool) -> int:
     if units:
         print("\nunits constructed through from_unit::<U>:")
         print("  " + ", ".join(f"{unit} x{count}" for unit, count in units.most_common()))
+
+    alias_count = sum(len(record.scalar_aliases) for record in records)
+    duplicates = [
+        (record.name, alias)
+        for record in records
+        for alias in record.duplicate_aliases
+    ]
+    if alias_count:
+        print(
+            f"\n{alias_count} module-level primitive scalar alias(es): Eunomia owns "
+            "the scalar law and Aequitas the dimension; report-only for now"
+        )
+        for record in sorted(records, key=lambda item: -len(item.scalar_aliases)):
+            for alias in record.scalar_aliases:
+                print(f"  {record.name} {alias}")
+    if duplicates:
+        print(
+            f"\n{len(duplicates)} duplicate alias(es) defined in more than one file "
+            "(one provider file should own the alias):"
+        )
+        for name, alias in duplicates:
+            print(f"  {name} {alias}")
 
     print(f"\n{len(findings)} finding(s)")
     for finding in findings:
