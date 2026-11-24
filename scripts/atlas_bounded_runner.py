@@ -6,12 +6,15 @@ at the deadline the whole process tree (the root and every descendant) is
 retired and the exit reports the limit and the stage. Every run is tagged with
 its session, item, command and deadline in the tag store under the shared
 target's ``.atlas/`` directory, and the tag is closed with the run's outcome
-when the run ends. ``overdue`` lists the tags of runs still open past their
-deadline, so orientation finds a run whose runner outlived its limit.
+when the run ends, whatever ends it. ``overdue`` lists the tags of runs still
+open past their deadline, so orientation finds a run whose runner outlived its
+limit. A tag file is named by time and runner pid; the session stays inside it.
 
 Callable from bash, pwsh and cmd alike: the command follows ``--`` and is
 passed as argv. The exit status is the command's own on completion, 124 when
-the deadline retired the tree and 125 when retiring the tree failed.
+the deadline retired the tree and 125 when the runner itself failed (stage
+``cleanup``: retiring the tree failed; ``launch``: the command could not start).
+``--deadline`` must be finite and greater than zero.
 
 The tag store is ``.atlas/bounded-runner`` under ``$CARGO_TARGET_DIR`` and, when
 the variable is unset, under the shared target beside this checkout's common
@@ -24,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -34,7 +38,17 @@ import atlas_target_dir
 import process_tree
 
 EXIT_DEADLINE = 124
-EXIT_CLEANUP = 125
+EXIT_RUNNER_FAULT = 125
+
+
+def _seconds(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {text!r}") from None
+    if not math.isfinite(value) or value <= 0:
+        raise argparse.ArgumentTypeError(f"must be finite and greater than zero: {text!r}")
+    return value
 
 
 def tag_store() -> Path:
@@ -59,10 +73,20 @@ def overdue_tags(store: Path, now: float) -> list[dict[str, object]]:
     """Tags of runs never closed whose deadline passed before ``now``."""
     tags = []
     for path in sorted(store.glob("*.json")):
-        tag = json.loads(path.read_text(encoding="utf-8"))
-        if "ended" not in tag and now > tag["started"] + tag["deadline"]:
+        try:
+            tag = json.loads(path.read_text(encoding="utf-8"))
+            late = "ended" not in tag and now > tag["started"] + tag["deadline"]
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f"atlas-bounded-runner: skipped {path.name}: {error!r}", file=sys.stderr)
+            continue
+        if late:
             tags.append(tag)
     return tags
+
+
+def _close(store: Path, tag: dict[str, object], outcome: str, **fields: object) -> None:
+    tag.update(ended=time.time(), outcome=outcome, **fields)
+    _write_tag(store, tag)
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -73,7 +97,7 @@ def _run(args: argparse.Namespace) -> int:
         print("atlas-bounded-runner: a command is required after --", file=sys.stderr)
         return 2
     tag: dict[str, object] = {
-        "id": f"{args.session.replace(':', '_')}-{time.time_ns()}-{os.getpid()}",
+        "id": f"{time.time_ns()}-{os.getpid()}",
         "session": args.session,
         "item": args.item,
         "command": command,
@@ -88,8 +112,7 @@ def _run(args: argparse.Namespace) -> int:
             command, timeout=args.deadline, output_mode=process_tree.OutputMode.INHERIT
         )
     except process_tree.ProcessTreeTimeout as error:
-        tag.update(ended=time.time(), outcome="deadline")
-        _write_tag(store, tag)
+        _close(store, tag, "deadline")
         print(
             f"atlas-bounded-runner: stage: deadline: {args.deadline} s exceeded; "
             f"process tree retired ({error})",
@@ -97,12 +120,17 @@ def _run(args: argparse.Namespace) -> int:
         )
         return EXIT_DEADLINE
     except process_tree.ProcessTreeCleanupError as error:
-        tag.update(ended=time.time(), outcome="cleanup")
-        _write_tag(store, tag)
+        _close(store, tag, "cleanup")
         print(f"atlas-bounded-runner: stage: cleanup: {error}", file=sys.stderr)
-        return EXIT_CLEANUP
-    tag.update(ended=time.time(), outcome="exit", returncode=result.returncode)
-    _write_tag(store, tag)
+        return EXIT_RUNNER_FAULT
+    except Exception as error:
+        _close(store, tag, "launch", error=repr(error))
+        print(f"atlas-bounded-runner: stage: launch: {error!r}", file=sys.stderr)
+        return EXIT_RUNNER_FAULT
+    except BaseException:
+        _close(store, tag, "interrupted")
+        raise
+    _close(store, tag, "exit", returncode=result.returncode)
     return result.returncode
 
 
@@ -120,7 +148,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes = parser.add_subparsers(dest="mode", required=True)
     run = modes.add_parser("run", help="run a command under a deadline")
     run.add_argument(
-        "--deadline", type=float, required=True, help="seconds before the tree is retired"
+        "--deadline", type=_seconds, required=True, help="seconds before the tree is retired"
     )
     run.add_argument("--session", required=True, help="agent id tagging the run")
     run.add_argument("--item", default="", help="item id tagging the run")
