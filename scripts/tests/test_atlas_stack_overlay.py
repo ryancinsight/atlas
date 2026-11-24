@@ -2,10 +2,13 @@
 """Regression tests for canonical Atlas overlay discovery."""
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
@@ -725,81 +728,132 @@ class RequirementSatisfactionTestCase(unittest.TestCase):
     """`satisfies` must apply Cargo's semantics, not pass comparators blindly.
 
     The overlay emits a local patch only when the local version satisfies the
-    consumer's declared requirement. A requirement the evaluator cannot read
-    used to read as satisfied, which turned the requirement-lag half of
-    `check` into a no-op for every comparator form.
+    consumer's declared requirement. Expected values come from running the
+    `semver` crate 1.0.28 (which Cargo delegates to) over `_UNIVERSE`, not
+    from this evaluator: each row lists the versions the crate admits.
     """
 
-    def test_range_requirement_rejects_a_version_outside_the_range(self) -> None:
-        self.assertFalse(_overlay.satisfies("0.50.0", ">=0.46.4, <0.49.0"))
-        self.assertTrue(_overlay.satisfies("0.48.0", ">=0.46.4, <0.49.0"))
-        self.assertFalse(_overlay.satisfies("0.46.3", ">=0.46.4, <0.49.0"))
+    _UNIVERSE = (
+        "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0-alpha 1.0.0-beta "
+        "1.0.0 1.1.0-alpha 1.1.0 1.2.0-alpha 1.2.0 1.2.3-alpha "
+        "1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 1.2.4-beta 1.2.5 "
+        "1.3.0-alpha 1.3.0 1.9.0 2.0.0-alpha 2.0.0"
+    ).split()
 
-    def test_comparators_use_the_cargo_reference_examples(self) -> None:
-        cases = [
-            ("1.2.3", "=1.2.3", True),
-            ("1.2.4", "=1.2.3", False),
-            ("1.2.2", ">1.2.3", False),
-            ("1.2.4", ">1.2.3", True),
-            ("1.2.3", ">=1.2.3", True),
-            ("1.2.2", ">=1.2.3", False),
-            ("1.2.2", "<1.2.3", True),
-            ("1.2.3", "<1.2.3", False),
-            ("1.2.3", "<=1.2.3", True),
-            ("1.2.4", "<=1.2.3", False),
-            # The regression: the old evaluator returned True for all of these.
-            ("0.1.0", ">=1.0.0", False),
-            ("9.9.9", "<1.0.0", False),
-        ]
-        for version, requirement, expected in cases:
-            with self.subTest(version=version, requirement=requirement):
-                self.assertIs(_overlay.satisfies(version, requirement), expected)
+    _CARGO_ADMITS = (
+        ("=1.2.3", "1.2.3"),
+        ("=1.2", "1.2.0 1.2.3 1.2.5"),
+        ("=1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("=1.2.3-alpha", "1.2.3-alpha"),
+        (">1.2.3", "1.2.5 1.3.0 1.9.0 2.0.0"),
+        ("> 1.2", "1.3.0 1.9.0 2.0.0"),
+        (">1", "2.0.0"),
+        (">1.2.3-alpha",
+         "1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 1.2.5 1.3.0 "
+         "1.9.0 2.0.0"),
+        (">=1.2.3", "1.2.3 1.2.5 1.3.0 1.9.0 2.0.0"),
+        (">=1.2", "1.2.0 1.2.3 1.2.5 1.3.0 1.9.0 2.0.0"),
+        (">=1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0 2.0.0"),
+        (">=1.2.3-alpha",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 "
+         "1.2.5 1.3.0 1.9.0 2.0.0"),
+        ("<1.2.3", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0"),
+        ("<1.2", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0"),
+        ("<1", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0"),
+        ("<1.2.3-alpha", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0"),
+        ("<=1.2.3",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 "
+         "1.2.3"),
+        ("<=1.2",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 1.2.3 "
+         "1.2.5"),
+        ("<=1",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 1.2.3 "
+         "1.2.5 1.3.0 1.9.0"),
+        ("<=1.2.3-alpha",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 "
+         "1.2.0 1.2.3-alpha"),
+        ("~1.2.3", "1.2.3 1.2.5"),
+        ("~1.2", "1.2.0 1.2.3 1.2.5"),
+        ("~1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("~1.2.3-alpha",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 "
+         "1.2.5"),
+        ("^1.2.3", "1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("^1.2", "1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("^1", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("^0.2.3", "0.2.3 0.2.4"),
+        ("^0.0.3", "0.0.3"),
+        ("^0.0", "0.0.3 0.0.4"),
+        ("^0", "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0"),
+        ("^1.2.3-alpha",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 "
+         "1.2.5 1.3.0 1.9.0"),
+        ("^1.2.3-alpha.1",
+         "1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta 1.2.3 1.2.5 1.3.0 "
+         "1.9.0"),
+        ("1.2.3", "1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("*",
+         "0.0.3 0.0.4 0.1.0 0.2.3 0.2.4 0.3.0 0.9.0 1.0.0 1.1.0 1.2.0 1.2.3 "
+         "1.2.5 1.3.0 1.9.0 2.0.0"),
+        ("1.*", "1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("1.2.*", "1.2.0 1.2.3 1.2.5"),
+        (">=1.0.0-alpha",
+         "1.0.0-alpha 1.0.0-beta 1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 "
+         "1.3.0 1.9.0 2.0.0"),
+        (">=1.0.0-alpha, <2",
+         "1.0.0-alpha 1.0.0-beta 1.0.0 1.1.0 1.2.0 1.2.3 1.2.5 "
+         "1.3.0 1.9.0"),
+        (">=1.2.0, < 1.5", "1.2.0 1.2.3 1.2.5 1.3.0"),
+        (">=1.2, <1.3.0", "1.2.0 1.2.3 1.2.5"),
+        (">=1.2.3-alpha, <2",
+         "1.2.3-alpha 1.2.3-alpha.1 1.2.3-alpha.2 1.2.3-beta "
+         "1.2.3 1.2.5 1.3.0 1.9.0"),
+        ("1.2.3+meta", "1.2.3 1.2.5 1.3.0 1.9.0"),
+        (" >= 1.2.3 , < 1.9", "1.2.3 1.2.5 1.3.0"),
+    )
 
-    def test_caret_tilde_and_wildcard_bounds(self) -> None:
-        cases = [
-            ("1.2.3", "^1.2.3", True),
-            ("1.9.0", "^1.2.3", True),
-            ("2.0.0", "^1.2.3", False),
-            ("0.2.3", "^0.2.3", True),
-            ("0.3.0", "^0.2.3", False),
-            ("0.0.3", "^0.0.3", True),
-            ("0.0.4", "^0.0.3", False),
-            ("0.0.9", "^0.0", True),
-            ("0.1.0", "^0.0", False),
-            ("0.9.0", "^0", True),
-            ("1.0.0", "^0", False),
-            ("1.2.3", "~1.2.3", True),
-            ("1.2.9", "~1.2.3", True),
-            ("1.3.0", "~1.2.3", False),
-            ("1.9.0", "~1", True),
-            ("2.0.0", "~1", False),
-            ("1.9.0", "1.*", True),
-            ("2.0.0", "1.*", False),
-            ("1.2.9", "1.2.*", True),
-            ("1.3.0", "1.2.*", False),
-            # A bare version keeps its caret meaning.
-            ("0.4.0", "0.3.0", False),
-            ("0.3.9", "0.3.0", True),
-        ]
-        for version, requirement, expected in cases:
-            with self.subTest(version=version, requirement=requirement):
-                self.assertIs(_overlay.satisfies(version, requirement), expected)
+    _CARGO_REJECTS = (
+        "*, >=1", "1.2-alpha", ">=1.2.3,", "1.2.3.4", "abc", ">=",
+        "1.2.3 1.2.4", "01.2.3", "1.*.3", "1.2.3-01", "1.2.3-", "1.2.3+", "=", "",
+        "  ",
+    )
 
-    def test_pre_release_requires_a_pre_release_requirement(self) -> None:
-        self.assertFalse(_overlay.satisfies("1.0.0-rc.1", "^1.0.0"))
-        self.assertTrue(_overlay.satisfies("1.0.0-rc.2", ">=1.0.0-rc.1, <1.0.0"))
-        self.assertTrue(_overlay.satisfies("1.0.0", ">=1.0.0-rc.1"))
+    def test_each_requirement_admits_exactly_the_versions_cargo_admits(self) -> None:
+        for requirement, admitted in self._CARGO_ADMITS:
+            for version in self._UNIVERSE:
+                with self.subTest(requirement=requirement, version=version):
+                    self.assertIs(
+                        _overlay.satisfies(version, requirement),
+                        version in admitted.split(),
+                    )
 
-    def test_malformed_requirement_raises_rather_than_passing(self) -> None:
-        for requirement in (">=1.2.3,", "1.2.3.4", "abc", ">= ", "1.2.3 1.2.4"):
+    def test_build_metadata_is_ignored(self) -> None:
+        self.assertTrue(_overlay.satisfies("1.2.3+build", "1.2.3"))
+        self.assertTrue(_overlay.satisfies("1.2.3", "=1.2.3+meta"))
+
+    def test_forms_cargo_rejects_raise_rather_than_passing(self) -> None:
+        for requirement in self._CARGO_REJECTS:
             with self.subTest(requirement=requirement):
                 with self.assertRaises(_overlay.RequirementSyntaxError):
                     _overlay.satisfies("1.2.3", requirement)
+        with self.assertRaises(_overlay.RequirementSyntaxError):
+            _overlay.satisfies("1.2", "^1")
 
-    def test_wildcard_and_empty_requirements_pass_every_version(self) -> None:
-        for requirement in ("*", "", "  "):
-            with self.subTest(requirement=requirement):
-                self.assertTrue(_overlay.satisfies("0.0.1", requirement))
+    def test_an_unreadable_requirement_ends_check_with_a_message(self) -> None:
+        deps = [("p", "https://github.com/ryancinsight/p", "1.2-alpha", Path("m"), False)]
+        packages = {"p": (Path("repos/p"), "1.2.3")}
+        stderr = io.StringIO()
+        with patch.object(_overlay, "read_manifests", return_value=[]), patch.object(
+            _overlay, "load_packages", return_value=packages
+        ), patch.object(
+            _overlay, "collect_first_party_deps", return_value=deps
+        ), patch.object(sys, "argv", ["overlay", "check"]), contextlib.redirect_stderr(
+            stderr
+        ):
+            status = _overlay.main()
+        self.assertEqual(status, 2)
+        self.assertIn("1.2-alpha", stderr.getvalue())
 
 
 if __name__ == "__main__":

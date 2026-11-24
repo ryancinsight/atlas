@@ -548,170 +548,227 @@ def set_enabled(enabled: bool) -> None:
 
 
 class RequirementSyntaxError(ValueError):
-    """A version requirement this evaluator cannot interpret."""
+    """A version or version requirement this evaluator cannot interpret."""
 
 
-_VERSION_CORE_RE = re.compile(r"^(?:0|[1-9]\d*)$")
-_OPERATOR_RE = re.compile(r"^(>=|<=|>|<|=|~|\^)\s*(.+)$")
-_WILDCARDS = frozenset({"*", "x", "X"})
-# A requirement component is an integer, a wildcard/unspecified component
-# (`*`, `x`, or one the caller omitted), or a pre-release identifier.
-_Component = int | None
+# Specification source: the `semver` crate 1.0.28, to which Cargo delegates.
+# src/parse.rs fixes the accepted forms and src/eval.rs the meaning of each
+# operator on a partial comparator; the functions below port that logic.
+_NUMBER_RE = re.compile(r"[0-9]+")
+_IDENTIFIER_RE = re.compile(r"[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*")
+_OPERATORS = ("=", ">=", ">", "<=", "<", "~", "^")
+# Ordering key of an empty pre-release: a release exceeds its pre-releases.
+_RELEASE = (1,)
+
+_Pre = tuple
+_Version = tuple[int, int, int, _Pre]
+_Comparator = tuple[str, int, int | None, int | None, _Pre]
 
 
-def _parse_requirement_version(
-    text: str,
-) -> tuple[tuple[_Component, _Component, _Component], tuple[str, ...]]:
-    """Split `1.2.3-rc.1` into numeric components and pre-release identifiers.
+def _bad(text: str, reason: str) -> RequirementSyntaxError:
+    return RequirementSyntaxError(f"unsupported version requirement {text!r}: {reason}")
 
-    An omitted or wildcard component becomes ``None`` so the caller can tell
-    `^1.2` (minor declared) from `^1` (minor unspecified): the caret's upper
-    bound depends on that difference. A component after a ``None`` is a
-    malformed requirement rather than a shorter one.
-    """
-    core, sep, pre = text.strip().partition("-")
-    identifiers = tuple(pre.split(".")) if sep else ()
-    pieces = core.split(".") if core else []
-    if not pieces or len(pieces) > 3:
-        raise RequirementSyntaxError(f"unsupported version requirement {text!r}")
-    components: list[_Component] = []
-    for piece in pieces:
-        if piece in _WILDCARDS:
-            components.append(None)
-        elif _VERSION_CORE_RE.match(piece):
-            components.append(int(piece))
+
+def _number(text: str, whole: str) -> tuple[int, str]:
+    """A numeric identifier: digits, no leading zero, within `u64` (parse.rs:156)."""
+    match = _NUMBER_RE.match(text)
+    if match is None:
+        raise _bad(whole, "expected a number")
+    digits = match.group()
+    if len(digits) > 1 and digits[0] == "0":
+        raise _bad(whole, "leading zero")
+    if int(digits) >= 1 << 64:
+        raise _bad(whole, "number overflows u64")
+    return int(digits), text[match.end():]
+
+
+def _identifiers(text: str, whole: str, pre: bool) -> tuple[tuple[str, ...], str]:
+    """Dot-separated identifiers; empty when none start here (parse.rs:220)."""
+    match = _IDENTIFIER_RE.match(text)
+    if match is None and text.startswith("."):
+        raise _bad(whole, "empty identifier")
+    if match is None:
+        return (), text
+    rest = text[match.end():]
+    if rest.startswith("."):
+        raise _bad(whole, "empty identifier")
+    identifiers = tuple(match.group().split("."))
+    if pre and any(len(i) > 1 and i.isdigit() and i[0] == "0" for i in identifiers):
+        raise _bad(whole, "leading zero in a pre-release identifier")
+    return identifiers, rest
+
+
+def _pre_key(identifiers: tuple[str, ...]) -> _Pre:
+    """Ordering key of a pre-release (impls.rs:50): numeric identifiers sort
+    below alphanumeric ones, a prefix below its extensions, a release above all."""
+    if not identifiers:
+        return _RELEASE
+    return (0, tuple((0, int(i)) if i.isdigit() else (1, i) for i in identifiers))
+
+
+def _suffix(text: str, whole: str) -> tuple[_Pre, str]:
+    """An optional `-pre` and `+build` after a full version; build is ignored."""
+    identifiers: tuple[str, ...] = ()
+    if text.startswith("-"):
+        identifiers, text = _identifiers(text[1:], whole, pre=True)
+        if not identifiers:
+            raise _bad(whole, "empty pre-release")
+    if text.startswith("+"):
+        build, text = _identifiers(text[1:], whole, pre=False)
+        if not build:
+            raise _bad(whole, "empty build metadata")
+    return _pre_key(identifiers), text
+
+
+def _parse_version(text: str) -> _Version:
+    """`Version::from_str` (parse.rs:28): a full major.minor.patch with optional
+    pre-release and build metadata, no spaces, no wildcards."""
+    (_, major, minor, patch, pre), rest = _parse_comparator("=" + text, text)
+    if rest or minor is None or patch is None or " " in text:
+        raise _bad(text, "not a full version")
+    return major, minor, patch, pre
+
+
+def _parse_comparator(text: str, whole: str) -> tuple[_Comparator, str]:
+    """`comparator` (parse.rs:287): one comparator and the text after it."""
+    operator = next((op for op in _OPERATORS if text.startswith(op)), None)
+    default_operator = operator is None
+    text = text[len(operator or ""):].lstrip(" ")
+    major, text = _number(text, whole)
+    minor = patch = None
+    wildcard = False
+    if text.startswith("."):
+        text = text[1:]
+        if text[:1] in ("*", "x", "X"):
+            text, wildcard = text[1:], True
         else:
-            raise RequirementSyntaxError(f"unsupported version requirement {text!r}")
-    while len(components) < 3:
-        components.append(None)
-    seen_unspecified = False
-    for component in components:
-        if component is None:
-            seen_unspecified = True
-        elif seen_unspecified:
-            raise RequirementSyntaxError(f"unsupported version requirement {text!r}")
-    return (components[0], components[1], components[2]), identifiers
+            minor, text = _number(text, whole)
+    if text.startswith("."):
+        text = text[1:]
+        if text[:1] in ("*", "x", "X"):
+            text, wildcard = text[1:], True
+        elif wildcard:
+            raise _bad(whole, "a number after a wildcard")
+        else:
+            patch, text = _number(text, whole)
+    pre = _RELEASE
+    if patch is not None:
+        pre, text = _suffix(text, whole)
+    if wildcard and default_operator:
+        operator = "*"
+    return (operator or "^", major, minor, patch, pre), text.lstrip(" ")
 
 
-def _version_key(
-    components: tuple[_Component, _Component, _Component],
-    pre: tuple[str, ...],
-) -> tuple[int, int, int, tuple[tuple[int, int | str], ...]]:
-    """Total order matching Cargo's: release sorts after its pre-releases."""
-    major, minor, patch = (0 if c is None else c for c in components)
-    pre_key = tuple(
-        (0, int(identifier)) if identifier.isdigit() else (1, identifier)
-        for identifier in pre
+def _parse_requirement(text: str) -> list[_Comparator]:
+    """`VersionReq::from_str` (parse.rs:87): `*`, or comma-joined comparators."""
+    whole = text
+    text = text.lstrip(" ")
+    if text[:1] in ("*", "x", "X"):
+        if text[1:].strip(" "):
+            raise _bad(whole, "a wildcard must be the only comparator")
+        return []
+    comparators: list[_Comparator] = []
+    while True:
+        comparator, text = _parse_comparator(text, whole)
+        comparators.append(comparator)
+        if not text:
+            return comparators
+        if not text.startswith(","):
+            raise _bad(whole, "expected a comma between comparators")
+        text = text[1:].lstrip(" ")
+
+
+def _matches_exact(cmp: _Comparator, ver: _Version) -> bool:
+    _, major, minor, patch, pre = cmp  # eval.rs:42
+    return (
+        ver[0] == major
+        and minor in (None, ver[1])
+        and patch in (None, ver[2])
+        and ver[3] == pre
     )
-    return major, minor, patch, pre_key
 
 
-def _order(left: tuple, right: tuple) -> int:
-    """-1, 0, or 1 for two keys; a release exceeds its own pre-releases."""
-    left_core, right_core = left[:3], right[:3]
-    if left_core != right_core:
-        return -1 if left_core < right_core else 1
-    left_pre, right_pre = left[3], right[3]
-    if not left_pre or not right_pre:
-        if not left_pre and not right_pre:
-            return 0
-        return 1 if not left_pre else -1
-    if left_pre == right_pre:
-        return 0
-    return -1 if left_pre < right_pre else 1
+def _matches_ordered(cmp: _Comparator, ver: _Version, sign: int) -> bool:
+    """`matches_greater` (eval.rs:62) for sign +1, `matches_less` (:88) for -1.
+
+    An unspecified component of the comparator makes the version equal to it,
+    so neither strictly greater nor strictly less: `> 1` is `>= 2.0.0`."""
+    _, *given, pre = cmp
+    for have, want in zip(ver[:3], given):
+        if want is None:
+            return False
+        if have != want:
+            return (have - want) * sign > 0
+    return (ver[3] > pre) if sign > 0 else (ver[3] < pre)
 
 
-def _upper_bound(
-    components: tuple[_Component, _Component, _Component],
-    caret: bool,
-) -> tuple[int, int, int] | None:
-    """The exclusive upper bound for a caret or tilde lower bound.
+def _matches_tilde(cmp: _Comparator, ver: _Version) -> bool:
+    _, major, minor, patch, pre = cmp  # eval.rs:114
+    if ver[0] != major or minor not in (None, ver[1]):
+        return False
+    if patch is not None and ver[2] != patch:
+        return ver[2] > patch
+    return ver[3] >= pre
 
-    ``None`` means unbounded (a bare ``*``). Caret and tilde differ only in
-    which component they bump: caret follows the leading nonzero one, tilde
-    always follows the minor.
-    """
-    major, minor, patch = components
-    if major is None:
-        return None
-    if not caret:
-        if minor is None:
-            return major + 1, 0, 0
-        return major, minor + 1, 0
-    if major > 0:
-        return major + 1, 0, 0
+
+def _matches_caret(cmp: _Comparator, ver: _Version) -> bool:
+    _, major, minor, patch, pre = cmp  # eval.rs:134
+    if ver[0] != major:
+        return False
     if minor is None:
-        return 1, 0, 0
-    if minor > 0:
-        return 0, minor + 1, 0
+        return True
     if patch is None:
-        return 0, 1, 0
-    return 0, 0, patch + 1
+        return ver[1] >= minor if major > 0 else ver[1] == minor
+    if major > 0:
+        if ver[1] != minor:
+            return ver[1] > minor
+        if ver[2] != patch:
+            return ver[2] > patch
+    elif minor > 0:
+        if ver[1] != minor:
+            return False
+        if ver[2] != patch:
+            return ver[2] > patch
+    elif (ver[1], ver[2]) != (minor, patch):
+        return False
+    return ver[3] >= pre
 
 
-def _make_predicate(
-    operator: str,
-    components: tuple[_Component, _Component, _Component],
-    pre: tuple[str, ...],
-):
-    lower = _version_key(components, pre)
-    if operator == "=" and all(c is not None for c in components):
-        return lambda have: _order(have, lower) == 0
-    if operator in ("^", "~", "="):
-        bound = _upper_bound(components, caret=operator == "^")
-        upper = None if bound is None else (*bound, ())
-        return lambda have: _order(have, lower) >= 0 and (
-            upper is None or _order(have, upper) < 0
-        )
-    comparators = {
-        "<": lambda result: result < 0,
-        "<=": lambda result: result <= 0,
-        ">": lambda result: result > 0,
-        ">=": lambda result: result >= 0,
-    }
-    accepts = comparators[operator]
-    return lambda have: accepts(_order(have, lower))
+def _matches(cmp: _Comparator, ver: _Version) -> bool:
+    """`matches_impl` (eval.rs:30)."""
+    operator = cmp[0]
+    if operator in ("=", "*"):
+        return _matches_exact(cmp, ver)
+    if operator == ">=":
+        return _matches_exact(cmp, ver) or _matches_ordered(cmp, ver, 1)
+    if operator == "<=":
+        return _matches_exact(cmp, ver) or _matches_ordered(cmp, ver, -1)
+    if operator in (">", "<"):
+        return _matches_ordered(cmp, ver, 1 if operator == ">" else -1)
+    return (_matches_tilde if operator == "~" else _matches_caret)(cmp, ver)
 
 
 def satisfies(version: str, requirement: str) -> bool:
     """Does `version` satisfy `requirement` with Cargo's semantics?
 
-    Supports the forms the stack declares: `*`, a bare version and `^` (caret),
-    `~` (tilde), `=`, `<`, `<=`, `>`, `>=`, and comma-joined comparator sets
-    such as `>=0.46.4, <0.49.0`. An unparsable form raises
-    `RequirementSyntaxError` rather than passing the check, because a
+    Accepts the forms Cargo accepts: `*`, a bare version (caret), `^`, `~`,
+    `=`, `<`, `<=`, `>`, `>=`, wildcard components (`1.*`), partial versions,
+    and comma-joined sets; build metadata is ignored. A form Cargo rejects
+    raises `RequirementSyntaxError` rather than passing the check, because a
     requirement the evaluator cannot read is a gate it cannot apply.
 
-    Pre-release rule: a pre-release version satisfies a requirement only when
-    that requirement names a pre-release, matching Cargo.
+    A pre-release version satisfies a requirement only when every comparator
+    matches it and some comparator names a pre-release of the same
+    major.minor.patch (`matches_req` and `pre_is_compatible`, eval.rs:3, :170).
     """
-    requirement = requirement.strip()
-    if requirement in ("*", ""):
-        return True
-    have = _version_key(*_parse_requirement_version(version))
-    predicates = []
-    requirement_has_pre = False
-    for group in requirement.split(","):
-        group = group.strip()
-        if not group:
-            raise RequirementSyntaxError(
-                f"empty comparator in requirement {requirement!r}"
-            )
-        operator = "^"
-        body = group
-        match = _OPERATOR_RE.match(group)
-        if match:
-            operator, body = match.group(1), match.group(2)
-        elif any(piece in _WILDCARDS for piece in body.split(".")):
-            # A bare wildcard (`1.*`, `1.2.x`) is a wildcard requirement; a
-            # bare version with no wildcard (`1.2`) keeps its caret meaning.
-            operator = "~"
-        components, pre = _parse_requirement_version(body)
-        requirement_has_pre = requirement_has_pre or bool(pre)
-        predicates.append(_make_predicate(operator, components, pre))
-    if have[3] and not requirement_has_pre:
+    ver = _parse_version(version)
+    comparators = _parse_requirement(requirement)
+    if not all(_matches(cmp, ver) for cmp in comparators):
         return False
-    return all(predicate(have) for predicate in predicates)
+    return ver[3] == _RELEASE or any(
+        cmp[1:4] == (ver[0], ver[1], ver[2]) and cmp[4] != _RELEASE
+        for cmp in comparators
+    )
 
 
 def check_locks(
@@ -893,6 +950,15 @@ def check(
 
 
 def main() -> int:
+    try:
+        return run()
+    except RequirementSyntaxError as error:
+        # A requirement the evaluator cannot read is a gate it cannot apply.
+        print(f"atlas-stack-overlay: {error}", file=sys.stderr)
+        return 2
+
+
+def run() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("generate", "check", "off", "on"))
     parser.add_argument(
