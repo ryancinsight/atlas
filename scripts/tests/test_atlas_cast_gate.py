@@ -2572,6 +2572,16 @@ def walk(root, files):
     ("src/main.rs", {"src/main.rs": '#[path = "CAST.rs"] mod c;', "src/cast.rs": ""},
      {"src/cast.rs"}),
     ("src/main.rs", {"src/main.rs": "mod Cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+    # names a Linux host tells apart are each walked, from their own directory
+    ("src/lib.rs", {"src/lib.rs": "mod cast;", "src/cast.rs": "", "src/Cast.rs": "mod k;",
+                    "src/Cast/k.rs": ""}, {"src/cast.rs", "src/Cast.rs", "src/Cast/k.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "../gen/H.inc"]\nmod h;', "gen/h.inc": "",
+                    "gen/H.inc": ""}, {"gen/h.inc", "gen/H.inc"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = r"a\\b.rs"] mod x;\nmod a;', "src/a.rs": "mod b;",
+                    "src/a/b.rs": "", "src/a\\b.rs": "mod c;", "src/c.rs": "", "src/a/c.rs": ""},
+     {"src/a.rs", "src/a/b.rs", "src/a\\b.rs", "src/c.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = r"x\\y/../c.rs"] mod c;', "src/c.rs": "",
+                    "src/x/c.rs": ""}, {"src/c.rs", "src/x/c.rs"}),
 ])
 def test_modules_resolve_as_the_rust_reference_and_rustc_load_them(root, files, expected):
     assert walk(root, files) == ({root, *expected}, {})
@@ -2581,6 +2591,80 @@ def test_a_reached_file_that_does_not_lex_is_reported_with_its_path():
     files = {"src/lib.rs": "mod a;\nmod b;", "src/a.rs": "/* open", "src/b.rs": ""}
     assert walk("src/lib.rs", files) == (
         {"src/lib.rs", "src/a.rs", "src/b.rs"}, {"src/a.rs": "an unclosed block comment"})
+
+
+def test_target_roots_are_every_tracked_path_a_host_could_open_under_a_name():
+    roots = {"src/lib.rs", "src/Lib.rs", "Tests/a.rs", "tests/A.rs", "Examples/e/Main.rs",
+             "SRC/BIN/t.rs"}
+    assert set(gate.target_roots({}, "", gate.path_index({"Cargo.toml", *roots}))) == roots
+    nested = gate.path_index({"Pkg/Cargo.toml", *(f"PKG/{path}" for path in roots)})
+    assert set(gate.target_roots({}, "Pkg", nested)) == {f"PKG/{path}" for path in roots}
+
+
+@pytest.mark.parametrize("source", [
+    '#[cfg(any())] #[path = "."] mod m { mod lib; }\npub fn f() {}',
+    '#[path = "../src"] mod m { mod lib; }',
+    'macro_rules! never { () => { #[path = "./."] mod m { mod lib; } } }',
+    '#[cfg_attr(unix, path = "x/..")] mod m { #[path = "."] mod n { mod lib; } }',
+])
+def test_an_inline_module_that_respells_its_directory_ends_the_walk(source):
+    files = {"src/lib.rs": source}
+    reads: list[str] = []
+
+    def read(path):
+        reads.append(path)
+        assert len(reads) < 10, "the walk revisits one state under a longer spelling"
+        return files.get(path)
+
+    assert gate.compiled_files(gate.path_index(files), read, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+    assert reads == ["src/lib.rs"] * 2  # as the crate root, and as the module `lib`
+
+
+NO_FILE = "a symbolic link to no tracked file"
+
+
+@pytest.mark.parametrize("files, links, expected, errors", [
+    # the link's target is the module's text, and its children resolve beside the link
+    ({"src/lib.rs": "mod a;", "src/a.rs": "../gen/a.inc", "gen/a.inc": "mod b;",
+      "src/a/b.rs": "", "gen/b.rs": "", "gen/a/b.rs": ""}, {"src/a.rs"},
+     {"src/a.rs", "gen/a.inc", "src/a/b.rs"}, {}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "b.lnk", "src/b.lnk": "..\\GEN\\a.inc",
+      "gen/a.inc": ""}, {"src/a.rs", "src/b.lnk"}, {"src/a.rs", "gen/a.inc"}, {}),
+    # a checkout without links compiles the target path as the module's text
+    ({"src/lib.rs": "mod a;", "src/a.rs": "mod x;", "src/a/x.rs": ""}, {"src/a.rs"},
+     {"src/a.rs", "src/a/x.rs"}, {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "../gen/none.rs"}, {"src/a.rs"}, {"src/a.rs"},
+     {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "/etc/a.rs"}, {"src/a.rs"}, {"src/a.rs"},
+     {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "b.rs", "src/b.rs": "a.rs"}, {"src/a.rs", "src/b.rs"},
+     {"src/a.rs"}, {"src/a.rs": NO_FILE}),
+    # a linked directory is not read through, on a path that names it or backs out of it
+    ({"src/lib.rs": "mod sub;", "src/sub": "../gen", "gen/mod.rs": ""}, {"src/sub"}, set(),
+     {"src/sub": NO_FILE + ", on the path to src/sub/mod.rs"}),
+    ({"src/lib.rs": '#[path = "sub/../x.rs"] mod x;', "src/sub": "../gen", "src/x.rs": ""},
+     {"src/sub"}, {"src/x.rs"}, {"src/sub": NO_FILE + ", on the path to src/sub/../x.rs"}),
+    # a link to a file is no directory, so no path leads through it
+    ({"src/lib.rs": "mod a;", "src/a.rs": "", "src/a": "a.rs"}, {"src/a"}, {"src/a.rs"}, {}),
+])
+def test_a_symbolic_link_is_followed_to_its_tracked_file_or_reported(
+        files, links, expected, errors):
+    assert gate.compiled_files(gate.path_index(files, links), files.get, "src/lib.rs") == (
+        {"src/lib.rs", *expected}, errors)
+
+
+def test_a_revision_walks_a_linked_module_to_its_target(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    for path, text in {"src/lib.rs": "mod a;\n", "gen/a.inc": "pub fn a() {}\n"}.items():
+        (repo / path).parent.mkdir(parents=True)
+        (repo / path).write_bytes(text.encode())
+    commit(repo, "files")
+    tip = track_link(repo, tmp_path, "src/a.rs", "../gen/a.inc")
+    with gate.Revision(repo, tip) as tree:
+        assert gate.compiled_files(tree.index, tree.read, "src/lib.rs") == (
+            {"src/lib.rs", "src/a.rs", "gen/a.inc"}, {})
 
 
 def test_a_path_cycle_that_respells_its_directory_is_walked_once():
