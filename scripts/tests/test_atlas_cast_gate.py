@@ -2492,49 +2492,92 @@ def test_the_scan_covers_the_named_package_directory_alone(tmp_path, capsys):
     assert "member/src/lib.rs:1" in capsys.readouterr().err
 
 
+ROOT_TREE = frozenset({
+    "Cargo.toml", "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs",
+    "src/bin/multi/main.rs", "src/bin/multi/util.rs", "src/bin/deep/er/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "tests/m/helper.rs", "tests/n/o/main.rs",
+    "examples/e.rs", "examples/e2/main.rs", "benches/b.rs", "benches/b2/main.rs",
+    "alt/lib.rs", "alt/x.rs", "scripts/b.rs",
+})
+DEFAULT_ROOTS = {
+    "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "examples/e.rs", "examples/e2/main.rs",
+    "benches/b.rs", "benches/b2/main.rs",
+}
+AUTO_OFF = {"src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs", "tests/a.rs",
+            "tests/m/main.rs"}
 
 
-def test_target_roots_follow_the_manifest_and_auto_discovery():
-    tree = [
-        "Cargo.toml", "src/lib.rs", "src/main.rs", "src/bin/tool.rs",
-        "src/bin/tool/main.rs", "tests/a.rs", "tests/nested/b.rs",
-        "examples/e.rs", "benches/bench.rs",
-    ]
-    roots = gate.target_roots({"package": {"name": "x"}}, "", tree)
-    for expected in ("src/lib.rs", "src/main.rs", "src/bin/tool.rs",
-                     "src/bin/tool/main.rs", "tests/a.rs", "examples/e.rs",
-                     "benches/bench.rs"):
-        assert expected in roots, (expected, roots)
-    assert "tests/nested/b.rs" not in roots
-    disabled = gate.target_roots({"package": {"name": "x", "autobins": False}}, "", tree)
-    assert "src/main.rs" not in disabled
-    assert "src/bin/tool.rs" not in disabled
+@pytest.mark.parametrize("manifest, expected", [
+    ({}, DEFAULT_ROOTS),
+    ({"package": {"autobins": False, "autotests": False}}, DEFAULT_ROOTS - AUTO_OFF),
+    ({"package": {"autolib": False}}, DEFAULT_ROOTS - {"src/lib.rs"}),
+    ({"package": {"autolib": False}, "lib": {}}, DEFAULT_ROOTS),
+    ({"lib": {"path": "alt/lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+    ({"package": {"autotests": False}, "test": [{"name": "x", "path": "alt/x.rs"}]},
+     DEFAULT_ROOTS - {"tests/a.rs", "tests/m/main.rs"} | {"alt/x.rs"}),
+    ({"package": {"name": "p", "autobins": False}, "bin": [{"name": "p"}, {"name": "tool"}]},
+     DEFAULT_ROOTS - {"src/bin/multi/main.rs"}),
+    ({"package": {"build": False}}, DEFAULT_ROOTS - {"build.rs"}),
+    ({"package": {"build": "scripts/b.rs"}}, DEFAULT_ROOTS - {"build.rs"} | {"scripts/b.rs"}),
+])
+def test_target_roots_follow_cargo_discovery_and_the_manifest(manifest, expected):
+    assert set(gate.target_roots(manifest, "", ROOT_TREE)) == expected
+    nested = frozenset(f"pkg/{path}" for path in ROOT_TREE)
+    assert set(gate.target_roots(manifest, "pkg", nested)) == {f"pkg/{p}" for p in expected}
 
 
-def test_mount_detection_ignores_comments_and_strings_and_sees_path_attributes():
-    assert gate.mounts_cast_module("mod cast;\n", "src/lib.rs", "src/cast.rs")
-    assert gate.mounts_cast_module(
-        '#[path = "cast.rs"]\nmod again;\n', "src/main.rs", "src/cast.rs")
-    assert not gate.mounts_cast_module(
-        "// mod cast;\n", "src/lib.rs", "src/cast.rs")
-    assert not gate.mounts_cast_module(
-        'const S: &str = "mod cast;";\n', "src/lib.rs", "src/cast.rs")
+@pytest.mark.parametrize("root, files, expected", [
+    ("src/lib.rs", {"src/lib.rs": "pub(crate) mod util;", "src/util.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod util;", "src/util/mod.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util/mod.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": '#[path = "foo.rs"]\nmod c;', "src/a/foo.rs": "",
+                    "src/a/b/foo.rs": ""}, {"src/a/mod.rs", "src/a/b.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": '#[path = "foo.rs"] mod c;',
+                    "src/a/foo.rs": ""}, {"src/a/mod.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": 'mod inline {\n    #[path = "other.rs"]\n    mod inner;\n}',
+                    "src/a/b/inline/other.rs": ""},
+     {"src/a/mod.rs", "src/a/b.rs", "src/a/b/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs":
+                    'mod inline { #[path = "other.rs"] mod inner; }',
+                    "src/a/inline/other.rs": ""}, {"src/a/mod.rs", "src/a/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "thread_files"]\nmod thread {\n'
+                    '    #[path = "tls.rs"]\n    mod local_data;\n}',
+                    "src/thread_files/tls.rs": ""}, {"src/thread_files/tls.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "x/y.rs"] mod y;', "src/x/y.rs": "mod z;",
+                    "src/x/z.rs": "", "src/x/y/z.rs": ""}, {"src/x/y.rs", "src/x/z.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod r#cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(unix, path = "a.rs")]\nmod m;', "src/a.rs": "",
+                    "src/m.rs": ""}, {"src/a.rs", "src/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '// mod cast;\n/* mod cast; */\nconst S: &str = "mod cast;";',
+                    "src/cast.rs": ""}, set()),
+    ("src/lib.rs", {"src/lib.rs": "mod cli { pub mod cast; }", "src/cli/cast.rs": "",
+                    "src/cast.rs": ""}, {"src/cli/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "lib.rs"]\nmod me;'}, set()),
+    ("tests/x.rs", {"tests/x.rs": "mod cast;", "tests/cast/mod.rs": "", "src/cast.rs": ""},
+     {"tests/cast/mod.rs"}),
+])
+def test_modules_resolve_as_the_rust_reference_and_rustc_load_them(root, files, expected):
+    assert gate.compiled_files(files.get, root) == {root, *expected}
 
 
-def _cast_target_repo(tmp_path, files, manifest_extra=""):
+def _cast_target_repo(tmp_path, files, manifest_extra="", cast="src/cast.rs"):
     repo = tmp_path / "repo"
     init(repo)
-    (repo / "Cargo.toml").write_text(
-        '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n' + manifest_extra)
+    (repo / "Cargo.toml").write_bytes(
+        ('[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n'
+         + manifest_extra).encode())
     for name, text in files.items():
         path = repo / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
+        path.write_bytes(text.encode())
     tip = commit(repo, "targets")
     rules = tmp_path / "rules.json"
     rules.write_text(
-        '{"cast_modules": {"m": {"core": "src/cast.rs"}}, '
-        '"counts": {"m": {"core": 0}}}')
+        '{"cast_modules": {"m": {"core": "%s"}}, "counts": {"m": {"core": 0}}}' % cast)
     sites = tmp_path / "sites.json"
     sites.write_text("[]")
     return repo, tip, rules, sites
@@ -2547,71 +2590,60 @@ def _check_targets(repo, tip, rules, sites):
 
 
 CAST_FIXTURE = '#![expect(clippy::as_conversions, reason = "fixture")]\npub fn x() {}\n'
+ONE_MOUNT = {"src/cast.rs": CAST_FIXTURE, "src/lib.rs": "mod cast;\npub use cast::x;\n"}
+NUM_MOUNT = {"src/num/cast.rs": CAST_FIXTURE, "src/num.rs": "pub mod cast;\n", "src/lib.rs": "mod num;\n"}
+MAIN_FN = "fn main() {}\n"
+CASES = [
+    ({**ONE_MOUNT, "tests/x/main.rs": '#[path = "../../src/cast.rs"]\nmod cast;\n'}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "examples/x/main.rs": '#[path = "../../src/cast.rs"]\nmod cast;\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "benches/x/main.rs": '#[path = "../../src/cast.rs"]\nmod cast;\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/bin/x/main.rs": '#[path = "../../cast.rs"]\nmod cast;\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "build.rs": '#[path = "src/cast.rs"]\nmod cast;\n' + MAIN_FN}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": "mod r#cast;\n" + MAIN_FN}, "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": '#[cfg_attr(all(), path = "cast.rs")]\nmod again;\n' + MAIN_FN},
+     "src/cast.rs", True),
+    ({**ONE_MOUNT, "src/main.rs": "mod bridge;\n" + MAIN_FN, "src/bridge.rs":
+      '#[path = "cast.rs"]\nmod again;\n'}, "src/cast.rs", True),
+    ({**NUM_MOUNT, "src/main.rs": '#[path = "num/cast.rs"]\nmod c;\n' + MAIN_FN}, "src/num/cast.rs", True),
+    (NUM_MOUNT, "src/num/cast.rs", False),
+    (ONE_MOUNT, "src/cast.rs", False),
+    ({**ONE_MOUNT, "src/main.rs": "mod cli { pub mod cast; }\n" + MAIN_FN, "src/cli/cast.rs": "pub fn y() {}\n"},
+     "src/cast.rs", False),
+    ({**ONE_MOUNT, "src/bin/tool/main.rs": "mod cast;\n" + MAIN_FN, "src/bin/tool/cast.rs": "pub fn y() {}\n"},
+     "src/cast.rs", False),
+    ({**ONE_MOUNT, "tests/x.rs": "mod cast;\n", "tests/cast/mod.rs": "pub fn y() {}\n"},
+     "src/cast.rs", False),
+]
 
 
-def test_a_cast_module_mounted_by_two_crate_targets_fails(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
-        "src/cast.rs": CAST_FIXTURE,
-        "src/lib.rs": "mod cast;\npub use cast::x;\n",
-        "src/main.rs": "mod cast;\nfn main() {}\n",
-    })
+@pytest.mark.parametrize("files, cast, doubled", CASES)
+def test_a_cast_module_is_compiled_by_exactly_one_crate_target(
+        tmp_path, capsys, files, cast, doubled):
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, files, cast=cast)
+    assert _check_targets(repo, tip, rules, sites) == int(doubled)
+    assert ("more than one crate target" in capsys.readouterr().err) is doubled
+
+
+def test_the_fault_names_the_package_and_every_mounting_root(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path, {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN})
     assert _check_targets(repo, tip, rules, sites) == 1
-    err = capsys.readouterr().err
-    assert "more than one crate target" in err
-    assert "src/lib.rs" in err and "src/main.rs" in err
-    assert "core" in err
-
-
-def test_a_path_mount_from_a_second_target_fails(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
-        "src/cast.rs": CAST_FIXTURE,
-        "src/lib.rs": "mod cast;\npub use cast::x;\n",
-        "src/main.rs": '#[path = "cast.rs"]\nmod again;\nfn main() {}\n',
-    })
-    assert _check_targets(repo, tip, rules, sites) == 1
-    assert "more than one crate target" in capsys.readouterr().err
-
-
-def test_a_test_target_mounting_the_cast_module_fails(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
-        "src/cast.rs": CAST_FIXTURE,
-        "src/lib.rs": "mod cast;\npub use cast::x;\n",
-        "tests/x.rs": '#[path = "../src/cast.rs"]\nmod cast;\n',
-    })
-    assert _check_targets(repo, tip, rules, sites) == 1
-    err = capsys.readouterr().err
-    assert "more than one crate target" in err
-    assert "tests/x.rs" in err
-
-
-def test_an_example_target_mounting_the_cast_module_fails(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
-        "src/cast.rs": CAST_FIXTURE,
-        "src/lib.rs": "mod cast;\npub use cast::x;\n",
-        "examples/x.rs": '#[path = "../src/cast.rs"]\nmod cast;\nfn main() {}\n',
-    })
-    assert _check_targets(repo, tip, rules, sites) == 1
-    err = capsys.readouterr().err
-    assert "more than one crate target" in err
-    assert "examples/x.rs" in err
-
-
-def test_a_single_lib_mount_passes(tmp_path, capsys):
-    repo, tip, rules, sites = _cast_target_repo(tmp_path, {
-        "src/cast.rs": CAST_FIXTURE,
-        "src/lib.rs": "mod cast;\npub use cast::x;\n",
-    })
-    assert _check_targets(repo, tip, rules, sites) == 0
-    assert "more than one crate target" not in capsys.readouterr().err
+    assert ("core: cast module src/cast.rs is compiled by more than one crate target "
+            "(src/lib.rs, src/main.rs)") in capsys.readouterr().err
 
 
 def test_a_disabled_auto_bin_is_not_a_second_target(tmp_path, capsys):
     repo, tip, rules, sites = _cast_target_repo(
-        tmp_path,
-        {"src/cast.rs": CAST_FIXTURE,
-         "src/lib.rs": "mod cast;\npub use cast::x;\n",
-         "src/main.rs": "mod cast;\nfn main() {}\n"},
-        manifest_extra="autobins = false\n",
-    )
+        tmp_path, {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN}, manifest_extra="autobins = false\n")
     assert _check_targets(repo, tip, rules, sites) == 0
     assert "more than one crate target" not in capsys.readouterr().err
+
+
+def test_a_crate_root_that_does_not_lex_is_refused_with_its_path(tmp_path, capsys):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path, {**ONE_MOUNT, "src/main.rs": "/* unclosed\n" + MAIN_FN})
+    assert _check_targets(repo, tip, rules, sites) == 1
+    assert "src/main.rs: an unclosed block comment" in capsys.readouterr().err

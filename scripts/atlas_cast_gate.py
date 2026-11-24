@@ -16,7 +16,8 @@ on a new cast. This gate is the enforcement:
   module (`cast_modules`) is counted like any other file, so a cast moved
   into it neither raises nor lowers the package's count. Its added lines pass
   only under `cast_module_fault`, no file of its package mounted twice
-  (`clippy::duplicate_mod`, force-warned), and the base count;
+  (`clippy::duplicate_mod`, force-warned), the module compiled by exactly one
+  crate target of its package (`second_target_problems`), and the base count;
 - a pushed package whose `.rs` text holds a `cfg` or `cfg_attr` predicate naming
   `clippy` fails (`cfg_clippy_problems`): clippy-driver sets `cfg(clippy)` and
   rustc does not, so code under `cfg(not(clippy))` is compiled only by the run
@@ -53,6 +54,14 @@ on a new cast. This gate is the enforcement:
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
 say whether a site sits under an `#[expect]`.
+
+A cast module that two crate targets of one package compile (`lib`, `bin`,
+`tests/`, `examples/`, `benches/`, the build script) is counted once there
+and linted once, so `second_target_problems` walks each target root's module
+tree over the pushed tip's files and names the package and every root that
+reaches the module. It follows `mod name;` as rustc resolves it, `#[path]`
+and both outcomes of a `cfg_attr(.., path = ..)`; `include!` and a `mod`
+written by a macro are not followed.
 
 The tip's clippy run is the hook's own: `clippy` runs it under the
 source-identity leases in place of the plain step, writing each diagnostic's
@@ -92,6 +101,7 @@ does not change, which would make a second module.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import pathlib
@@ -102,7 +112,7 @@ import subprocess
 import sys
 import time
 import tomllib
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
@@ -120,13 +130,6 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 # rather than count the rest of the package and pass.
 CFG_PREDICATE = re.compile(r"\b(cfg|cfg_attr)\s*\(")
 CLIPPY_PREDICATE = re.compile(r"\bclippy\b")
-# A crate root mounts a module with `mod name;` or, under any name, with a
-# `#[path = "..."]` attribute. A cast module mounted from two crate roots is
-# compiled twice, and `clippy::duplicate_mod` is per crate, so neither the
-# count nor that lint sees the second mount.
-MOD_DECL = re.compile(
-    r"\b(?:pub(?:\s*\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;"
-)
 
 
 @dataclass(frozen=True, order=True)
@@ -516,108 +519,156 @@ def package_sources(repo: pathlib.Path, tip: str, packages: Iterable[str]) -> li
     return [path for path in paths if path.endswith(".rs") and owner(path) in owned]
 
 
-def package_manifest_dir(repo: pathlib.Path, tip: str, package: str) -> str | None:
-    """Directory of the manifest declaring `package` at `tip`, ``""`` for root."""
-    for path in git_paths(repo, tip):
-        if path != "Cargo.toml" and not path.endswith("/Cargo.toml"):
-            continue
-        text = git_file(repo, tip, path)
-        if text is None:
-            continue
-        try:
-            if package_name(tomllib.loads(text)) == package:
-                return "" if path == "Cargo.toml" else path[: -len("/Cargo.toml")]
-        except tomllib.TOMLDecodeError:
-            continue
-    return None
+def target_roots(manifest: dict, directory: str, tree: Collection[str]) -> list[str]:
+    """The crate-root files of one package: library, build script, bins, tests,
+    examples and benches that exist among the tracked paths `tree`.
 
-
-def target_roots(manifest: dict, directory: str, tree: list[str]) -> list[str]:
-    """The crate-root files of one package: lib, bins, tests, examples, benches.
-
-    Explicit `[lib]`/`[[bin]]`/`[[test]]`/`[[example]]`/`[[bench]]` paths are
-    included, and auto-discovery follows Cargo's own switches. Only paths that
-    exist at the tip are returned.
+    Specification: the Cargo Book, "Target auto-discovery" in
+    https://doc.rust-lang.org/cargo/reference/cargo-targets.html and
+    https://doc.rust-lang.org/cargo/guide/project-layout.html. The defaults
+    are `src/lib.rs`, `build.rs`, `src/main.rs`, and in `src/bin`, `tests`,
+    `examples` and `benches` each `<name>.rs` and each `<name>/main.rs`; the
+    `autolib`, `autobins`, `autotests`, `autoexamples` and `autobenches` keys
+    switch the discovery off, and `[lib]`, `[[bin]]`, `[[test]]`, `[[example]]`
+    and `[[bench]]` add targets, a missing `path` being inferred from the name.
+    The build script is a root: clippy-driver wraps every rustc call of a
+    workspace package, the script's included (recalled, not run here).
     """
     prefix = f"{directory}/" if directory else ""
-    package = manifest.get("package")
-    package = package if isinstance(package, dict) else {}
-    candidates = [prefix + "src/lib.rs"]
-    if package.get("autobins", True) is not False:
-        candidates.append(prefix + "src/main.rs")
-        for path in tree:
-            if not path.startswith(prefix + "src/bin/"):
+    package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
+    lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
+    own = {path.removeprefix(prefix) for path in tree if path.startswith(prefix)}
+    found = []
+    if "lib" in manifest or package.get("autolib", True) is not False:
+        found.append(lib["path"] if isinstance(lib.get("path"), str) else "src/lib.rs")
+    if package.get("build", True) is not False:
+        found.append(package["build"] if isinstance(package.get("build"), str) else "build.rs")
+    for key, folder, auto in (("bin", "src/bin", "autobins"), ("test", "tests", "autotests"),
+                              ("example", "examples", "autoexamples"),
+                              ("bench", "benches", "autobenches")):
+        entries = manifest.get(key)
+        for entry in entries if isinstance(entries, list) else []:
+            if not isinstance(entry, dict):
                 continue
-            rest = path[len(prefix + "src/bin/"):]
-            if rest.endswith(".rs") and ("/" not in rest or rest.endswith("/main.rs")):
-                candidates.append(path)
-    lib = manifest.get("lib")
-    if isinstance(lib, dict) and isinstance(lib.get("path"), str):
-        candidates.append(prefix + lib["path"])
-    for key, auto, folder in (("bin", "autobins", None), ("test", "autotests", "tests"),
-                              ("example", "autoexamples", "examples"),
-                              ("bench", "autobenches", "benches")):
-        entries = manifest.get(key, [])
-        if isinstance(entries, list):
-            for entry in entries:
-                if isinstance(entry, dict) and isinstance(entry.get("path"), str):
-                    candidates.append(prefix + entry["path"])
-        if folder and package.get(auto, True) is not False:
-            depth = prefix.count("/") + 1
-            candidates.extend(
-                path for path in tree
-                if path.startswith(f"{prefix}{folder}/") and path.endswith(".rs")
-                and path.count("/") == depth
-            )
-    seen: set[str] = set()
-    roots: list[str] = []
-    for path in candidates:
-        if path in tree and path not in seen:
-            seen.add(path)
-            roots.append(path)
-    return roots
+            name = entry.get("name")
+            if isinstance(entry.get("path"), str):
+                found.append(entry["path"])
+            elif isinstance(name, str):
+                found += [f"{folder}/{name}.rs", f"{folder}/{name}/main.rs"]
+                if key == "bin" and name == package.get("name"):
+                    found.append("src/main.rs")
+        if package.get(auto, True) is not False:
+            if key == "bin":
+                found.append("src/main.rs")
+            found += [path for path in own
+                      if re.fullmatch(rf"{folder}/([^/]+|[^/]+/main)\.rs", path)]
+    roots = dict.fromkeys(prefix + posixpath.normpath(path) for path in found)
+    return [path for path in roots if path in tree]
 
 
-def path_mount_targets(text: str) -> list[str]:
-    """The `#[path = "..."]` targets of `mod` declarations in one file.
+@dataclass(frozen=True)
+class Mount:
+    """A `mod name;` declaration and where it sits: the directory components of
+    the inline modules around it, its `#[path]` values, and the values under
+    `cfg_attr`, whose predicate is not evaluated."""
 
-    The path lives in a string literal, so it is read from the token stream
-    rather than from blanked code; comments are already gone there.
+    name: str
+    inline: tuple[str, ...]
+    paths: tuple[str, ...]
+    conditional: tuple[str, ...]
+
+
+def attribute_paths(tokens: list[tuple[str, str]], head: str) -> tuple[list[str], list[str]]:
+    """The `path = "..."` values one outer attribute sets: (`#[path]`, `cfg_attr`)."""
+    found = [literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
+             if tokens[index] == ("word", "path") and tokens[index + 1] == ("punct", "=")
+             and tokens[index + 2][0] == "string"]
+    return (found, []) if head == "path" else ([], found) if head == "cfg_attr" else ([], [])
+
+
+def mod_declarations(text: str) -> list[Mount]:
+    """The `mod name;` declarations of one file, read from its token stream.
+
+    An inline `mod name { ... }` opens a directory component, its `#[path]`
+    value when it has one; any other brace opens none. A `mod` in a macro
+    body or one a macro writes is not seen.
     """
-    try:
-        tokens = lex(text)
-        spans = attributes(tokens)
-    except ValueError:
-        return []
-    targets: list[str] = []
-    for start, end, inner, path in spans:
-        if inner or path != "path":
+    tokens = lex(text)
+    starts = {start: (end, inner, head) for start, end, inner, head in attributes(tokens)}
+    found: list[Mount] = []
+    inline: list[str | None] = []
+    plain: list[str] = []
+    conditional: list[str] = []
+    index = 0
+    while index < len(tokens):
+        if index in starts:
+            end, inner, head = starts[index]
+            if not inner:
+                paths, conditions = attribute_paths(tokens[index:end], head)
+                plain, conditional = plain + paths, conditional + conditions
+            index = end
             continue
-        value = next(
-            (tokens[index + 2][1] for index in range(start, end - 2)
-             if tokens[index:index + 2] == [("word", "path"), ("punct", "=")]
-             and tokens[index + 2][0] == "string"),
-            None,
-        )
-        if value is None:
+        kind, word = tokens[index]
+        after = tokens[index + 1:index + 3]
+        if ((kind, word) == ("word", "mod") and len(after) == 2 and after[0][0] == "word"
+                and after[1] in (("punct", ";"), ("punct", "{"))):
+            name = after[0][1].removeprefix("r#")
+            if after[1][1] == ";":
+                found.append(Mount(name, tuple(d for d in inline if d), tuple(plain),
+                                   tuple(conditional)))
+            else:
+                inline.append(plain[0] if plain else name)
+            plain, conditional, index = [], [], index + 3
             continue
-        for index in range(end, len(tokens) - 2):
-            if tokens[index] == ("word", "mod"):
-                if tokens[index + 1][0] == "word" and tokens[index + 2] == ("punct", ";"):
-                    targets.append(literal(value))
-                break
-    return targets
+        if kind == "punct" and word in "{};":
+            if word == "{":
+                inline.append(None)
+            elif word == "}" and inline:
+                inline.pop()
+            plain, conditional = [], []
+        index += 1
+    return found
 
 
-def mounts_cast_module(text: str, root: str, cast_path: str) -> bool:
-    """Whether the crate root `root` declares `cast_path` as a module."""
-    directory = root.rpartition("/")[0]
-    for target in path_mount_targets(text):
-        if posixpath.normpath(posixpath.join(directory, target)) == cast_path:
-            return True
-    code = code_without_comments_or_strings(text)
-    stem = pathlib.PurePosixPath(cast_path).stem
-    return any(match.group(1) == stem for match in MOD_DECL.finditer(code))
+def compiled_files(read: Callable[[str], str | None], root: str) -> set[str]:
+    """The files the crate root `root` compiles: its own and every module it
+    loads, found by resolving `mod` declarations as rustc does.
+
+    Specification: the Rust Reference, "Module source filenames" and "The
+    path attribute" in https://doc.rust-lang.org/reference/items/modules.html.
+    `mod name;` loads `name.rs` or `name/mod.rs` from the file's module
+    directory: the directory of a crate root and of `mod.rs`, and
+    `<dir>/<stem>` for any other file; each enclosing inline module adds a
+    component. `#[path]` on a `mod` outside inline modules is relative to the
+    declaring file's directory, inside them to the module directory, and an
+    inline module's own `#[path]` replaces its name. The Reference is silent
+    on the children of a file loaded through `#[path]`: they resolve beside
+    it, as a `mod.rs`'s do (rustc 1.97.0, `--emit=dep-info`). Not followed:
+    `include!`, a `mod` a macro writes, and a `cfg_attr` predicate's value, so
+    both of its outcomes are.
+    """
+    seen: set[tuple[str, str]] = set()
+    pending = [(root, posixpath.dirname(root))]
+    while pending:
+        file, base = pending.pop()
+        text = read(file)
+        if text is None or (file, base) in seen:
+            continue
+        seen.add((file, base))
+        try:
+            mounts = mod_declarations(text)
+        except ValueError as error:
+            raise ValueError(f"{file}: {error}") from error
+        for mount in mounts:
+            directory = posixpath.join(base, *mount.inline)
+            relative = directory if mount.inline else posixpath.dirname(file)
+            for target in (*mount.paths, *mount.conditional):
+                path = posixpath.normpath(posixpath.join(relative, target))
+                pending.append((path, posixpath.dirname(path)))
+            if not mount.paths:
+                module = posixpath.join(directory, mount.name)
+                pending += [(f"{module}.rs", module), (f"{module}/mod.rs", module)]
+    return {file for file, _ in seen}
 
 
 def cfg_clippy_problems(repo: pathlib.Path, tip: str,
@@ -659,33 +710,45 @@ def cfg_clippy_problems(repo: pathlib.Path, tip: str,
     return problems
 
 
-def second_target_problem(repo: pathlib.Path, tip: str, package: str,
-                          cast_path: str) -> str | None:
-    """Why `package` compiles its cast module from more than one crate target."""
-    directory = package_manifest_dir(repo, tip, package)
-    if directory is None:
-        return None
-    manifest_path = f"{directory}/Cargo.toml" if directory else "Cargo.toml"
-    text = git_file(repo, tip, manifest_path)
-    if text is None:
-        return None
-    try:
-        manifest = tomllib.loads(text)
-    except tomllib.TOMLDecodeError:
-        return None
-    tree = git_paths(repo, tip)
-    mounting = []
-    for root in target_roots(manifest, directory, tree):
-        body = git_file(repo, tip, root)
-        if body is not None and mounts_cast_module(body, root, cast_path):
-            mounting.append(root)
-    if len(mounting) < 2:
-        return None
-    return (
-        f"{package}: cast module {cast_path} is compiled by more than one crate "
-        f"target ({', '.join(mounting)}); clippy::duplicate_mod cannot see a "
-        "second target"
-    )
+def second_target_problems(repo: pathlib.Path, tip: str,
+                           cast_modules: Mapping[str, str]) -> list[str]:
+    """One problem per package whose registered cast module (`cast_modules`
+    maps a package to its path) more than one of its crate targets compile.
+
+    `clippy::duplicate_mod` works per crate, and `sites()` merges a span two
+    builds report, so a second target that mounts the module is counted once
+    and linted once.
+    """
+    if not cast_modules:
+        return []
+    paths = git_paths(repo, tip)
+    tree = frozenset(paths)
+
+    @functools.cache
+    def read(path: str) -> str | None:
+        return git_file(repo, tip, path) if path in tree else None
+
+    problems = []
+    for package, directory in package_directories(
+            repo, tip, [path for path in paths if is_manifest(path)]):
+        cast = cast_modules.get(package)
+        if cast is None:
+            continue
+        manifest = tomllib.loads(read(posixpath.join(directory, "Cargo.toml")) or "")
+        try:
+            roots = [root for root in target_roots(manifest, directory, tree)
+                     if cast in compiled_files(read, root)]
+        except ValueError as error:
+            problems.append(f"{package}: {error}, so the gate cannot tell whether "
+                            f"{cast} is compiled by more than one crate target")
+            continue
+        if len(roots) > 1:
+            problems.append(
+                f"{package}: cast module {cast} is compiled by more than one crate "
+                f"target ({', '.join(roots)}); clippy::duplicate_mod cannot see a "
+                "second target"
+            )
+    return problems
 
 
 def pushed_diff(repo: pathlib.Path, base: str | None, tip: str, form: list[str]) -> bytes:
@@ -1532,11 +1595,10 @@ def check(args: argparse.Namespace) -> int:
     problems = violations(args.member, found, added, args.package, baseline, base,
                           held, modules)
     problems += cfg_clippy_problems(repo, args.tip, args.package)
-    for package, (path, _) in sorted(modules.items()):
-        if path:
-            problem = second_target_problem(repo, args.tip, package, path)
-            if problem:
-                problems.append(problem)
+    # a module that already faults fails the push; reading it again adds only noise
+    problems += second_target_problems(
+        repo, args.tip, {package: path for package, (path, fault) in modules.items()
+                         if path and not fault})
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:
