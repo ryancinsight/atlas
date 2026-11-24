@@ -23,7 +23,6 @@
 <a id="atlas-dmri-io-001"></a>- [ATLAS-DMRI-IO-001](backlog/atlas-dmri-io-001.md) — Rank-generic acquisition-series I/O [minor] — todo
 <a id="atlas-downstream-coordination-001"></a>- [ATLAS-DOWNSTREAM-COORDINATION-001](backlog/atlas-downstream-coordination-001.md) — Coordinate with an external consumer owner [chore] — blocked
 <a id="atlas-hephaestus-host-seam-coverage"></a>- [ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE](backlog/atlas-hephaestus-host-seam-coverage.md) — `hephaestus-host` implements every seam the conformance suite is generic over [arch][major] — todo
-<a id="atlas-hephaestus-manifest-debt-001"></a>- [ATLAS-HEPHAESTUS-MANIFEST-DEBT-001](backlog/atlas-hephaestus-manifest-debt-001.md) — Clear the manifest-impl and type-suffixed-fn debt at the master tip [patch] — todo
 <a id="atlas-hermes-consumer-entry-2026-08-25"></a>- [ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25](backlog/atlas-hermes-consumer-entry-2026-08-25.md) — Restore Hermes as the stack's lane-kernel owner [arch] — todo
 <a id="ATLAS-HOOK-DIRECT-PATH-RETIRE"></a>- [ATLAS-HOOK-DIRECT-PATH-RETIRE](backlog/atlas-hook-direct-path-retire.md) — Retire direct hook build branches [patch] — todo
 <a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Stack-owned git hooks [patch] — todo
@@ -57,7 +56,6 @@
 <a id="atlas-process-tree-job-creation-001"></a>- [ATLAS-PROCESS-TREE-JOB-CREATION-001](backlog/atlas-process-tree-job-creation-001.md) — Close the caller-death gap before job assignment [correctness] — blocked
 <a id="prometheus-promotion"></a>- [ATLAS-PROMETHEUS-PROMOTION-2026-09-03](backlog/prometheus-promotion.md) — Create and register `prometheus` (species mass balance) [arch][minor] — blocked
 <a id="atlas-provider-chain-quality-2026-08-27"></a>- [ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27](backlog/atlas-provider-chain-quality-2026-08-27.md) — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — todo
-<a id="atlas-provider-closure-2026-08-20"></a>- [ATLAS-PROVIDER-CLOSURE-2026-08-20](backlog/atlas-provider-closure-2026-08-20.md) — Complete active provider slices [major][arch] — todo
 <a id="atlas-pub-003"></a>- [ATLAS-PUB-003](backlog/atlas-pub-003.md) — Register trusted publishers and remove the unused PyPI token [chore] — todo
 <a id="atlas-pub-005"></a>- [ATLAS-PUB-005](backlog/atlas-pub-005.md) — Flip `mdbook-test` per book as samples become compilable [patch] — todo
 <a id="atlas-pub-006"></a>- [ATLAS-PUB-006](backlog/atlas-pub-006.md) — Stand up one facade crate per package [minor] — todo
@@ -85,7 +83,6 @@
 <a id="kwavers-ci-pipeline-001"></a>- [KWAVERS-CI-PIPELINE-001](backlog/kwavers-ci-pipeline-001.md) — Consolidate kwavers CI to one verification pipeline [ci] [patch] — todo
 <a id="metis-process-tree-owner"></a>- [METIS-PROCESS-TREE-OWNER](backlog/metis-process-tree-owner.md) — Run metis mutation jobs through the stack's process-tree owner [patch] — todo
 <a id="ritk-accessor-followups-212"></a>- [RITK-ACCESSOR-FOLLOWUPS-212](backlog/ritk-accessor-followups-212.md) — Two consequences the accessor migration exposed [patch] — blocked
-<a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
 <a id="atlas-full-parity-001"></a>- [ATLAS-FULL-PARITY-001](backlog/atlas-full-parity-001.md) — Define and execute four-framework 1.0 qualification [patch] — todo
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Decide the post-command heartbeat window and re-aim one scan test [patch] — todo
@@ -136,3 +133,5 @@
 <a id="atlas-semver-pr-probe-guard"></a>- [ATLAS-SEMVER-PR-PROBE-GUARD](backlog/atlas-semver-pr-probe-guard.md) — The import-probe deadline test runs only on POSIX hosted runners, where a bare `subprocess.run` passes it [verification] [patch] — todo
 <a id="atlas-stack-overlay-red-2026-11-24"></a>- [ATLAS-STACK-OVERLAY-RED-2026-11-24](backlog/atlas-stack-overlay-red-2026-11-24.md) — The `atlas-stack-overlay` workflow is red on main with four requirement lags and seven drifted lock entries in two lockfiles [verification] [patch] — todo
 <a id="atlas-workflow-bound-sources"></a>- [ATLAS-WORKFLOW-BOUND-SOURCES](backlog/atlas-workflow-bound-sources.md) — Run-sourced timeout bounds name runs outside their stated window, and pytest-fast's inner deadline equals its job bound [verification] [patch] — todo
+<a id="atlas-conformance-installed-state"></a>- [ATLAS-CONFORMANCE-INSTALLED-STATE](backlog/atlas-conformance-installed-state.md) — The conformance scan asserts no installed state: hook path, config include, target dir [verification] [patch] — todo
+<a id="atlas-semver-foreign-supertrait"></a>- [ATLAS-SEMVER-FOREIGN-SUPERTRAIT](backlog/atlas-semver-foreign-supertrait.md) — The SemVer gate reports no break when a published trait drops a foreign supertrait [verification] [patch] — todo
