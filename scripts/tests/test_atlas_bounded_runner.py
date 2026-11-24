@@ -6,9 +6,9 @@ status and output. A run the runner cannot start, tag or clean up exits 125 with
 its stage named, and a tree that may survive gets no end file. A tag that a
 reader holds open or that cannot be closed leaves the command's status, a taken
 tag name is never overwritten, and any session string tags a run inside the store.
-``overdue`` lists runs with no end file past their deadline, skips an unreadable
-file or one without finite numeric ``started`` and ``deadline`` with a warning
-that never hides another run, and reads each tag file once.
+``overdue`` lists runs with no end file strictly past their deadline, skips an
+unreadable file or one without finite numeric ``started`` and ``deadline`` with
+a warning that never hides another run, and reads each tag file once.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import math
 import os
 import signal
 import subprocess
@@ -256,10 +257,11 @@ class OverdueTests(unittest.TestCase):
         }
         for name, text in files.items():
             (store / name).write_text(text, encoding="utf-8")
+        (store / "9-9.json").mkdir()
         with contextlib.redirect_stderr(io.StringIO()) as warnings:
             found = atlas_bounded_runner.overdue_tags(store, now=100.0)
         self.assertEqual([tag["id"] for tag in found], ["late"])
-        for name in files.keys() - {"late.json", "7-7.json.part", "8-8.end.json"}:
+        for name in files.keys() - {"late.json", "7-7.json.part", "8-8.end.json"} | {"9-9.json"}:
             self.assertIn(f"skipped {name}", warnings.getvalue())
         for leftover in ("7-7", "8-8"):
             self.assertNotIn(leftover, warnings.getvalue())
@@ -278,6 +280,23 @@ class OverdueTests(unittest.TestCase):
             found = atlas_bounded_runner.overdue_tags(store, now=100.0)
         self.assertEqual(read, ["1-1.json", "2-2.json"])
         self.assertEqual(len(found), 1)
+
+    def test_a_run_is_late_only_once_its_deadline_has_passed(self) -> None:
+        after_instant = math.nextafter(2.0, math.inf)
+        cases = (  # started, deadline, now, listed; every value is exactly representable
+            (1.0, 1.0, 1.5, False),
+            (1.0, 1.0, 2.0, False),
+            (1.0, 1.0, after_instant, True),
+            (1.0, 1.0, 3.0, True),
+            (10.0, 10.0, 25.0, True),
+        )
+        for started, deadline, now, listed in cases:
+            with self.subTest(started=started, deadline=deadline, now=now):
+                store = scratch(self)
+                tag = {"id": "run", "started": started, "deadline": deadline}
+                (store / "1-1.json").write_text(json.dumps(tag), encoding="utf-8")
+                found = atlas_bounded_runner.overdue_tags(store, now=now)
+                self.assertEqual([entry["id"] for entry in found], ["run"] if listed else [])
 
     def test_the_command_prints_each_open_late_tag_beside_a_foreign_file(self) -> None:
         target = scratch(self) / "target"
