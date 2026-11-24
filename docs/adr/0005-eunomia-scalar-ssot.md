@@ -82,8 +82,7 @@ kernels (`add_slice` .. `max_slice`, `axpy_rows`, `gemv_*`, `tiled_gemm`),
   honest result for a count outside its range; the checked form makes the
   failure a typed error.
 - Generic `CastFrom`/`CastTo` (`as` semantics between any pair): carries no
-  per-conversion contract; its retirement is EUNOMIA-CASTFROM-RETIRE
-  (`repos/eunomia/backlog.md#eunomia-castfrom-retire`).
+  per-conversion contract; eunomia PR #158 retired it (eunomia ADR 0007).
 
 ## Consequences
 

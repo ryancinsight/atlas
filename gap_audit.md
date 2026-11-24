@@ -13,7 +13,7 @@ The 29 planning PRs are merged. The [critical feature gate](docs/parity/contract
 3. **Develop independent roots in parallel.** Start with the Eunomia subnormal power oracle, Iris zero-extent views, Melinoe disjoint partitions and Themis fallback topology. Use the existing [provider waves](#provider-development-waves) to select downstream consumers for each verified increment.
 4. **Carry delivered work into the new baseline.** The Kwavers Physics/Solver 5.2.0 and Moirai Crypto 0.12.1 receipts are recorded below. Coeus has eight published CPU packages at 0.15.0. RITK has already passed the four-load Chromium replay, all nine browser scenarios and the three-plane native Safari comparison on ARM and Intel. Its next access milestone covers viewer export, reopen and the remaining nine maintenance findings. [RITK browser and dependency evidence](https://github.com/ryancinsight/ritk/blob/85280aa0b7ffb3b5376780ebf1cb2bae296fe83b/backlog/ritk-stable-qualification.md).
 
-The Atlas board checker passes for 17 of 29 candidate boards. Apollo, Asclepius, Eunomia, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Leto, Metis and Mnemosyne still have schema findings. Each member audit records its count and the qualification work to clear it.
+The Atlas board checker passes for 18 of 29 candidate boards. Apollo, Asclepius, Gaia, Harmonia, Hephaestus, Horae, Hyperion, Iris, Leto, Metis and Mnemosyne still have schema findings. Each member audit records its count and the qualification work to clear it.
 
 ### Provider reconciliation and consumer verification
 

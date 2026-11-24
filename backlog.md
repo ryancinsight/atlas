@@ -134,3 +134,6 @@
 <a id="atlas-lock-restore-proof"></a>- [ATLAS-LOCK-RESTORE-PROOF](backlog/atlas-lock-restore-proof.md) — Restore only proven overlay lock rewrites [patch] — todo
 <a id="atlas-stable-stack-001"></a>- [ATLAS-STABLE-STACK-001](backlog/atlas-stable-stack-001.md) — Qualify every member at a stable major [major] — todo
 <a id="atlas-pin-compile-step-bound"></a>- [ATLAS-PIN-COMPILE-STEP-BOUND](backlog/atlas-pin-compile-step-bound.md) — The pin-compile and pin-drift step bounds sit below their scripts' deadline sums [verification] [patch] — todo
+<a id="atlas-semver-pr-probe-guard"></a>- [ATLAS-SEMVER-PR-PROBE-GUARD](backlog/atlas-semver-pr-probe-guard.md) — The import-probe deadline test runs only on POSIX hosted runners, where a bare `subprocess.run` passes it [verification] [patch] — todo
+<a id="atlas-stack-overlay-red-2026-11-24"></a>- [ATLAS-STACK-OVERLAY-RED-2026-11-24](backlog/atlas-stack-overlay-red-2026-11-24.md) — The `atlas-stack-overlay` workflow is red on main with four requirement lags and seven drifted locks [verification] [patch] — todo
+<a id="atlas-workflow-bound-sources"></a>- [ATLAS-WORKFLOW-BOUND-SOURCES](backlog/atlas-workflow-bound-sources.md) — Run-sourced timeout bounds name runs outside their stated window, and pytest-fast's inner deadline equals its job bound [verification] [patch] — todo
