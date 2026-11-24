@@ -2404,3 +2404,137 @@ def test_a_base_manifest_only_cargo_parses_refuses_the_push(tmp_path, capsys):
                       "--base", base, "--tip", tip, "--package", "p", "--sites", str(sites),
                       "--base-package", "p"]) == 1
     assert "cast gate: crates/p/Cargo.toml does not parse as TOML here" in capsys.readouterr().err
+
+
+ROOT_TREE = frozenset({
+    "Cargo.toml", "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs",
+    "src/bin/multi/main.rs", "src/bin/multi/util.rs", "src/bin/deep/er/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "tests/m/helper.rs", "tests/n/o/main.rs",
+    "examples/e.rs", "examples/e2/main.rs", "benches/b.rs", "benches/b2/main.rs",
+    "alt/lib.rs", "alt/x.rs", "scripts/b.rs",
+})
+DEFAULT_ROOTS = {
+    "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "examples/e.rs", "examples/e2/main.rs",
+    "benches/b.rs", "benches/b2/main.rs",
+}
+AUTO_OFF = {"src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs", "tests/a.rs",
+            "tests/m/main.rs"}
+
+
+@pytest.mark.parametrize("manifest, expected", [
+    ({}, DEFAULT_ROOTS),
+    ({"package": {"autobins": False, "autotests": False}}, DEFAULT_ROOTS - AUTO_OFF),
+    ({"package": {"autolib": False}}, DEFAULT_ROOTS - {"src/lib.rs"}),
+    ({"package": {"autolib": False}, "lib": {}}, DEFAULT_ROOTS),
+    ({"lib": {"path": "alt/lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+    ({"package": {"autotests": False}, "test": [{"name": "x", "path": "alt/x.rs"}]},
+     DEFAULT_ROOTS - {"tests/a.rs", "tests/m/main.rs"} | {"alt/x.rs"}),
+    ({"package": {"name": "p", "autobins": False}, "bin": [{"name": "p"}, {"name": "tool"}]},
+     DEFAULT_ROOTS - {"src/bin/multi/main.rs"}),
+    ({"package": {"build": False}}, DEFAULT_ROOTS - {"build.rs"}),
+    ({"package": {"build": "scripts/b.rs"}}, DEFAULT_ROOTS - {"build.rs"} | {"scripts/b.rs"}),
+    ({"lib": {"path": "alt\\lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+    ({"lib": {"path": "ALT/Lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+])
+def test_target_roots_follow_cargo_discovery_and_the_manifest(manifest, expected):
+    assert set(gate.target_roots(manifest, "", gate.path_index(ROOT_TREE))) == expected
+    nested = frozenset(f"pkg/{path}" for path in ROOT_TREE)
+    assert set(gate.target_roots(manifest, "pkg", gate.path_index(nested))) == {
+        f"pkg/{p}" for p in expected}
+
+
+def walk(root, files):
+    return gate.compiled_files(gate.path_index(files), files.get, root)
+
+
+@pytest.mark.parametrize("root, files, expected", [
+    ("src/lib.rs", {"src/lib.rs": "pub(crate) mod util;", "src/util.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod util;", "src/util/mod.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util/mod.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": '#[path = "foo.rs"]\nmod c;', "src/a/foo.rs": "",
+                    "src/a/b/foo.rs": ""}, {"src/a/mod.rs", "src/a/b.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": '#[path = "foo.rs"] mod c;',
+                    "src/a/foo.rs": ""}, {"src/a/mod.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": 'mod inline {\n    #[path = "other.rs"]\n    mod inner;\n}',
+                    "src/a/b/inline/other.rs": ""},
+     {"src/a/mod.rs", "src/a/b.rs", "src/a/b/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs":
+                    'mod inline { #[path = "other.rs"] mod inner; }',
+                    "src/a/inline/other.rs": ""}, {"src/a/mod.rs", "src/a/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "thread_files"]\nmod thread {\n'
+                    '    #[path = "tls.rs"]\n    mod local_data;\n}',
+                    "src/thread_files/tls.rs": ""}, {"src/thread_files/tls.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "x/y.rs"] mod y;', "src/x/y.rs": "mod z;",
+                    "src/x/z.rs": "", "src/x/y/z.rs": ""}, {"src/x/y.rs", "src/x/z.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod r#cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(unix, path = "a.rs")]\nmod m;', "src/a.rs": "",
+                    "src/m.rs": ""}, {"src/a.rs", "src/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '// mod cast;\n/* mod cast; */\nconst S: &str = "mod cast;";',
+                    "src/cast.rs": ""}, set()),
+    ("src/lib.rs", {"src/lib.rs": "mod cli { pub mod cast; }", "src/cli/cast.rs": "",
+                    "src/cast.rs": ""}, {"src/cli/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "lib.rs"]\nmod me;'}, set()),
+    ("tests/x.rs", {"tests/x.rs": "mod cast;", "tests/cast/mod.rs": "", "src/cast.rs": ""},
+     {"tests/cast/mod.rs"}),
+    # an inline module's `#[path]` is joined to the directory, not to the stem's
+    ("src/lib.rs", {"src/lib.rs": '#[path = "."] mod m { mod cast; }', "src/cast.rs": "",
+                    "src/m/cast.rs": ""}, {"src/cast.rs"}),
+    ("tests/x.rs", {"tests/x.rs": '#[path = "../src"] mod shared { mod cast; }',
+                    "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(all(), path = ".")] mod m { mod cast; }',
+                    "src/cast.rs": "", "src/m/cast.rs": ""}, {"src/cast.rs", "src/m/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a.rs": '#[path = "num"] mod m { mod cast; }',
+                    "src/num/cast.rs": "", "src/a/num/cast.rs": ""},
+     {"src/a.rs", "src/num/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;",
+                    "src/a.rs": 'mod x { #[path = "p"] mod y { mod cast; } }',
+                    "src/a/x/p/cast.rs": "", "src/x/p/cast.rs": "", "src/a/p/cast.rs": ""},
+     {"src/a.rs", "src/a/x/p/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;",
+                    "src/a.rs": '#[path = "num"] mod m { #[path = "q.rs"] mod z; }',
+                    "src/num/q.rs": "", "src/a/num/q.rs": ""}, {"src/a.rs", "src/num/q.rs"}),
+    # `#[path]` loads a file of any extension, and `include!("literal")` one beside its caller
+    ("src/lib.rs", {"src/lib.rs": '#[path = "hidden.inc"] mod hidden;', "src/hidden.inc": ""},
+     {"src/hidden.inc"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!("hidden.in");', "src/hidden.in": ""},
+     {"src/hidden.in"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!("sub/inc.in");', "src/sub/inc.in": "mod m;",
+                    "src/sub/m.rs": "", "src/m.rs": ""}, {"src/sub/inc.in", "src/sub/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a.rs": 'include!("inc.in");',
+                    "src/inc.in": "mod m;", "src/m.rs": "", "src/a/m.rs": ""},
+     {"src/a.rs", "src/inc.in", "src/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!(concat!("hid", "den.in"));', "src/hidden.in": ""},
+     set()),
+    # candidates are normalised before the lookup, and matched as the Windows host does
+    ("tests/x/main.rs", {"tests/x/main.rs": '#[path = r"..\\..\\src\\cast.rs"]\nmod cast;',
+                         "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/main.rs", {"src/main.rs": '#[path = "CAST.rs"] mod c;', "src/cast.rs": ""},
+     {"src/cast.rs"}),
+    ("src/main.rs", {"src/main.rs": "mod Cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+])
+def test_modules_resolve_as_the_rust_reference_and_rustc_load_them(root, files, expected):
+    assert walk(root, files) == ({root, *expected}, {})
+
+
+def test_a_reached_file_that_does_not_lex_is_reported_with_its_path():
+    files = {"src/lib.rs": "mod a;\nmod b;", "src/a.rs": "/* open", "src/b.rs": ""}
+    assert walk("src/lib.rs", files) == (
+        {"src/lib.rs", "src/a.rs", "src/b.rs"}, {"src/a.rs": "an unclosed block comment"})
+
+
+def test_a_path_cycle_that_respells_its_directory_is_walked_once():
+    files = {"src/lib.rs": '#[path = "../src/lib.rs"]\nmod me;'}
+    reads: list[str] = []
+
+    def read(path):
+        reads.append(path)
+        assert len(reads) < 10, "the walk revisits one state under a longer spelling"
+        return files.get(path)
+
+    assert gate.compiled_files(gate.path_index(files), read, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+    assert reads == ["src/lib.rs"]
