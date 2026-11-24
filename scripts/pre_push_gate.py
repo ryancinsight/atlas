@@ -63,6 +63,9 @@ def _release_push_lock(progress: Path) -> None:
     except (OSError, ValueError):
         return
     lock = Path(lock_path)
+    if not lock.is_absolute() or lock.parent.name != "atlas-push-locks":
+        print(f"pre-push: ignored a push-lock record outside atlas-push-locks: {lock_path!r}", file=sys.stderr)
+        return
     guard = lock.with_name(lock.name + ".reclaim")
     try:
         guard.mkdir()

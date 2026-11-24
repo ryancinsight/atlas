@@ -925,18 +925,21 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
   mkdir -p "$push_lock_root"
   push_lock_guard="$push_lock.reclaim"
   push_lock_owned=0
-  # Git Bash pids live in the MSYS namespace, which native Windows Python
-  # cannot probe, and are reused: there a lock also records its owner's start
-  # time and is judged by the shell's own `kill -0` and `/proc`.
+  # Git Bash pids live in an MSYS namespace that native Windows Python cannot
+  # probe, and they are reused: there a lock also records its owner's identity
+  # and is judged by the shell's own `kill -0` and `/proc`.
   push_lock_msys=0
   case "$OSTYPE" in msys* | cygwin*) push_lock_msys=1 ;; esac
-  process_start_time() {
-    # Field 22 of /proc/<pid>/stat, after the command name (it may hold spaces).
-    local stat="" fields=()
-    { stat="$(< "/proc/$1/stat")"; } 2>/dev/null || return 1
-    read -ra fields <<<"${stat##*) }"
-    [[ "${fields[19]:-}" =~ ^[1-9][0-9]*$ ]] || return 1
-    printf '%s\n' "${fields[19]}"
+  process_identity() {
+    # "<MSYS root>|<creation time>": the root names the pid namespace, and
+    # `stat %W` is set once at pid creation. Field 22 of /proc/<pid>/stat is
+    # no identity: each read recomputes it from a boot time that every system
+    # clock step shifts.
+    local born="" root=""
+    born="$(stat -c %W "/proc/$1" 2>/dev/null)" || return 1
+    [[ "$born" =~ ^[1-9][0-9]*$ ]] || return 1
+    root="$(cygpath -m /)" || return 1
+    printf '%s|%s\n' "$root" "$born"
   }
   msys_owner_abandoned() {
     # Succeeds only when the owner provably is not running; every ambiguity
@@ -944,12 +947,15 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
     # pid well inside the MSYS range, so an overflowing number is ambiguous.
     local pid="$1" recorded="$2" current=""
     [[ "$pid" =~ ^[1-9][0-9]{0,8}$ ]] || return 1
+    # Another MSYS installation numbers its processes separately.
+    [ -z "$recorded" ] || [ "${recorded%%|*}" = "$(cygpath -m /)" ] || return 1
     if ! kill -0 "$pid" 2>/dev/null && [ ! -e "/proc/$pid" ]; then
       return 0
     fi
-    # Alive: it is the owner only if it started when the owner did.
-    [[ "$recorded" =~ ^[1-9][0-9]*$ ]] || return 1
-    current="$(process_start_time "$pid")" || return 1
+    # Alive, or `kill -0` and `/proc` disagree: not the owner only if its
+    # creation time provably differs from the recorded one.
+    [[ "$recorded" =~ ^[^|]+\|[1-9][0-9]*$ ]] || return 1
+    current="$(process_identity "$pid")" || return 1
     [ "$current" != "$recorded" ]
   }
   register_push_lock() {
@@ -979,7 +985,7 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
     mkdir "$staged" 2>/dev/null || return 1
     push_lock_start=""
     if [ "$push_lock_msys" -eq 1 ]; then
-      push_lock_start="$(process_start_time "$$")" || push_lock_start=""
+      push_lock_start="$(process_identity "$$")" || push_lock_start=""
     fi
     if ! printf '%s\n' "$$" > "$staged/pid" ||
        { [ -n "$push_lock_start" ] && ! printf '%s\n' "$push_lock_start" > "$staged/start"; }; then

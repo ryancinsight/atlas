@@ -22,7 +22,7 @@ if not _bash and os.name != 'nt':
 if not _bash or not Path(_bash).is_absolute() or not Path(_bash).is_file():
     raise RuntimeError('ATLAS_TEST_BASH must name an existing absolute Git Bash executable on Windows')
 BASH = str(Path(_bash).resolve())
-# Git Bash also records the owner's start time beside the pid.
+# Git Bash also records the owner's identity beside the pid.
 LOCK_ENTRIES = {'pid', 'start'} if os.name == 'nt' else {'pid'}
 
 

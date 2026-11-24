@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """The per-ref push lock of `scripts/git-hooks/pre-push`: refusal, reclaim, release.
 
-Lock directories are planted in fixture repositories and the real hook runs;
-the deadline case runs the real supervisor with a shortened wall bound.
+The real hook runs on planted lock directories; the deadline case runs the
+real supervisor with a shortened wall bound.
 """
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import pathlib
 import subprocess
@@ -24,12 +26,12 @@ from test_atlas_pre_push_gate import (
 )
 
 import pre_push_gate
+from test_atlas_stale_reclaim import dead_pid, live_pid
 
 REF = "refs/heads/copy"
 # The deadline case asserts the hook claimed its lock within this bound.
 SHORT_DEADLINE_SECONDS = 40
-# Git Bash pids are reused, so the hook also records the owner's start time.
-MSYS_HOST = os.name == "nt"
+MSYS_HOST = os.name == "nt"  # Git Bash pids are reused: its locks record an identity.
 
 
 def _lock_directory(fixture: GateFixture) -> pathlib.Path:
@@ -52,31 +54,13 @@ def _push(fixture: GateFixture) -> tuple[int, str]:
     return fixture.run_hook(line, {"SKIP_LOCAL_GATE": "1"})
 
 
-def _dead_pid() -> str:
-    """The pid of a shell that has exited and been reaped."""
-    done = subprocess.run(["bash", "-c", "echo $$"], capture_output=True, text=True, check=True)
-    return done.stdout.strip()
-
-
-def _live_pid(test: unittest.TestCase) -> str:
-    """The pid of a shell blocked on its stdin until the test ends."""
-    holder = subprocess.Popen(
-        ["bash", "-c", "echo $$; read -r _"],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
-    )
-    test.addCleanup(holder.wait, 30)
-    test.addCleanup(holder.stdout.close)
-    test.addCleanup(holder.stdin.close)
-    return holder.stdout.readline().strip()
-
-
 class PushLockReclaimTestCase(unittest.TestCase):
     """A lock is reclaimed only when its owner provably is not running."""
 
     def test_a_lock_whose_owner_has_exited_is_reclaimed(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp)
-            lock = _plant_lock(fixture, f"{_dead_pid()}\n")
+            lock = _plant_lock(fixture, f"{dead_pid()}\n")
 
             code, stderr = _push(fixture)
 
@@ -88,7 +72,7 @@ class PushLockReclaimTestCase(unittest.TestCase):
     def test_a_lock_whose_owner_is_alive_is_retained_and_refuses(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = _stacked_fixture(temp)
-            pid = _live_pid(self)
+            pid = live_pid(self)
             lock = _plant_lock(fixture, f"{pid}\n")
 
             code, stderr = _push(fixture)
@@ -166,34 +150,34 @@ class PushLockDeadlineTestCase(unittest.TestCase):
             self.assertTrue(claimed.is_file(), "the deadline fired before the lock was claimed")
             self.assertFalse(lock.exists(), "the retired owner's lock survived")
             self.assertFalse(lock.with_name(lock.name + ".reclaim").exists())
-            held_pid, held_start = claimed.read_text(encoding="utf-8").split("|")
+            held_pid, held_start = claimed.read_text(encoding="utf-8").split("|", 1)
             self.assertRegex(held_pid, r"^[1-9][0-9]*\n$")
-            self.assertRegex(held_start, r"^[1-9][0-9]*\n$" if MSYS_HOST else r"^$")
+            self.assertRegex(held_start, r"^[^|]+[|][1-9][0-9]*\n$" if MSYS_HOST else r"^$")
 
 
 class ReleasePushLockTestCase(unittest.TestCase):
     """The supervisor's release removes only the lock its record names."""
 
     @staticmethod
-    def _record(root: pathlib.Path, lock: pathlib.Path, pid: str, start: str) -> pathlib.Path:
+    def _record(root: pathlib.Path, lock: str, pid: str, start: str) -> pathlib.Path:
         progress = root / "progress"
         progress.mkdir(exist_ok=True)
         (progress / pre_push_gate.PUSH_LOCK_RECORD).write_bytes(
-            f"{lock.as_posix()}\n{pid}\n{start}\n".encode("ascii")
+            f"{lock}\n{pid}\n{start}\n".encode("ascii")
         )
         return progress
 
     def test_a_lock_claimed_by_another_owner_is_untouched(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-") as temp:
             root = pathlib.Path(temp)
-            lock = root / "locks" / "0123456789abcdef"
+            lock = root / "atlas-push-locks" / "0123456789abcdef"
             lock.mkdir(parents=True)
             (lock / "pid").write_bytes(b"222\n")
             (lock / "start").write_bytes(b"9\n")
             guard = lock.with_name(lock.name + ".reclaim")
             for pid, start in (("111", "9"), ("222", "8"), ("222", "")):
                 with self.subTest(pid=pid, start=start):
-                    pre_push_gate._release_push_lock(self._record(root, lock, pid, start))
+                    pre_push_gate._release_push_lock(self._record(root, lock.as_posix(), pid, start))
 
                     self.assertEqual((lock / "pid").read_bytes(), b"222\n")
                     self.assertEqual((lock / "start").read_bytes(), b"9\n")
@@ -202,13 +186,13 @@ class ReleasePushLockTestCase(unittest.TestCase):
     def test_an_existing_guard_is_never_reaped(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-") as temp:
             root = pathlib.Path(temp)
-            lock = root / "locks" / "0123456789abcdef"
+            lock = root / "atlas-push-locks" / "0123456789abcdef"
             lock.mkdir(parents=True)
             (lock / "pid").write_bytes(b"222\n")
             guard = lock.with_name(lock.name + ".reclaim")
             guard.mkdir()
 
-            pre_push_gate._release_push_lock(self._record(root, lock, "222", ""))
+            pre_push_gate._release_push_lock(self._record(root, lock.as_posix(), "222", ""))
 
             self.assertTrue(guard.is_dir())
             self.assertEqual((lock / "pid").read_bytes(), b"222\n")
@@ -216,16 +200,29 @@ class ReleasePushLockTestCase(unittest.TestCase):
     def test_the_recorded_owner_is_released_and_a_missing_lock_is_quiet(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lock-") as temp:
             root = pathlib.Path(temp)
-            lock = root / "locks" / "0123456789abcdef"
+            lock = root / "atlas-push-locks" / "0123456789abcdef"
             lock.mkdir(parents=True)
             (lock / "pid").write_bytes(b"222\n")
             (lock / "start").write_bytes(b"9\n")
-            progress = self._record(root, lock, "222", "9")
+            progress = self._record(root, lock.as_posix(), "222", "9")
 
             pre_push_gate._release_push_lock(progress)
             pre_push_gate._release_push_lock(progress)
 
             self.assertEqual(list(lock.parent.iterdir()), [])
+
+    def test_a_record_naming_no_lock_directory_is_reported_and_ignored(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lock-") as temp:
+            root = pathlib.Path(temp)
+            elsewhere = root / "elsewhere" / "0123456789abcdef"
+            elsewhere.mkdir(parents=True)
+            (elsewhere / "pid").write_bytes(b"222\n")
+            for named in ("", "/", "locks/0123456789abcdef", elsewhere.as_posix()):
+                with self.subTest(named=named), contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    pre_push_gate._release_push_lock(self._record(root, named, "222", ""))
+
+                    self.assertIn(f"ignored a push-lock record outside atlas-push-locks: {named!r}", stderr.getvalue())
+                    self.assertEqual((elsewhere / "pid").read_bytes(), b"222\n")
 
 
 if __name__ == "__main__":
