@@ -2,10 +2,9 @@
 
 At the limit the exit is 124 and names the limit and the stage, the grandchild
 process no longer exists, and the end file records the deadline outcome. A
-completing command keeps its status and output. A run the runner cannot start
-or cannot clean up, or whose tag it cannot create, exits 125 with its stage named, and only a run whose tree
-cannot survive gets an end file, and any session string tags a run inside the
-store.
+completing command keeps its status and output. A run the runner cannot start,
+cannot create a tag for, or cannot clean up exits 125 with its stage named, and
+a run whose tree may survive gets no end file. Any session string tags a run inside the store.
 """
 
 from __future__ import annotations
@@ -28,7 +27,8 @@ from process_tree_support import EXPIRY_HOLD_SECONDS, HANG_GUARD_SECONDS, is_run
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 RUNNER = SCRIPTS / "atlas_bounded_runner.py"
-RUN = ("run", "--deadline", str(HANG_GUARD_SECONDS), "--session", "s", "--", "x")
+LIMIT = str(HANG_GUARD_SECONDS)
+RUN = ("run", "--deadline", LIMIT, "--session", "s", "--", "x")
 EXITS_WITH_FIVE = (sys.executable, "-c", "raise SystemExit(5)")
 
 # Runs the runner's entry point with its deadline clock started at the
@@ -124,14 +124,14 @@ class RunTests(unittest.TestCase):
     def test_exit_status_and_output_pass_through(self) -> None:
         target = scratch(self) / "target"
         command = (sys.executable, "-c", "print('payload'); raise SystemExit(3)")
-        result = run_runner(target, "run", "--deadline", "30", "--session", "oracle:ok", "--", *command)
+        result = run_runner(target, "run", "--deadline", LIMIT, "--session", "ok", "--", *command)
         self.assertEqual(result.returncode, 3)
         self.assertEqual(result.stdout.strip(), "payload")
         [tag] = read_tags(target)
         self.assertEqual((tag["outcome"], tag["returncode"]), ("exit", 3))
 
     def test_missing_command_is_refused(self) -> None:
-        result = run_runner(scratch(self) / "target", "run", "--deadline", "1", "--session", "s")
+        result = run_runner(scratch(self) / "target", "run", "--deadline", LIMIT, "--session", "s")
         self.assertEqual(result.returncode, 2)
         self.assertIn("a command is required", result.stderr)
 
@@ -140,7 +140,7 @@ class RunTests(unittest.TestCase):
         for session in sessions:
             with self.subTest(session=session):
                 target = scratch(self) / "target"
-                arguments = ("run", "--deadline", "30", "--session", session, "--", *EXITS_WITH_FIVE)
+                arguments = ("run", "--deadline", LIMIT, "--session", session, "--", *EXITS_WITH_FIVE)
                 self.assertEqual(run_in_process(target, *arguments), 5)
                 written = [path for path in target.rglob("*") if path.is_file()]
                 self.assertEqual({path.parent for path in written}, {store_of(target)})
@@ -165,7 +165,7 @@ class RunTests(unittest.TestCase):
 class FaultTests(unittest.TestCase):
     def test_a_command_that_cannot_start_exits_125_with_its_end_file(self) -> None:
         target = scratch(self) / "target"
-        result = run_runner(target, "run", "--deadline", "30", "--session", "s", "--", "no-such-command-xyz")
+        result = run_runner(target, "run", "--deadline", LIMIT, "--session", "s", "--", "no-such-xyz")
         self.assertEqual(result.returncode, 125, result.stderr)
         self.assertIn("stage: launch", result.stderr)
         [tag] = read_tags(target)
@@ -200,7 +200,7 @@ class FaultTests(unittest.TestCase):
         (root / "file").write_text("x", encoding="utf-8")
         marker = root / "ran"
         command = (sys.executable, "-c", f"open({str(marker)!r}, 'w')")
-        result = run_runner(root / "file", "run", "--deadline", "30", "--session", "s", "--", *command)
+        result = run_runner(root / "file", "run", "--deadline", LIMIT, "--session", "s", "--", *command)
         self.assertEqual(result.returncode, 125, result.stderr)
         self.assertIn("stage: store", result.stderr)
         self.assertFalse(marker.exists(), "the command did not run")
