@@ -19,9 +19,10 @@ runs on `main` of the workflow that runs it, read on 2026-11-24 from
 whole seconds). A reusable workflow's jobs are read from its caller's runs. This test checks
 the arithmetic and that a `scripts/` source exists; it cannot reread a run.
 
-`REMAINING` maps each workflow whose bounds have no hosted run to source (it has never run, or
-only failed, on `main`) to its bound values in file order. Those values stay as recorded until
-a hosted run sources them, at which point the workflow leaves the mapping.
+`REMAINING` maps each workflow whose bounds have no hosted run to source here to its bound
+values in file order: each is a reusable workflow (`workflow_call` only) with no succeeded run
+in ryancinsight/atlas. Calls from member repositories were not sampled. Those values stay as
+recorded until a run sources them, at which point the workflow leaves the mapping.
 """
 
 from __future__ import annotations
