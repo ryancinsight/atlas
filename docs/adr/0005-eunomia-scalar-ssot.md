@@ -82,8 +82,7 @@ kernels (`add_slice` .. `max_slice`, `axpy_rows`, `gemv_*`, `tiled_gemm`),
   honest result for a count outside its range; the checked form makes the
   failure a typed error.
 - Generic `CastFrom`/`CastTo` (`as` semantics between any pair): carries no
-  per-conversion contract; its retirement is EUNOMIA-CASTFROM-RETIRE
-  (`repos/eunomia/backlog.md#eunomia-castfrom-retire`).
+  per-conversion contract; eunomia PR #158 retired it (eunomia ADR 0007).
 
 ## Consequences
 
@@ -91,9 +90,10 @@ kernels (`add_slice` .. `max_slice`, `axpy_rows`, `gemv_*`, `tiled_gemm`),
   propagate `CountRangeError`.
 - Above `2^p` a count rounds; callers whose correctness needs exactness state
   the bound at the call site.
-- Open remainder: `coeus_core::Scalar` still declares `zero`, `one`, `to_f64`,
-  `from_f64` at coeus `70e39493` (COEUS-SCALAR-VOCAB,
-  `repos/coeus/backlog.md#coeus-scalar-vocab`).
+- `coeus_core::Scalar` declared `zero`, `one`, `to_f64` and `from_f64` at
+  coeus `70e39493`. It declares none of them at coeus origin/main, where it
+  takes the element vocabulary from `NumericElement`; coeus PR #562 deleted
+  `from_f64` and closed COEUS-SCALAR-VOCAB (coeus ADR 0081).
 
 ## Overturning evidence
 
