@@ -276,6 +276,63 @@ class RevisionTest(unittest.TestCase):
             self.assertEqual(len(failures), 1)
 
 
+class UnreadableRevisionTest(unittest.TestCase):
+    """A requested revision git cannot read must refuse, never measure zero.
+
+    Every reader caught `CalledProcessError` and returned an empty listing, so
+    a non-checkout root or an unknown `--rev`/`--base` measured 0 lines and
+    printed "within budget" (exit 0) -- a gate that passes precisely where it
+    cannot see anything.
+    """
+
+    def _run(self, root: Path, *arguments: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "check", "--root", str(root), *arguments],
+            capture_output=True, text=True, env=GIT_ENV,
+        )
+
+    def test_non_checkout_root_with_requested_revisions_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "backlog.md").write_text(_lines(50), encoding="utf-8")
+            proc = self._run(
+                root, "--base", "abc", "--rev", "abc", "--line-budget", "10"
+            )
+            self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertNotIn("within budget", proc.stdout)
+            self.assertIn("cannot read the requested revision", proc.stderr)
+
+    def test_unknown_rev_in_a_real_checkout_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(5), encoding="utf-8")
+            _commit(root, "board")
+            proc = self._run(root, "--rev", "nosuchrev")
+            self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertNotIn("within budget", proc.stdout)
+            self.assertIn("cannot read the requested revision", proc.stderr)
+
+    def test_readable_revisions_still_ratchet(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(5), encoding="utf-8")
+            base = _commit(root, "base")
+            (root / "backlog.md").write_text(_lines(50), encoding="utf-8")
+            rev = _commit(root, "rev")
+
+            failing = self._run(
+                root, "--base", base, "--rev", rev, "--line-budget", "10"
+            )
+            self.assertEqual(failing.returncode, 1, failing.stdout + failing.stderr)
+            self.assertIn("artifact-budget: FAIL", failing.stdout)
+
+            passing = self._run(root, "--base", base, "--rev", rev)
+            self.assertEqual(passing.returncode, 0, passing.stdout + passing.stderr)
+            self.assertIn("within budget", passing.stdout)
+
+
 class ReportTest(unittest.TestCase):
     def test_counts_sum_overage_and_count_images(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
