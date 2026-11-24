@@ -102,6 +102,20 @@ def _is_git_checkout(root: Path) -> bool:
     return (root / target).exists() or Path(target).exists()
 
 
+def _is_checkout_top_level(root: Path) -> bool:
+    """True when `root` is the top level of its own git checkout.
+
+    `git -C <root>` finds an enclosing repository, and `ls-tree` run from a
+    subdirectory lists only that subdirectory, so a plain directory inside
+    another repository (untracked, or an uninitialised submodule) would read
+    every board as absent. An initialised submodule is its own top level.
+    """
+    top = _git(root, "rev-parse", "--show-toplevel").strip()
+    return os.path.normcase(os.path.realpath(top)) == os.path.normcase(
+        os.path.realpath(root)
+    )
+
+
 def _line_count(text: str) -> int:
     return text.count("\n") + (0 if text.endswith("\n") or not text else 1)
 
@@ -129,10 +143,7 @@ def _item_file_paths(root: Path, ref: str | None) -> list[str]:
             f"backlog/{p.name}" for p in sorted(item_dir.iterdir())
             if p.is_file() and p.suffix == ".md"
         ]
-    try:
-        listing = _git(root, "ls-tree", "-r", "--name-only", ref, "--", "backlog/")
-    except subprocess.CalledProcessError:
-        return []
+    listing = _git(root, "ls-tree", "-r", "--name-only", ref, "--", "backlog/")
     return [line for line in listing.splitlines() if line.endswith(".md")]
 
 
@@ -143,10 +154,7 @@ def _read_text(root: Path, relpath: str, ref: str | None) -> str:
             path.read_text(encoding="utf-8", errors="replace")
             if path is not None and path.is_file() else ""
         )
-    try:
-        return _git(root, "show", f"{ref}:{relpath}")
-    except subprocess.CalledProcessError:
-        return ""
+    return _git(root, "show", f"{ref}:{relpath}")
 
 
 def _board_paths(root: Path, ref: str | None = None) -> list[str]:
@@ -169,10 +177,7 @@ def _board_paths(root: Path, ref: str | None = None) -> list[str]:
             if entry.is_file() and entry.name.lower() in canonical
         ]
     else:
-        try:
-            listing = _git(root, "ls-tree", "--name-only", ref)
-        except subprocess.CalledProcessError:
-            return []
+        listing = _git(root, "ls-tree", "--name-only", ref)
         found = [line for line in listing.splitlines() if line.lower() in canonical]
     return sorted(found)
 
@@ -231,12 +236,18 @@ def tracked_images(root: Path, ref: str | None = None) -> dict[str, int]:
     construction, so the walk is the listing.
     """
     sizes: dict[str, int] = {}
+    listing: str | None = None
     if ref is not None or _is_git_checkout(root):
         target = ref or "HEAD"
         try:
             listing = _git(root, "ls-tree", "-r", "-l", "-z", target)
         except subprocess.CalledProcessError:
-            return sizes
+            # A requested revision is a measurement this gate cannot skip.
+            if ref is not None:
+                raise
+            # No revision was requested: a fixture checkout with an unborn
+            # HEAD is measured as a tree, exactly like an archived snapshot.
+    if listing is not None:
         for entry in listing.split("\0"):
             if not entry:
                 continue
@@ -349,14 +360,36 @@ def main() -> int:
             counts(root, args.line_budget, args.image_budget_bytes, args.item_budget)
         ))
         return 0
-    failures, warnings = evaluate(root, args.base, args.line_budget,
-                                  args.image_budget_bytes, rev=args.rev)
+    # A requested revision that git cannot read is a measurement the gate
+    # cannot make. Before this, each reader caught the failure and returned an
+    # empty listing, so a non-checkout root or an unknown `--rev`/`--base`
+    # measured zero lines and printed "within budget" (exit 0).
+    try:
+        if (args.base or args.rev) and not _is_checkout_top_level(root):
+            print(
+                f"artifact-budget: {root} is not the top level of its own git "
+                "checkout; the requested revisions would be read from an "
+                "enclosing repository",
+                file=sys.stderr,
+            )
+            return 2
+        failures, warnings = evaluate(root, args.base, args.line_budget,
+                                      args.image_budget_bytes, rev=args.rev)
+        # Per-item-file report: visibility only, never a gate (ITEM_BUDGET).
+        oversized_items = oversized_item_files(root, args.rev, args.item_budget)
+    except subprocess.CalledProcessError as error:
+        command = error.cmd if isinstance(error.cmd, str) else " ".join(error.cmd)
+        detail = (error.stderr or "").strip() or f"exit {error.returncode}"
+        print(
+            f"artifact-budget: cannot read the requested revision: {detail}",
+            file=sys.stderr,
+        )
+        print(f"artifact-budget: from `{command}`", file=sys.stderr)
+        return 2
     for line in warnings:
         print(f"artifact-budget: WARN {line}")
     for line in failures:
         print(f"artifact-budget: FAIL {line}")
-    # Per-item-file report: visibility only, never a gate (ITEM_BUDGET).
-    oversized_items = oversized_item_files(root, args.rev, args.item_budget)
     if oversized_items:
         print(
             f"artifact-budget: INFO {len(oversized_items)} item file(s) over the "

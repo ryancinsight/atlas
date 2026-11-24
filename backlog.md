@@ -1,7 +1,6 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
-<a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — todo
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
@@ -121,9 +120,7 @@
 <a id="atlas-semver-pr-step-bounds"></a>- [ATLAS-SEMVER-PR-STEP-BOUNDS](backlog/atlas-semver-pr-step-bounds.md) — The `semver-pr` job's `tool` and `atlas` steps carry no bound and its job bound has no derivation [patch] — todo
 <a id="atlas-semver-pr-test-import-bound"></a>- [ATLAS-SEMVER-PR-TEST-IMPORT-BOUND](backlog/atlas-semver-pr-test-import-bound.md) — The SemVer PR test's `tool_ready()` runs two commands at import with no deadline [patch] — todo
 <a id="atlas-cast-gate-cfg-clippy"></a>- [ATLAS-CAST-GATE-CFG-CLIPPY](backlog/atlas-cast-gate-cfg-clippy.md) — The cast gate exits 0 on code it cannot see: `cfg(not(clippy))` and a second crate target [patch] — todo
-<a id="atlas-artifact-budget-vacuous-root"></a>- [ATLAS-ARTIFACT-BUDGET-VACUOUS-ROOT](backlog/atlas-artifact-budget-vacuous-root.md) — `atlas-artifact-budget.py` reports "within budget" for a revision it cannot read [patch] — todo
 <a id="atlas-export-tree-freshness-residuals"></a>- [ATLAS-EXPORT-TREE-FRESHNESS-RESIDUALS](backlog/atlas-export-tree-freshness-residuals.md) — Four residuals of the fresh-export fix: a chance-passing test, an unstamped auditor export, a peel rule in two places, a peer build that still masks a failing SemVer side [verification] — todo
-<a id="atlas-overlay-satisfies-ranges-001"></a>- [ATLAS-OVERLAY-SATISFIES-RANGES-001](backlog/atlas-overlay-satisfies-ranges-001.md) — Overlay requirement-lag check passes every range requirement [patch] — todo
 <a id="atlas-cast-check-member-ci"></a>- [ATLAS-CAST-CHECK-MEMBER-CI](backlog/atlas-cast-check-member-ci.md) — The cast `check` verdict runs only in the pre-push hook [verification] [patch] — todo
 <a id="atlas-conformance-landed-rows"></a>- [ATLAS-CONFORMANCE-LANDED-ROWS](backlog/atlas-conformance-landed-rows.md) — Conformance baseline rows sit above the counts that landed members measure [tightening] [patch] — todo
 <a id="atlas-hook-commit-msg"></a>- [ATLAS-HOOK-COMMIT-MSG](backlog/atlas-hook-commit-msg.md) — No commit-msg hook is installed anywhere in the stack [verification] [patch] — todo
