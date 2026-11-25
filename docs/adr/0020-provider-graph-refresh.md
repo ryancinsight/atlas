@@ -140,6 +140,31 @@ one behavioral witness by compiling the archived Aequitas consumer against the
 exact archived Eunomia gitlink; full consumer suites remain provider-owned.
 Revision 2026-09-23: that representative seam closes pin-sweep compile drift.
 
+## Ordering of a refresh
+
+A refresh has three stages, and the order is the one that stays reversible:
+refresh each consumer lock against the merged provider heads, advance the
+Atlas gitlinks to those same fetched defaults, then regenerate the committed
+overlay (`scripts/atlas-stack-overlay.py generate --pinned`). Advancing the
+gitlinks first leaves every consumer lock naming the superseded heads, which
+is a worse graph than the one being repaired. The lock campaign carries its
+proof in the consumer (`cargo check --workspace --locked` against the exact
+target) and commits nothing to the graph `G(P)` until the pin moves.
+
+`check --pinned` is therefore the gate that separates a stale graph from a
+broken one: it verifies the recorded pins. A working-tree `check` reports
+whatever branches the checkouts happen to carry, and in this stack most
+members sit parked on unmerged feature work, so its lag list is not a repair
+order — bumping a requirement to match a parked checkout can move a consumer
+backwards. Only a fetched remote default can be advanced to, and a dirty
+working tree cannot enter `G(P)` at all.
+
+The sweep's source views isolate Git configuration so no global `insteadOf`
+can redirect a provider URL. Isolation must still inherit the caller's
+`safe.directory` entries: a stack shared between accounts is readable only
+because of them, and a blank global config makes an account-owned member
+fail as dubious ownership rather than resolve.
+
 ## Rejected alternatives
 
 - Keep the stale RITK batch pin: rejected because it fails before consumer
