@@ -10,13 +10,28 @@ ATLAS_GATES = {"critical_features", "program_validation", "python_tests", "workf
                "independent_review", "link_validation", "required_ci"}
 
 
+def critical_feature_devices(repository: dict, identity: str) -> dict:
+    """Read the native device requirements for features in the release inventory."""
+    context = f"{identity}: critical feature"
+    fields(repository, {"critical_features": list}, context)
+    for feature in repository["critical_features"]:
+        nonempty(feature, context)
+    devices = repository.get("critical_feature_devices", {})
+    need(type(devices) is dict, f"{context}: device requirements must be an object")
+    for feature, device in devices.items():
+        label = f"{context} {feature}"
+        need(feature in repository["critical_features"], f"{label}: device required for unlisted feature")
+        fields(device, {"backend": str, "vendor": str}, label)
+        nonempty(device["backend"], label)
+        nonempty(device["vendor"], label)
+    return devices
+
+
 def validate_critical_features(gate: dict, repository: dict, identity: str) -> None:
     """The executed feature set must equal the independently reviewed release inventory."""
     context = f"{identity}: critical feature"
-    fields(repository, {"critical_features": list}, context)
+    devices = critical_feature_devices(repository, identity)
     required = repository["critical_features"]
-    for feature in required:
-        nonempty(feature, context)
     need(bool(required) and len(set(required)) == len(required), f"{context} inventory empty or duplicated")
     fields(gate, {"features": list}, context)
     evidence = unique(gate["features"], "id", context)
@@ -30,6 +45,16 @@ def validate_critical_features(gate: dict, repository: dict, identity: str) -> N
         nonempty(record["product_path"], label)
         https(record["artifact"], label)
         digest(record["sha256"], label)
+        if feature in devices:
+            fields(record, {"execution_device": dict}, label)
+            device = record["execution_device"]
+            fields(device, {"backend": str, "vendor": str, "ordinal": int,
+                            "compute_units": int, "device_memory_bytes": int}, label)
+            required_device = devices[feature]
+            need(device["backend"] == required_device["backend"] and device["vendor"] == required_device["vendor"],
+                 f"{label}: execution device mismatch or fallback")
+            need(device["ordinal"] >= 0 and device["compute_units"] > 0
+                 and device["device_memory_bytes"] > 0, f"{label}: incomplete native device identity")
 
 
 def validate_repository_evidence(rows: list[dict], repositories: dict,
