@@ -2346,3 +2346,118 @@ def test_a_macro_expanded_later_does_not_hide_behind_an_unchanged_cast_module(tm
     assert cast_module_push(tmp_path, capsys, module, "#[macro_use]\n" + MOUNT + USES, found,
                             held=False, base_module=module, before={CAST_MODULE_SITE})[1:] == (
         1, faults(MACRO, "11:20", "17:9"))
+
+
+def test_a_revision_reads_every_blob_through_one_process(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    init(repo)
+    big = "pub fn f() {}\r\n" * 20000
+    (repo / "src").mkdir()
+    (repo / "src" / "a b.rs").write_bytes(big.encode())
+    accented = "src/uni\N{LATIN SMALL LETTER E WITH ACUTE}.rs"
+    (repo / accented).write_bytes(b"mod x;\xff\n")
+    tip = commit(repo, "files")
+    started = []
+    real = subprocess.Popen
+    monkeypatch.setattr(gate.subprocess, "Popen",
+                        lambda *args, **kwargs: started.append(args) or real(*args, **kwargs))
+    with gate.Revision(repo, tip) as tree:
+        assert sorted(tree.paths) == ["src/a b.rs", accented]
+        assert tree.read("src/a b.rs") == big
+        assert tree.read(accented) == "mod x;\N{REPLACEMENT CHARACTER}\n"
+        assert tree.read("src/absent.rs") is None
+    readers = [command[0] for command in started if "cat-file" in command[0]]
+    assert len(readers) == 1
+
+
+MULTILINE_TABLE = 'metadata = {\n  note = "x",\n}\n'  # cargo parses it; tomllib does not
+MEMBER_MANIFEST = '[package]\nname = "p"\nversion = "0.1.0"\n'
+
+
+def test_a_manifest_tomllib_rejects_names_its_path_and_error(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/p"]\n')
+    (repo / "crates" / "p").mkdir(parents=True)
+    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST + MULTILINE_TABLE)
+    base = commit(repo, "base")
+    message = r"crates/p/Cargo\.toml does not parse as TOML here \("
+    with pytest.raises(gate.ManifestError, match=message):
+        gate.base_workspace_packages(repo, base)
+
+
+def track_link(repo, tmp_path, path, target):
+    """Track a symbolic link at `path` without the host creating one, and commit it."""
+    (tmp_path / "target").write_bytes(target.encode())
+    oid = git(repo, "hash-object", "-w", "--no-filters", str(tmp_path / "target"))
+    git(repo, "update-index", "--add", "--cacheinfo", f"120000,{oid},{path}")
+    git(repo, "commit", "-q", "-m", f"link {path}")
+    return git(repo, "rev-parse", "HEAD")
+
+
+def test_a_revision_names_its_symbolic_links_and_reads_each_as_its_target_path(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "gen").mkdir()
+    (repo / "gen" / "a.inc").write_bytes(b"pub fn a() {}\n")
+    commit(repo, "file")
+    tip = track_link(repo, tmp_path, "src/a.rs", "../gen/a.inc")
+    with gate.Revision(repo, tip) as tree:
+        assert (sorted(tree.paths), tree.links) == (
+            ["gen/a.inc", "src/a.rs"], frozenset({"src/a.rs"}))
+        assert tree.read("src/a.rs") == "../gen/a.inc"
+
+
+Q_MANIFEST = MEMBER_MANIFEST.replace('"p"', '"q"')
+TWO_MEMBERS = {
+    "Cargo.toml": '[workspace]\nmembers = ["crates/p", "crates/q"]\n',
+    "crates/p/Cargo.toml": MEMBER_MANIFEST, "crates/p/src/lib.rs": "pub fn f() {}\n",
+    "crates/q/Cargo.toml": Q_MANIFEST, "crates/q/src/lib.rs": "pub fn g() {}\n",
+}
+CAST_LINE = "pub fn c(x: u32) -> u64 { x as u64 }\n"
+CAST_ROW = ["p", "crates/p/src/lib.rs", 1, 27, 27, 35, 1]
+RISES = "cast gate: p: 1 bare `as` casts, up from 0 at the pushed base"
+
+
+# Each push is two commits of `TWO_MEMBERS` with the named files replaced. A
+# base manifest only cargo parses hides the base's membership, so `p` is held
+# to its base count: a push that raises no count lands, and a counted site the
+# base did not measure is refused, never read as a package the base lacked.
+@pytest.mark.parametrize("unparsed, base, tip, found, expected", [
+    # the push only repairs the manifest
+    ("crates/p/Cargo.toml", {"crates/p/Cargo.toml": MEMBER_MANIFEST + MULTILINE_TABLE}, {},
+     [], (0, [])),
+    # another member's manifest stays unparsed and the push adds no cast
+    ("crates/q/Cargo.toml", {"crates/q/Cargo.toml": Q_MANIFEST + MULTILINE_TABLE},
+     {"crates/q/Cargo.toml": Q_MANIFEST + MULTILINE_TABLE,
+      "crates/p/src/lib.rs": "pub fn f() {}\npub fn h() {}\n"}, [], (0, [])),
+    # a site on a line the push does not add, in the package the manifest declares
+    ("crates/p/Cargo.toml", {"crates/p/Cargo.toml": MEMBER_MANIFEST + MULTILINE_TABLE,
+                             "crates/p/src/lib.rs": CAST_LINE},
+     {"crates/p/src/lib.rs": CAST_LINE + "pub fn more() {}\n"}, [CAST_ROW], (1, [RISES])),
+    # the same site when the root manifest is the one that does not parse
+    ("Cargo.toml", {"Cargo.toml": TWO_MEMBERS["Cargo.toml"] + MULTILINE_TABLE,
+                    "crates/p/src/lib.rs": CAST_LINE},
+     {"crates/p/src/lib.rs": CAST_LINE + "pub fn more() {}\n"}, [CAST_ROW], (1, [RISES])),
+])
+def test_a_base_manifest_only_cargo_parses_holds_every_package_to_its_base_count(
+        tmp_path, capsys, unparsed, base, tip, found, expected):
+    repo = tmp_path / "repo"
+    init(repo)
+    heads = []
+    for files in (base, tip):
+        for path, text in (TWO_MEMBERS | files).items():
+            (repo / path).parent.mkdir(parents=True, exist_ok=True)
+            (repo / path).write_bytes(text.encode())
+        heads.append(commit(repo, "push"))
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {"p": len(found)}}}))
+    sites = tmp_path / "sites.json"
+    sites.write_text(json.dumps(found))
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", heads[0], "--tip", heads[1], "--package", "p",
+                      "--sites", str(sites), "--base-package", "p"])
+    said, *problems = capsys.readouterr().err.splitlines()
+    assert said.startswith(f"cast gate: {unparsed} does not parse as TOML here (")
+    assert said.endswith("; every `--base-package` is held to its count at the pushed base")
+    assert (code, problems) == expected
