@@ -570,6 +570,8 @@ def selected_source_environment(plan: Plan, targets: dict[str, str],
         if key is None or value is None:
             raise ValueError("inherited Git process configuration is inconsistent")
         inherited.append((key, value))
+    # The saved entries are restored after the isolated source views are built.
+    environment["GIT_CONFIG_COUNT"] = "0"
     root = plan.member.parent.parent
     global_pairs = git_config_pairs(environment, "global", root)
     configured = [
@@ -592,7 +594,6 @@ def selected_source_environment(plan: Plan, targets: dict[str, str],
     environment.update({
         "GIT_CONFIG_SYSTEM": str(isolated_config),
         "GIT_CONFIG_GLOBAL": str(isolated_config),
-        "GIT_CONFIG_COUNT": "0",
     })
     members = {name.lower(): name for name in registered_member_names(root)}
     sources: dict[str, set[str]] = {}

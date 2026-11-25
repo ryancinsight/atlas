@@ -358,6 +358,38 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(len(report.splitlines()), 2 + len(rows))
 
 
+class SourceEnvironmentTests(unittest.TestCase):
+    def test_global_trust_and_inherited_process_config_can_coexist(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            views = root / "views"
+            views.mkdir()
+            global_config = root / "caller.gitconfig"
+            trusted = (root / "shared repo").as_posix()
+            global_config.write_text(f'[safe]\n\tdirectory = "{trusted}"\n', encoding="utf-8")
+            original = global_config.read_bytes()
+            caller = {
+                **{key: value for key, value in os.environ.items()
+                   if not key.upper().startswith("GIT_CONFIG")},
+                "GIT_CONFIG_GLOBAL": str(global_config),
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "core.abbrev",
+                "GIT_CONFIG_VALUE_0": "12",
+            }
+            snapshot = caller.copy()
+            plan = sweep.Plan(root / "repos" / "leto", OLD, [])
+            with mock.patch.object(sweep, "registered_member_names", return_value=[]):
+                selected_env, sources = sweep.selected_source_environment(plan, {}, [], views, caller)
+            self.assertEqual(sources, {})
+            self.assertEqual(sweep.git_config_pairs(selected_env, "global", root), [("safe.directory", trusted)])
+            self.assertEqual(selected_env["GIT_CONFIG_COUNT"], "2")
+            self.assertEqual(selected_env["GIT_CONFIG_KEY_1"], "core.abbrev")
+            self.assertEqual(selected_env["GIT_CONFIG_VALUE_1"], "12")
+            self.assertEqual(caller, snapshot)
+            self.assertEqual(global_config.read_bytes(), original)
+
+
 class InventoryTests(unittest.TestCase):
     def git(self, repo: Path, *args: str) -> str:
         result = execute_git(repo, ("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", *args), timeout=10)
