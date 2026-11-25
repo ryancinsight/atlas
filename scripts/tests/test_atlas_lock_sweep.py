@@ -365,8 +365,14 @@ class SourceEnvironmentTests(unittest.TestCase):
             views = root / "views"
             views.mkdir()
             global_config = root / "caller.gitconfig"
-            trusted = (root / "shared repo").as_posix()
-            global_config.write_text(f'[safe]\n\tdirectory = "{trusted}"\n', encoding="utf-8")
+            # Deliberately fictional paths; do not serialize the host's configuration.
+            if os.name == "nt":
+                expected_path = "C:/fixture/shared repo"
+                contents = b'[safe]\n\tdirectory = "C:/fixture/shared repo"\n'
+            else:
+                expected_path = "/fixture/shared repo"
+                contents = b'[safe]\n\tdirectory = "/fixture/shared repo"\n'
+            global_config.write_bytes(contents)
             original = global_config.read_bytes()
             caller = {
                 **{key: value for key, value in os.environ.items()
@@ -382,7 +388,7 @@ class SourceEnvironmentTests(unittest.TestCase):
             with mock.patch.object(sweep, "registered_member_names", return_value=[]):
                 selected_env, sources = sweep.selected_source_environment(plan, {}, [], views, caller)
             self.assertEqual(sources, {})
-            self.assertEqual(sweep.git_config_pairs(selected_env, "global", root), [("safe.directory", trusted)])
+            self.assertEqual(sweep.git_config_pairs(selected_env, "global", root), [("safe.directory", expected_path)])
             self.assertEqual(selected_env["GIT_CONFIG_COUNT"], "2")
             self.assertEqual(selected_env["GIT_CONFIG_KEY_1"], "core.abbrev")
             self.assertEqual(selected_env["GIT_CONFIG_VALUE_1"], "12")
