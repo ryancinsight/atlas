@@ -11,5 +11,21 @@
     },
     "review": "Re-verify every entry against the member's current default before a sweep advances pins; an entry whose regression the member has since fixed is deleted, not renewed. Measure it the way these were measured: `git -C repos/<member> archive FETCH_HEAD` into a scratch directory, then `python scripts/atlas-conformance.py check --repo <member> --member-path <dir>`, which judges the default tip against the committed baseline without touching the member checkout."
   },
-  "waivers": []
+  "waivers": [
+    {
+      "member": "CFDrs",
+      "reason": "CFDrs default b76f00a72132 raises 3 debt classes above the committed conformance baseline, which the ratchet rejects: board_items_outside_status_set, board_items_without_anchor and board_items_without_priority, each 0 -> 1 (measured 2026-11-27 with `atlas-conformance.py check --repo CFDrs --member-path repos/CFDrs --member-revision b76f00a72132`: 3 regression(s)). Its Cargo.lock also still locks horae-time 0.2.2, which the horae pin (0.4.0) cannot satisfy.",
+      "reopen": "`atlas-conformance.py check --repo CFDrs --member-revision <default tip>` exits 0 (CFDrs's default tip passes the conformance check), then advance the gitlink and delete this entry"
+    },
+    {
+      "member": "kwavers",
+      "reason": "kwavers default eb91da65678b raises 11 debt classes above the committed conformance baseline, which the ratchet rejects: oversized_files 107 -> 108, manifest_implementation 273 -> 275, allow_sites 297 -> 305, existence_only_assertions 0 -> 7, type_suffixed_fns 5 -> 7, reexport_shims 6 -> 7, pm_lines_over_budget 3366 -> 3521, board_items_outside_status_set 0 -> 12, board_items_without_anchor 0 -> 5, scattered_containers 51 -> 55, items_over_budget 0 -> 8 (measured 2026-11-27 with `atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision eb91da65678b`: 11 regression(s)).",
+      "reopen": "`atlas-conformance.py check --repo kwavers --member-revision <default tip>` exits 0 (kwavers's default tip passes the conformance check), then advance the gitlink and delete this entry"
+    },
+    {
+      "member": "ritk",
+      "reason": "ritk default 99be8f8c2ba9 requires and locks consus-raster 0.5.1 (Cargo.toml line 192, Cargo.lock registry entry), but the consus pin 673e774cd890 provides consus-raster 0.5.0: 0.5.1 is published on crates.io but its source exists only on consus branch fix/consus-raster-ljif at aeea084445b8, not on consus main. The pin is held at 762f0e92c1b5, the last gitlink on atlas main, which requires consus-raster 0.5.0.",
+      "reopen": "consus main carries consus-raster >= 0.5.1, then advance consus and ritk together and delete this entry"
+    }
+  ]
 }
