@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 import os
 import pathlib
+import posixpath
+import random
 import shutil
 import subprocess
 import sys
 import uuid
 
 import pytest
+from lockfile import GitUnavailable
+
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "atlas_cast_gate.py"
 _SPEC = importlib.util.spec_from_file_location("atlas_cast_gate", SCRIPT)
 assert _SPEC is not None and _SPEC.loader is not None
@@ -2408,6 +2413,174 @@ def test_a_revision_names_its_symbolic_links_and_reads_each_as_its_target_path(t
         assert tree.read("src/a.rs") == "../gen/a.inc"
 
 
+NOISE = "\n".join(  # incompressible comment lines: the manifest's object is tens of KB
+    "# " + base64.b64encode(random.Random(n).randbytes(60)).decode() for n in range(400))
+LOOSE_MANIFEST = NOISE + '\n[workspace]\nmembers = ["crates/*"]\n'
+
+
+def tracked_blob(repo, path):
+    """The object id of `path`, and the loose object file that holds it."""
+    oid = git(repo, "rev-parse", f"HEAD:{path}")
+    return oid, repo / ".git" / "objects" / oid[:2] / oid[2:]
+
+
+def truncated_manifest_repo(tmp_path, keep):
+    """Two commits of one workspace member `e`; the root manifest's object is cut to
+    `keep` of its bytes in the base, which is how a damaged object store presents."""
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates" / "e" / "src").mkdir(parents=True)
+    (repo / "Cargo.toml").write_bytes(LOOSE_MANIFEST.encode())
+    (repo / "crates" / "e" / "Cargo.toml").write_bytes(
+        b'[package]\nname = "e"\nversion = "0.1.0"\n')
+    (repo / "crates" / "e" / "src" / "lib.rs").write_bytes(b"pub fn a() {}\n")
+    base = commit(repo, "base")
+    (repo / "crates" / "e" / "src" / "lib.rs").write_bytes(b"pub fn a() {}\npub fn b() {}\n")
+    tip = commit(repo, "tip")
+    _, loose = tracked_blob(repo, "Cargo.toml")
+    whole = loose.read_bytes()
+    loose.chmod(0o644)
+    if keep is None:
+        loose.unlink()
+    else:
+        loose.write_bytes(whole[:int(len(whole) * keep)])
+    return repo, base, tip
+
+
+@pytest.mark.parametrize(("keep", "said"), [
+    (0.5, "git cat-file exited 128"),  # the header and a prefix arrive, then git dies
+    (None, "git answered"),            # git reports the object missing
+])
+def test_a_blob_git_does_not_hand_over_whole_raises_naming_its_path(tmp_path, keep, said):
+    repo, base, _ = truncated_manifest_repo(tmp_path, keep)
+    with gate.Revision(repo, base) as tree:
+        assert tree.read("crates/e/Cargo.toml") == '[package]\nname = "e"\nversion = "0.1.0"\n'
+        with pytest.raises(GitUnavailable, match=r"Cargo\.toml \([0-9a-f]+\)") as failure:
+            tree.read("Cargo.toml")
+    assert said in str(failure.value)
+
+
+@pytest.mark.parametrize("keep", [0.5, None])
+def test_a_check_whose_base_manifest_is_unreadable_exits_nonzero(tmp_path, capsys, keep):
+    # `e` has a site on a line the push does not add and a row of 1; only the base
+    # membership, read from the root manifest, says whether `e` is held to a count.
+    repo, base, tip = truncated_manifest_repo(tmp_path, keep)
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {"e": 1}}}))
+    sites = tmp_path / "sites.json"
+    sites.write_text(json.dumps([["e", "crates/e/src/lib.rs", 1, 27, 27, 35, 1]]))
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--package", "e", "--sites", str(sites),
+                      "--base-package", "e"])
+    error = capsys.readouterr().err
+    assert code == 2
+    assert error.startswith("cast gate: could not run: GitUnavailable: git could not read Cargo.toml")
+
+
+@pytest.mark.parametrize(("frame", "status", "reached", "said"), [
+    ("{oid} blob 3~abc~", 0, "abc", None),                       # control: the whole frame
+    ("{oid} blob 3~abcX", 0, None, "git did not end the content with a line feed"),
+    ("{oid} blob 5~ab~", 0, None, "git sent 3 of the 6 bytes"),   # fewer bytes than announced
+    ("{oid} tree 3~abc~", 0, None, "git answered"),               # not a blob
+    ("0000 blob 3~abc~", 0, None, "git answered"),                # not the requested object
+    ("{oid} blob three~abc~", 0, None, "git answered"),           # a size that is no number
+    ("{oid} missing~", 0, None, "git answered"),
+    ("", 0, None, "git answered ''"),                             # git exits without a frame
+    ("{oid} blob 3~abc~", 3, "abc", "git cat-file exited 3"),     # a whole frame, a failed exit
+])
+def test_a_reader_frame_is_checked_end_to_end(tmp_path, monkeypatch, frame, status, reached,
+                                              said):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "a.rs").write_bytes(b"abc")
+    tip = commit(repo, "file")
+    oid = git(repo, "rev-parse", "HEAD:a.rs")
+    program = ("import sys; sys.stdin.readline(); "
+               "sys.stdout.buffer.write(sys.argv[1].replace('~', chr(10)).encode()); "
+               "sys.stdout.flush(); sys.exit(int(sys.argv[2]))")
+    real = subprocess.Popen
+
+    def fake(command, *args, **kwargs):
+        if "cat-file" in command:
+            command = [sys.executable, "-I", "-c", program, frame.format(oid=oid), str(status)]
+        return real(command, *args, **kwargs)
+
+    monkeypatch.setattr(gate.subprocess, "Popen", fake)
+    outcome = None
+    try:
+        with gate.Revision(repo, tip) as tree:
+            outcome = tree.read("a.rs")
+    except GitUnavailable as failure:
+        assert said is not None and said in str(failure)
+        assert "a.rs" in str(failure) or "exited" in str(failure)
+    else:
+        assert said is None
+    assert outcome == reached
+
+
+def test_a_reader_that_does_not_answer_is_killed_at_the_deadline(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "a.rs").write_bytes(b"abc")
+    tip = commit(repo, "file")
+    real = subprocess.Popen
+
+    def silent(command, *args, **kwargs):
+        if "cat-file" in command:
+            command = [sys.executable, "-I", "-c", "import sys, time; sys.stdin.readline(); "
+                       "time.sleep(60)"]
+        return real(command, *args, **kwargs)
+
+    monkeypatch.setattr(gate.subprocess, "Popen", silent)
+    with gate.Revision(repo, tip) as tree:
+        tree.deadline = 0.5
+        with pytest.raises(GitUnavailable, match=r"a\.rs .*did not answer within 0\.5 s"):
+            tree.read("a.rs")
+
+
+def test_a_tree_git_cannot_list_raises_instead_of_reading_empty(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    with pytest.raises(GitUnavailable, match="ls-tree exited 128"):
+        gate.Revision(repo, "0" * 40)
+
+
+SUBSET_MODULE = ('#![expect(clippy::as_conversions, reason = "fixture")]\n'
+                 "pub fn x(a: u32) -> u64 { a as u64 }\n")
+
+
+@pytest.mark.parametrize("base_manifest", [MEMBER_MANIFEST, MEMBER_MANIFEST + MULTILINE_TABLE])
+def test_a_base_package_that_is_not_pushed_keeps_its_cast_module_count_check(
+        tmp_path, capsys, base_manifest):
+    # `q` is named by `--base-package` and its cast module gains a cast on an added line,
+    # but only `p` is pushed: whether or not the base manifest parses, nothing proves `q`
+    # had a count at the base, so the cast is refused rather than read as held to one.
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/*"]\n')
+    (repo / "crates" / "p" / "src").mkdir(parents=True)
+    (repo / "crates" / "p" / "src" / "lib.rs").write_text("pub fn f() {}\n")
+    (repo / "crates" / "p" / "Cargo.toml").write_text(base_manifest)
+    base = commit(repo, "base")
+    (repo / "crates" / "q" / "src").mkdir(parents=True)
+    (repo / "crates" / "q" / "Cargo.toml").write_text(Q_MANIFEST)
+    (repo / "crates" / "q" / "src" / "lib.rs").write_text("pub fn g() {}\n")
+    (repo / "crates" / "q" / "src" / "conv.rs").write_text(SUBSET_MODULE)
+    tip = commit(repo, "tip")
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {"p": 0, "q": 1}},
+                                 "cast_modules": {"m": {"q": "crates/q/src/conv.rs"}}}))
+    sites = tmp_path / "sites.json"
+    sites.write_text(json.dumps([["q", "crates/q/src/conv.rs", 2, 27, 27, 35, 2]]))
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--package", "p", "--sites", str(sites),
+                      "--base-package", "p", "--base-package", "q"])
+    assert code == 1
+    assert capsys.readouterr().err.splitlines()[-1] == (
+        "cast gate: crates/q/src/conv.rs:2:27: `as` cast added to q's cast module "
+        "without a count at the pushed base")
+
+
 Q_MANIFEST = MEMBER_MANIFEST.replace('"p"', '"q"')
 TWO_MEMBERS = {
     "Cargo.toml": '[workspace]\nmembers = ["crates/p", "crates/q"]\n',
@@ -2591,6 +2764,180 @@ def test_a_reached_file_that_does_not_lex_is_reported_with_its_path():
     files = {"src/lib.rs": "mod a;\nmod b;", "src/a.rs": "/* open", "src/b.rs": ""}
     assert walk("src/lib.rs", files) == (
         {"src/lib.rs", "src/a.rs", "src/b.rs"}, {"src/a.rs": "an unclosed block comment"})
+
+
+DOT = "has the component {0!r}, whose trailing dot or space Windows drops"
+COLON = "holds a colon, which Windows reads as a drive or a data stream"
+DEVICE = "has the component {0!r}, which Windows reads as a device"
+ALIAS = "has the component {0!r}, which may be an 8.3 alias of another name"
+
+
+@pytest.mark.parametrize("text, value, reason", [
+    ('#[path = "cast.rs."]\nmod c;', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = "cast.rs "]\nmod c;', "cast.rs ", DOT.format("cast.rs ")),
+    ('#[path = "cast.rs::$DATA"]\nmod c;', "cast.rs::$DATA", COLON),
+    ('#[path = "src./cast.rs"]\nmod c;', "src./cast.rs", DOT.format("src.")),
+    ('#[path = "../gen/h.inc."]\nmod h;', "../gen/h.inc.", DOT.format("h.inc.")),
+    ('#[path = "../gen/dir /h.inc"]\nmod h;', "../gen/dir /h.inc", DOT.format("dir ")),
+    ('#[cfg_attr(unix, path = "cast.rs.")]\nmod c;', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = "sub."]\nmod m { mod cast; }', "sub.", DOT.format("sub.")),
+    ('include!("cast.rs.");', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = r"gen\\h.inc "]\nmod h;', "gen\\h.inc ", DOT.format("h.inc ")),
+    ('#[path = "c:cast.rs"]\nmod c;', "c:cast.rs", COLON),
+    ('#[path = "nul.rs"]\nmod c;', "nul.rs", DEVICE.format("nul.rs")),
+    ('#[path = "x/COM1"]\nmod c;', "x/COM1", DEVICE.format("COM1")),
+    ('#[path = "CAST~1.RS"]\nmod c;', "CAST~1.RS", ALIAS.format("CAST~1.RS")),
+])
+def test_a_path_a_windows_host_reads_as_another_file_is_refused_naming_line_and_value(
+        text, value, reason):
+    # `src/lib.rs` line 3 holds the literal; line 1 mentions the same value in a comment
+    source = f"// {value}\npub fn f() {{}}\n{text}"
+    files = {"src/lib.rs": source, "src/cast.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1] == {
+        "src/lib.rs": f"line 3: the path {value!r} {reason}"}
+
+
+@pytest.mark.parametrize("text", [
+    '#[path = "cast.rs"]\nmod c;', '#[path = "./cast.rs"]\nmod c;', '#[path = "../src/cast.rs"]\nmod c;',
+    '#[path = "a b.rs"]\nmod c;', '#[path = "dir.d/x.rs"]\nmod c;', '#[path = "x..y.rs"]\nmod c;',
+    '#[path = r"..\\src\\cast.rs"]\nmod c;', 'include!("sub/inc.in");',
+    'let path = "x.";\nlet other = r#"#[path = "y."] mod z;"#;',
+    '// #[path = "x."]\n/* include!("y."); */\nmod c;',
+    '#[doc(path = "x.")]\nfn f() {}',
+])
+def test_a_path_every_host_reads_alike_is_not_refused(text):
+    files = {"src/lib.rs": text, "src/cast.rs": "", "src/x..y.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1] == {}
+
+
+def test_a_refused_path_leaves_the_rest_of_the_walk_to_run():
+    files = {"src/lib.rs": '#[path = "cast.rs."] mod c;\nmod a;', "src/a.rs": "mod b;",
+             "src/a/b.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert (reached, list(errors)) == ({"src/lib.rs", "src/a.rs", "src/a/b.rs"}, ["src/lib.rs"])
+
+
+@pytest.mark.parametrize("text", [
+    r'#[path = "ca\x73t.rs"] mod c;',
+    r'#[path = "ca\u{73}t.rs"] mod c;',
+    r'#[path = "ca\u{0073}t.rs"] mod c;',
+    r'#[path = "ca\u{7_3}t.rs"] mod c;',
+    '#[path = "ca\\\n        st.rs"] mod c;',
+    '#[path = "ca\\\r\n        st.rs"] mod c;',
+    r'#[path = "\x2e/cast.rs"] mod c;',
+    r'#[path = "..\\src\\cast.rs"] mod c;',
+    r'#[path = "../src/ca\x73t.rs"] mod c;',
+    r'#[cfg_attr(unix, path = "ca\x73t.rs")] mod c;',
+    r'include!("ca\x73t.rs");',
+    r'#[path = "\x2e"] mod m { mod cast; }',
+])
+def test_a_path_literal_is_read_with_its_escapes_decoded_as_rustc_does(text):
+    files = {"src/lib.rs": text, "src/cast.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert (reached, errors) == ({"src/lib.rs", "src/cast.rs"}, {})
+
+
+@pytest.mark.parametrize("text", [
+    r'#[path = r"ca\x73t.rs"] mod c;',      # a raw string has no escapes
+    r'#[path = r#"ca\u{73}t.rs"#] mod c;',
+])
+def test_a_raw_path_literal_is_read_as_written(text):
+    files = {"src/lib.rs": text, "src/cast.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+
+
+@pytest.mark.parametrize("token", [
+    r'"ca\qt.rs"', r'"\x80"', r'"\x7"', r'"\u{D800}"', r'"\u{110000}"', r'"\u{1234567}"',
+    r'"\u{}"', r'"\u{"', r'"\101"',
+])
+def test_a_path_literal_with_an_escape_rust_does_not_have_is_refused(token):
+    files = {"src/lib.rs": f"#[path = {token}] mod c;", "src/cast.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert reached == {"src/lib.rs"}
+    assert list(errors) == ["src/lib.rs"]
+    assert errors["src/lib.rs"].startswith(f"the string literal {token} holds the escape ")
+
+
+@pytest.mark.parametrize("token, value", [
+    (r'"cast.rs\x2e"', "cast.rs."), (r'"cast.rs\u{20}"', "cast.rs "),
+    (r'"cast.rs\u{3A}\x3a$DATA"', "cast.rs::$DATA"),
+])
+def test_a_refused_path_is_named_as_it_decodes_and_where_it_is_written(token, value):
+    files = {"src/lib.rs": f"// {token}\n\n#[path = {token}] mod c;", "src/cast.rs": ""}
+    errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1]
+    assert errors["src/lib.rs"].startswith(f"line 3: the path {value!r} ")
+
+
+LINK_NOTE = "; the gate does not read through a link there, and a Linux checkout follows it"
+
+
+@pytest.mark.parametrize("manifest, directory, tracked, links, expected", [
+    ({}, "", {"Cargo.toml", "t2/x.rs"}, {"tests"}, {"tests": "a symbolic link on the way to "
+                                                              "`tests`"}),
+    ({}, "", {"Cargo.toml"}, {"src/bin"}, {"src/bin": "a symbolic link on the way to `src/bin`"}),
+    ({}, "", {"Cargo.toml"}, {"Examples"}, {"Examples": "a symbolic link on the way to "
+                                                        "`examples`"}),
+    ({}, "", {"Cargo.toml"}, {"benches"}, {"benches": "a symbolic link on the way to "
+                                                      "`benches`"}),
+    ({}, "", {"Cargo.toml"}, {"src"}, {"src": "a symbolic link on the way to `src/bin`"}),
+    ({}, "pkg", {"pkg/Cargo.toml"}, {"pkg/tests"}, {"pkg/tests": "a symbolic link on the way "
+                                                                 "to `tests`"}),
+    ({"test": [{"name": "x", "path": "t/x.rs"}]}, "", {"Cargo.toml"}, {"t"},
+     {"t": "a symbolic link on the way to `t/x.rs`"}),
+    ({"lib": {"path": "gen/lib.rs"}}, "", {"Cargo.toml"}, {"gen"},
+     {"gen": "a symbolic link on the way to `gen/lib.rs`"}),
+    ({}, "", {"Cargo.toml"}, {"examples/e"},
+     {"examples/e": "a symbolic link in `examples`, where a target directory is found"}),
+    ({}, "", {"Cargo.toml"}, {"src/bin/tool"},
+     {"src/bin/tool": "a symbolic link in `src/bin`, where a target directory is found"}),
+])
+def test_a_link_where_cargo_discovers_targets_is_named(manifest, directory, tracked, links,
+                                                       expected):
+    index = gate.path_index(tracked | links, links)
+    assert gate.discovery_errors(manifest, directory, index) == {
+        link: reason + LINK_NOTE for link, reason in expected.items()}
+
+
+@pytest.mark.parametrize("manifest, directory, tracked, links, expected", [
+    ({}, "", {"Cargo.toml", "tests/x.rs", "src/lib.rs"}, set(), {}),  # the control: real files
+    ({}, "", {"Cargo.toml", "tests/x.rs"}, {"tests/x.rs"}, {}),      # a link to a file is walked
+    ({}, "", {"Cargo.toml", "src/lib.rs"}, {"src/lib.rs"}, {}),
+    ({}, "", {"Cargo.toml", "docs/x.rs"}, {"docs"}, {}),             # no target is found there
+    ({}, "pkg", {"pkg/Cargo.toml"}, {"other/tests"}, {}),
+])
+def test_a_link_off_the_discovery_paths_is_not_named(manifest, directory, tracked, links,
+                                                     expected):
+    index = gate.path_index(tracked | links, links)
+    assert gate.discovery_errors(manifest, directory, index) == expected
+
+
+@pytest.mark.parametrize("manifest, directory, errors", [
+    ({"lib": {"path": "src/lib.rs."}}, "",
+     {"Cargo.toml": "the target path 'src/lib.rs.' " + DOT.format("lib.rs.")}),
+    ({"bin": [{"name": "t", "path": "src/t.rs "}]}, "pkg",
+     {"pkg/Cargo.toml": "the target path 'src/t.rs ' " + DOT.format("t.rs ")}),
+    ({"package": {"build": "build.rs::$DATA"}}, "",
+     {"Cargo.toml": "the target path 'build.rs::$DATA' " + COLON}),
+    ({"lib": {"path": "src/lib.rs"}, "bin": [{"name": "t", "path": "src/t.rs"}]}, "", {}),
+])
+def test_a_declared_target_path_a_windows_host_rewrites_is_named(manifest, directory, errors):
+    index = gate.path_index({posixpath.join(directory, "Cargo.toml")})
+    assert gate.discovery_errors(manifest, directory, index) == errors
+
+
+def test_a_revision_names_a_linked_discovery_folder(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "t2").mkdir()
+    (repo / "t2" / "x.rs").write_bytes(b'#[path = "../src/cast.rs"]\nmod cast;\n')
+    (repo / "Cargo.toml").write_bytes(b'[package]\nname = "core"\n')
+    commit(repo, "files")
+    tip = track_link(repo, tmp_path, "tests", "t2")
+    with gate.Revision(repo, tip) as tree:
+        assert gate.discovery_errors({}, "", tree.index) == {
+            "tests": "a symbolic link on the way to `tests`" + LINK_NOTE}
+        assert gate.target_roots({}, "", tree.index) == []
 
 
 def test_target_roots_are_every_tracked_path_a_host_could_open_under_a_name():
