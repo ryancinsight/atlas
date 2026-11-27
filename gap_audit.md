@@ -901,3 +901,12 @@ Re-open trigger: a second cancellation at the bound, or the fast job's median pa
 ## Finding 2026-11-15: the member hook fleet restores locks unsynchronized and follows the checked-out branch
 
 Risk: (1) the hook's `Cargo.lock` snapshot and restore is unsynchronized, so concurrent hooks can restore over each other; the selector and publisher fixes do not serialize it, and members whose stale hook refuses or times out the sync push are published through the git data API with the same bytes. (2) 25 members set `core.hooksPath=.githooks`, so the hook version follows the checked-out branch: `repos/CFDrs` on 2026-09-28 sat 80 commits behind and its pre-push failed on the `python3` Store stub until a peer switched the tree; only one member points at `D:/atlas/scripts/git-hooks`. Owner: [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog.md#hook-fleet-duplication). Re-open trigger: a lock restored over a peer's, or a refused push traced to a stale member checkout.
+
+<a id="judge-status-unposted"></a>
+## Finding 2026-11-27: no stack workflow posts the `judge` commit status
+
+Risk: no repository can require `judge`, so auto-merge cannot bind a judged head, and athena's `ATHENA-JUDGE-REQUIRED-20261127` (ryancinsight/athena#203, open) stays blocked. Evidence (origin/main b334401f2fcfb040ddcf1ab8c70e97ff845db1ac): `git grep -n -E 'statuses: write|context=judge' origin/main -- .github` prints nothing and `judge` appears under `.github` only as "judged" in prose; athena `main` requires `Lockfile integrity / Lockfile integrity`, `supply-chain` and `verify` only (read 2026-11-27).
+
+Catching check: a stack-owned pull-request workflow that posts `judge` (success on a ready PR without the `judge-required` label, nothing on a labeled head, failure on the `labeled` event, labels read through the API), with a test over its parsed YAML that it grants `statuses: write` and no other write scope, uses no `pull_request_target`, and checks out no PR code; `git grep -l 'statuses: write' -- .github/workflows` lists it.
+
+Re-open trigger: a board with room for the item (the board holds 993 of its 1,000 lines at the basis, so an item of four lines does not fit beside the lock-duplicates item), or any PR that adds the workflow; file the item then, citing this finding.
