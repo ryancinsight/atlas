@@ -7,6 +7,16 @@ For Atlas and each member, the release owner and an independent reviewer derive 
 Every ID requires a complete implementation and an executed acceptance result through the supported product path, including required inputs, outputs, failure handling and targets. A missing path, partial implementation, unexecuted required target or critical defect blocks 1.0. Record the path, result and hashed evidence artifact for each ID in the candidate’s reviewed `critical_features` gate. The validator requires exact set equality between the inventory and these records.
 
 
+When a feature has a `critical_feature_devices` requirement, copy the native
+run's `execution_device` object into its feature record. The backend and vendor
+must match the register, and the record must identify the acquired device
+ordinal, positive compute-unit count and positive device memory in bytes.
+Review the device record against the hashed run artifact at the candidate
+revision. For CFDrs `rocm-laplacian`, the artifact must show the successful
+`rocm_laplacian` example on Linux with an AMD HIP device, the analytical checks
+at every grid point, and rejection of a mismatched output buffer. A build with
+the SDK alone cannot satisfy this evidence requirement.
+
 Protocol 1 / program 2026-10-26.3. [Program](README.md).
 
 ## Domain and equivalence

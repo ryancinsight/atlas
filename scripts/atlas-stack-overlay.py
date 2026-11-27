@@ -547,39 +547,228 @@ def set_enabled(enabled: bool) -> None:
     CONFIG.write_text(text.replace(body, "\n".join(lines)), encoding="utf-8")
 
 
-def satisfies(version: str, requirement: str) -> bool:
-    """Caret-semantics check: does `version` satisfy `requirement`?
+class RequirementSyntaxError(ValueError):
+    """A version or version requirement this evaluator cannot interpret."""
 
-    Covers the requirement forms the stack actually declares (`*`, bare
-    `1.2.3`, and explicit `^`). Anything else is reported as unknown rather
-    than silently passed.
-    """
-    requirement = requirement.strip()
-    if requirement in ("*", ""):
-        return True
-    if requirement[0] in "<>=~":
-        return True  # not used in-stack; do not guess
-    req = requirement.removeprefix("^")
 
-    def parts(text: str) -> list[int]:
-        out = []
-        for chunk in text.split("-")[0].split("."):
-            try:
-                out.append(int(chunk))
-            except ValueError:
-                out.append(0)
-        while len(out) < 3:
-            out.append(0)
-        return out[:3]
+# Specification source: the `semver` crate 1.0.28, to which Cargo delegates.
+# src/parse.rs fixes the accepted forms and src/eval.rs the meaning of each
+# operator on a partial comparator; the functions below port that logic.
+_NUMBER_RE = re.compile(r"[0-9]+")
+_IDENTIFIER_RE = re.compile(r"[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*")
+_OPERATORS = ("=", ">=", ">", "<=", "<", "~", "^")
+# Ordering key of an empty pre-release: a release exceeds its pre-releases.
+_RELEASE = (1,)
 
-    have, want = parts(version), parts(req)
-    if have < want:
+_Pre = tuple
+_Version = tuple[int, int, int, _Pre]
+_Comparator = tuple[str, int, int | None, int | None, _Pre]
+
+
+def _bad(text: str, reason: str) -> RequirementSyntaxError:
+    return RequirementSyntaxError(f"unsupported version requirement {text!r}: {reason}")
+
+
+def _number(text: str, whole: str) -> tuple[int, str]:
+    """A numeric identifier: digits, no leading zero, within `u64` (parse.rs:156)."""
+    match = _NUMBER_RE.match(text)
+    if match is None:
+        raise _bad(whole, "expected a number")
+    digits = match.group()
+    if len(digits) > 1 and digits[0] == "0":
+        raise _bad(whole, "leading zero")
+    if int(digits) >= 1 << 64:
+        raise _bad(whole, "number overflows u64")
+    return int(digits), text[match.end():]
+
+
+def _identifiers(text: str, whole: str, pre: bool) -> tuple[tuple[str, ...], str]:
+    """Dot-separated identifiers; empty when none start here (parse.rs:220)."""
+    match = _IDENTIFIER_RE.match(text)
+    if match is None and text.startswith("."):
+        raise _bad(whole, "empty identifier")
+    if match is None:
+        return (), text
+    rest = text[match.end():]
+    if rest.startswith("."):
+        raise _bad(whole, "empty identifier")
+    identifiers = tuple(match.group().split("."))
+    if pre and any(len(i) > 1 and i.isdigit() and i[0] == "0" for i in identifiers):
+        raise _bad(whole, "leading zero in a pre-release identifier")
+    return identifiers, rest
+
+
+def _pre_key(identifiers: tuple[str, ...]) -> _Pre:
+    """Ordering key of a pre-release (impls.rs:50): numeric identifiers sort
+    below alphanumeric ones, a prefix below its extensions, a release above all."""
+    if not identifiers:
+        return _RELEASE
+    return (0, tuple((0, int(i)) if i.isdigit() else (1, i) for i in identifiers))
+
+
+def _suffix(text: str, whole: str) -> tuple[_Pre, str]:
+    """An optional `-pre` and `+build` after a full version; build is ignored."""
+    identifiers: tuple[str, ...] = ()
+    if text.startswith("-"):
+        identifiers, text = _identifiers(text[1:], whole, pre=True)
+        if not identifiers:
+            raise _bad(whole, "empty pre-release")
+    if text.startswith("+"):
+        build, text = _identifiers(text[1:], whole, pre=False)
+        if not build:
+            raise _bad(whole, "empty build metadata")
+    return _pre_key(identifiers), text
+
+
+def _parse_version(text: str) -> _Version:
+    """`Version::from_str` (parse.rs:28): a full major.minor.patch with optional
+    pre-release and build metadata, no spaces, no wildcards."""
+    (_, major, minor, patch, pre), rest = _parse_comparator("=" + text, text)
+    if rest or minor is None or patch is None or " " in text:
+        raise _bad(text, "not a full version")
+    return major, minor, patch, pre
+
+
+def _parse_comparator(text: str, whole: str) -> tuple[_Comparator, str]:
+    """`comparator` (parse.rs:287): one comparator and the text after it."""
+    operator = next((op for op in _OPERATORS if text.startswith(op)), None)
+    default_operator = operator is None
+    text = text[len(operator or ""):].lstrip(" ")
+    major, text = _number(text, whole)
+    minor = patch = None
+    wildcard = False
+    if text.startswith("."):
+        text = text[1:]
+        if text[:1] in ("*", "x", "X"):
+            text, wildcard = text[1:], True
+        else:
+            minor, text = _number(text, whole)
+    if text.startswith("."):
+        text = text[1:]
+        if text[:1] in ("*", "x", "X"):
+            text, wildcard = text[1:], True
+        elif wildcard:
+            raise _bad(whole, "a number after a wildcard")
+        else:
+            patch, text = _number(text, whole)
+    pre = _RELEASE
+    if patch is not None:
+        pre, text = _suffix(text, whole)
+    if wildcard and default_operator:
+        operator = "*"
+    return (operator or "^", major, minor, patch, pre), text.lstrip(" ")
+
+
+def _parse_requirement(text: str) -> list[_Comparator]:
+    """`VersionReq::from_str` (parse.rs:87): `*`, or comma-joined comparators."""
+    whole = text
+    text = text.lstrip(" ")
+    if text[:1] in ("*", "x", "X"):
+        if text[1:].strip(" "):
+            raise _bad(whole, "a wildcard must be the only comparator")
+        return []
+    comparators: list[_Comparator] = []
+    while True:
+        comparator, text = _parse_comparator(text, whole)
+        comparators.append(comparator)
+        if not text:
+            return comparators
+        if not text.startswith(","):
+            raise _bad(whole, "expected a comma between comparators")
+        text = text[1:].lstrip(" ")
+
+
+def _matches_exact(cmp: _Comparator, ver: _Version) -> bool:
+    _, major, minor, patch, pre = cmp  # eval.rs:42
+    return (
+        ver[0] == major
+        and minor in (None, ver[1])
+        and patch in (None, ver[2])
+        and ver[3] == pre
+    )
+
+
+def _matches_ordered(cmp: _Comparator, ver: _Version, sign: int) -> bool:
+    """`matches_greater` (eval.rs:62) for sign +1, `matches_less` (:88) for -1.
+
+    An unspecified component of the comparator makes the version equal to it,
+    so neither strictly greater nor strictly less: `> 1` is `>= 2.0.0`."""
+    _, *given, pre = cmp
+    for have, want in zip(ver[:3], given):
+        if want is None:
+            return False
+        if have != want:
+            return (have - want) * sign > 0
+    return (ver[3] > pre) if sign > 0 else (ver[3] < pre)
+
+
+def _matches_tilde(cmp: _Comparator, ver: _Version) -> bool:
+    _, major, minor, patch, pre = cmp  # eval.rs:114
+    if ver[0] != major or minor not in (None, ver[1]):
         return False
-    # Caret: leading nonzero component must match.
-    for i in range(3):
-        if want[i] != 0:
-            return have[:i + 1] == want[:i + 1]
-    return True
+    if patch is not None and ver[2] != patch:
+        return ver[2] > patch
+    return ver[3] >= pre
+
+
+def _matches_caret(cmp: _Comparator, ver: _Version) -> bool:
+    _, major, minor, patch, pre = cmp  # eval.rs:134
+    if ver[0] != major:
+        return False
+    if minor is None:
+        return True
+    if patch is None:
+        return ver[1] >= minor if major > 0 else ver[1] == minor
+    if major > 0:
+        if ver[1] != minor:
+            return ver[1] > minor
+        if ver[2] != patch:
+            return ver[2] > patch
+    elif minor > 0:
+        if ver[1] != minor:
+            return False
+        if ver[2] != patch:
+            return ver[2] > patch
+    elif (ver[1], ver[2]) != (minor, patch):
+        return False
+    return ver[3] >= pre
+
+
+def _matches(cmp: _Comparator, ver: _Version) -> bool:
+    """`matches_impl` (eval.rs:30)."""
+    operator = cmp[0]
+    if operator in ("=", "*"):
+        return _matches_exact(cmp, ver)
+    if operator == ">=":
+        return _matches_exact(cmp, ver) or _matches_ordered(cmp, ver, 1)
+    if operator == "<=":
+        return _matches_exact(cmp, ver) or _matches_ordered(cmp, ver, -1)
+    if operator in (">", "<"):
+        return _matches_ordered(cmp, ver, 1 if operator == ">" else -1)
+    return (_matches_tilde if operator == "~" else _matches_caret)(cmp, ver)
+
+
+def satisfies(version: str, requirement: str) -> bool:
+    """Does `version` satisfy `requirement` with Cargo's semantics?
+
+    Accepts the forms Cargo accepts: `*`, a bare version (caret), `^`, `~`,
+    `=`, `<`, `<=`, `>`, `>=`, wildcard components (`1.*`), partial versions,
+    and comma-joined sets; build metadata is ignored. A form Cargo rejects
+    raises `RequirementSyntaxError` rather than passing the check, because a
+    requirement the evaluator cannot read is a gate it cannot apply.
+
+    A pre-release version satisfies a requirement only when every comparator
+    matches it and some comparator names a pre-release of the same
+    major.minor.patch (`matches_req` and `pre_is_compatible`, eval.rs:3, :170).
+    """
+    ver = _parse_version(version)
+    comparators = _parse_requirement(requirement)
+    if not all(_matches(cmp, ver) for cmp in comparators):
+        return False
+    return ver[3] == _RELEASE or any(
+        cmp[1:4] == (ver[0], ver[1], ver[2]) and cmp[4] != _RELEASE
+        for cmp in comparators
+    )
 
 
 def check_locks(
@@ -761,6 +950,15 @@ def check(
 
 
 def main() -> int:
+    try:
+        return run()
+    except RequirementSyntaxError as error:
+        # A requirement the evaluator cannot read is a gate it cannot apply.
+        print(f"atlas-stack-overlay: {error}", file=sys.stderr)
+        return 2
+
+
+def run() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("generate", "check", "off", "on"))
     parser.add_argument(

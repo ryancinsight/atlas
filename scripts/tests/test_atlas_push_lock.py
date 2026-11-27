@@ -22,7 +22,8 @@ if not _bash and os.name != 'nt':
 if not _bash or not Path(_bash).is_absolute() or not Path(_bash).is_file():
     raise RuntimeError('ATLAS_TEST_BASH must name an existing absolute Git Bash executable on Windows')
 BASH = str(Path(_bash).resolve())
-
+# Git Bash also records the owner's identity beside the pid.
+LOCK_ENTRIES = {'pid', 'start'} if os.name == 'nt' else {'pid'}
 
 
 class PushLockPortabilityTests(unittest.TestCase):
@@ -79,7 +80,7 @@ class PushLockPortabilityTests(unittest.TestCase):
             locks = list((root / 'atlas-push-locks').iterdir())
             self.assertEqual(len(locks), 1)
             self.assertEqual((locks[0] / 'pid').read_text().strip(), process.shell_pid_path.read_text().strip())
-            self.assertEqual(list(locks[0].iterdir()), [locks[0] / 'pid'])
+            self.assertEqual({entry.name for entry in locks[0].iterdir()}, LOCK_ENTRIES)
 
     def test_publication_does_not_require_gnu_mv(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -127,7 +128,7 @@ class PushLockPortabilityTests(unittest.TestCase):
                 self.assertIn('another push', err)
                 self.assertNotIn('ACQUIRED', out)
                 self.assertEqual((locks[0] / 'pid').read_bytes(), before)
-                self.assertEqual(list(locks[0].iterdir()), [locks[0] / 'pid'])
+                self.assertEqual({entry.name for entry in locks[0].iterdir()}, LOCK_ENTRIES)
             finally:
                 incumbent.communicate('release\n', timeout=10)
 
@@ -146,7 +147,7 @@ class PushLockPortabilityTests(unittest.TestCase):
                 _, err = loser.communicate(timeout=10)
                 self.assertNotEqual(loser.returncode, 0)
                 self.assertIn('another push', err)
-                self.assertEqual(list(locks[0].iterdir()), [locks[0] / 'pid'])
+                self.assertEqual({entry.name for entry in locks[0].iterdir()}, LOCK_ENTRIES)
             finally:
                 for process in contenders:
                     if process.poll() is None:

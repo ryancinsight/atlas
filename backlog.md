@@ -1,7 +1,6 @@
 <a id="atlas-pub-explicit-cohort-001"></a>- [ATLAS-PUB-EXPLICIT-COHORT-001](backlog/atlas-pub-explicit-cohort-001.md) — Member callers install the exact-cohort input [patch] — todo
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — blocked
 <a id="atlas-adr0069-stages"></a>- [ATLAS-ADR0069-STAGES](backlog/atlas-adr0069-stages.md) — Eunomia–Leto–Coeus vertical consolidation, measured status [arch] — todo
-<a id="atlas-apollo-complex-seam-050b"></a>- [ATLAS-APOLLO-COMPLEX-SEAM-050B](backlog/atlas-apollo-complex-seam-050b.md) — Element-parameterize the complex seams [minor] — todo
 <a id="atlas-arch-008"></a>- [ATLAS-ARCH-008](backlog/atlas-arch-008.md) — Replace pointer-scattered containers on traversal paths [patch] — todo
 <a id="atlas-arch-011"></a>- [ATLAS-ARCH-011](backlog/atlas-arch-011.md) — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 <a id="ares-promotion"></a>- [ATLAS-ARES-PROMOTION-2026-09-03](backlog/ares-promotion.md) — Create and register `ares` (solid momentum balance) [arch][minor] — blocked
@@ -65,7 +64,6 @@
 <a id="atlas-pub-008"></a>- [ATLAS-PUB-008](backlog/atlas-pub-008.md) — Audit facade names immediately before each first publish [chore] — todo
 <a id="atlas-pub-010"></a>- [ATLAS-PUB-010](backlog/atlas-pub-010.md) — Convert member crate callers to version-change publishing [patch] — todo
 <a id="atlas-pub-011"></a>- [ATLAS-PUB-011](backlog/atlas-pub-011.md) — Release the source that outran its published versions [patch] — todo
-<a id="atlas-pub-012"></a>- [ATLAS-PUB-012](backlog/atlas-pub-012.md) — Release tags take the ecosystem form `<package>-v<version>` [verification] — todo
 <a id="atlas-pub-013"></a>- [ATLAS-PUB-013](backlog/atlas-pub-013.md) — Advance member SemVer-gate pins to the locked bump guard and require it [patch] — todo
 <a id="atlas-pub-015"></a>- [ATLAS-PUB-015](backlog/atlas-pub-015.md) — Resolve helios-planning's dependency on unpublishable asclepius-coeus [architecture] — todo
 <a id="atlas-published-git-dep-rot-001"></a>- [ATLAS-PUBLISHED-GIT-DEP-ROT-001](backlog/atlas-published-git-dep-rot-001.md) — Published members carry floating git deps that rot every fresh resolution [arch] — todo
@@ -79,7 +77,6 @@
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
 <a id="atlas-target-001"></a>- [ATLAS-TARGET-001](backlog/atlas-target-001.md) — One build cache, one debug budget [patch] — todo
 <a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
-<a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
@@ -92,7 +89,6 @@
 <a id="atlas-publish-001"></a>- [ATLAS-PUBLISH-001](backlog/atlas-publish-001.md) — OIDC publish pipelines and Pages alignment [patch] — todo
 <a id="atlas-hook-resume-test-gaps"></a>- [ATLAS-HOOK-RESUME-TEST-GAPS](backlog/atlas-hook-resume-test-gaps.md) — Decide the post-command heartbeat window and re-aim one scan test [patch] — todo
 <a id="atlas-gate-stage-matrix"></a>- [ATLAS-GATE-STAGE-MATRIX](backlog/atlas-gate-stage-matrix.md) — Stage-sequence matrix for the pre-push identity gate [patch] — todo
-<a id="atlas-board-index-ladder-crash"></a>- [ATLAS-BOARD-INDEX-LADDER-CRASH](backlog/atlas-board-index-ladder-crash.md) — The board index and compact tools mishandle the milestone ladder [patch] — todo
 <a id="atlas-ci-ubuntu-2604"></a>- [ATLAS-CI-UBUNTU-2604](backlog/atlas-ci-ubuntu-2604.md) — `ubuntu-latest` moved to 26.04: wheel callers repin atlas python-wheels.yml, and apt-installing atlas jobs need a named image [patch] — todo
 <a id="atlas-hook-credential-alias"></a>- [ATLAS-HOOK-CREDENTIAL-ALIAS](backlog/atlas-hook-credential-alias.md) — Decide the credential-alias and include handling in the exported Cargo config [patch] — todo
 <a id="atlas-hook-merge-range"></a>- [ATLAS-HOOK-MERGE-RANGE](backlog/atlas-hook-merge-range.md) — A pushed branch update gates and budgets against the wrong base [patch] — todo
@@ -119,11 +115,8 @@
 <a id="atlas-cast-gate-standalone-owners-caller"></a>- [ATLAS-CAST-GATE-STANDALONE-OWNERS-CALLER](backlog/atlas-cast-gate-standalone-owners-caller.md) — `new-standalone-owners` and `--zero-base-package` have no hook caller [patch] — todo
 <a id="atlas-semver-nightly-pin-sources"></a>- [ATLAS-SEMVER-NIGHTLY-PIN-SOURCES](backlog/atlas-semver-nightly-pin-sources.md) — The SemVer rustdoc nightly pin is written in four files [patch] — todo
 <a id="atlas-semver-pr-step-bounds"></a>- [ATLAS-SEMVER-PR-STEP-BOUNDS](backlog/atlas-semver-pr-step-bounds.md) — The `semver-pr` job's `tool` and `atlas` steps carry no bound and its job bound has no derivation [patch] — todo
-<a id="atlas-semver-pr-test-import-bound"></a>- [ATLAS-SEMVER-PR-TEST-IMPORT-BOUND](backlog/atlas-semver-pr-test-import-bound.md) — The SemVer PR test's `tool_ready()` runs two commands at import with no deadline [patch] — todo
 <a id="atlas-cast-gate-cfg-clippy"></a>- [ATLAS-CAST-GATE-CFG-CLIPPY](backlog/atlas-cast-gate-cfg-clippy.md) — The cast gate exits 0 on code it cannot see: `cfg(not(clippy))` and a second crate target [patch] — todo
-<a id="atlas-artifact-budget-vacuous-root"></a>- [ATLAS-ARTIFACT-BUDGET-VACUOUS-ROOT](backlog/atlas-artifact-budget-vacuous-root.md) — `atlas-artifact-budget.py` reports "within budget" for a revision it cannot read [patch] — todo
 <a id="atlas-export-tree-freshness-residuals"></a>- [ATLAS-EXPORT-TREE-FRESHNESS-RESIDUALS](backlog/atlas-export-tree-freshness-residuals.md) — Four residuals of the fresh-export fix: a chance-passing test, an unstamped auditor export, a peel rule in two places, a peer build that still masks a failing SemVer side [verification] — todo
-<a id="atlas-overlay-satisfies-ranges-001"></a>- [ATLAS-OVERLAY-SATISFIES-RANGES-001](backlog/atlas-overlay-satisfies-ranges-001.md) — Overlay requirement-lag check passes every range requirement [patch] — todo
 <a id="atlas-cast-check-member-ci"></a>- [ATLAS-CAST-CHECK-MEMBER-CI](backlog/atlas-cast-check-member-ci.md) — The cast `check` verdict runs only in the pre-push hook [verification] [patch] — todo
 <a id="atlas-conformance-landed-rows"></a>- [ATLAS-CONFORMANCE-LANDED-ROWS](backlog/atlas-conformance-landed-rows.md) — Conformance baseline rows sit above the counts that landed members measure [tightening] [patch] — todo
 <a id="atlas-hook-commit-msg"></a>- [ATLAS-HOOK-COMMIT-MSG](backlog/atlas-hook-commit-msg.md) — No commit-msg hook is installed anywhere in the stack [verification] [patch] — todo
@@ -137,3 +130,9 @@
 <a id="atlas-sec-chrono-advisory"></a>- [ATLAS-SEC-CHRONO-ADVISORY](backlog/atlas-sec-chrono-advisory.md) — Clear the chrono advisory from every member's audited graph [patch] — todo
 <a id="atlas-lock-restore-proof"></a>- [ATLAS-LOCK-RESTORE-PROOF](backlog/atlas-lock-restore-proof.md) — Restore only proven overlay lock rewrites [patch] — todo
 <a id="atlas-stable-stack-001"></a>- [ATLAS-STABLE-STACK-001](backlog/atlas-stable-stack-001.md) — Qualify every member at a stable major [major] — todo
+<a id="atlas-pin-compile-step-bound"></a>- [ATLAS-PIN-COMPILE-STEP-BOUND](backlog/atlas-pin-compile-step-bound.md) — The pin-compile and pin-drift step bounds sit below their scripts' deadline sums [verification] [patch] — todo
+<a id="atlas-aequitas-scalar-aliases"></a>- [ATLAS-AEQUITAS-SCALAR-ALIASES](backlog/atlas-aequitas-scalar-aliases.md) — Report and then schedule module-level primitive scalar aliases [tightening] [patch] — todo
+<a id="atlas-semver-pr-probe-guard"></a>- [ATLAS-SEMVER-PR-PROBE-GUARD](backlog/atlas-semver-pr-probe-guard.md) — The import-probe deadline test runs only on POSIX hosted runners, where a bare `subprocess.run` passes it [verification] [patch] — todo
+<a id="atlas-stack-overlay-red-2026-11-24"></a>- [ATLAS-STACK-OVERLAY-RED-2026-11-24](backlog/atlas-stack-overlay-red-2026-11-24.md) — The `atlas-stack-overlay` workflow is red on main with four requirement lags and seven drifted lock entries in two lockfiles [verification] [patch] — todo
+<a id="atlas-workflow-bound-sources"></a>- [ATLAS-WORKFLOW-BOUND-SOURCES](backlog/atlas-workflow-bound-sources.md) — Run-sourced timeout bounds name runs outside their stated window, and pytest-fast's inner deadline equals its job bound [verification] [patch] — todo
+<a id="atlas-dependency-cohort-20261127"></a>- [ATLAS-DEPENDENCY-COHORT-20261127](backlog/atlas-dependency-cohort-20261127.md) — Land the Melinoe 0.10.1 dependency cohort [patch] — blocked

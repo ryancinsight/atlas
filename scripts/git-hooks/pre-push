@@ -925,6 +925,47 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
   mkdir -p "$push_lock_root"
   push_lock_guard="$push_lock.reclaim"
   push_lock_owned=0
+  # Git Bash pids live in an MSYS namespace that native Windows Python cannot
+  # probe, and they are reused: there a lock also records its owner's identity
+  # and is judged by the shell's own `kill -0` and `/proc`.
+  push_lock_msys=0
+  case "$OSTYPE" in msys* | cygwin*) push_lock_msys=1 ;; esac
+  process_identity() {
+    # "<MSYS root>|<creation time>": the root names the pid namespace, and
+    # `stat %W` is set once at pid creation. Field 22 of /proc/<pid>/stat is
+    # no identity: each read recomputes it from a boot time that every system
+    # clock step shifts.
+    local born="" root=""
+    born="$(stat -c %W "/proc/$1" 2>/dev/null)" || return 1
+    [[ "$born" =~ ^[1-9][0-9]*$ ]] || return 1
+    root="$(cygpath -m /)" || return 1
+    printf '%s|%s\n' "$root" "$born"
+  }
+  msys_owner_abandoned() {
+    # Succeeds only when the owner provably is not running; every ambiguity
+    # retains the lock, and age alone proves nothing. Nine digits bound the
+    # pid well inside the MSYS range, so an overflowing number is ambiguous.
+    local pid="$1" recorded="$2" current=""
+    [[ "$pid" =~ ^[1-9][0-9]{0,8}$ ]] || return 1
+    # Another MSYS installation numbers its processes separately.
+    [ -z "$recorded" ] || [ "${recorded%%|*}" = "$(cygpath -m /)" ] || return 1
+    if ! kill -0 "$pid" 2>/dev/null && [ ! -e "/proc/$pid" ]; then
+      return 0
+    fi
+    # Alive, or `kill -0` and `/proc` disagree: not the owner only if its
+    # creation time provably differs from the recorded one.
+    [[ "$recorded" =~ ^[^|]+\|[1-9][0-9]*$ ]] || return 1
+    current="$(process_identity "$pid")" || return 1
+    [ "$current" != "$recorded" ]
+  }
+  register_push_lock() {
+    # The bounded runner hard-kills this shell at its deadline, so no trap
+    # runs. It reads this record to release the lock for the owner it retired.
+    [ -n "${ATLAS_GATE_PROGRESS_DIR:-}" ] || return 0
+    printf '%s\n%s\n%s\n' "$push_lock" "$$" "${push_lock_start:-}" \
+      > "$ATLAS_GATE_PROGRESS_DIR/push-lock" 2>/dev/null ||
+      echo "pre-push: warning -- the push lock is not registered with the runner" >&2
+  }
   release_push_lock() {
     # Never reap this guard: a killed guard owner makes recovery unavailable
     # until the owner investigates it, rather than recreating the same race.
@@ -942,7 +983,12 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
     [ ! -e "$push_lock" ] && [ ! -L "$push_lock" ] || return 1
     local staged="$push_lock.$$"
     mkdir "$staged" 2>/dev/null || return 1
-    if ! printf '%s\n' "$$" > "$staged/pid"; then
+    push_lock_start=""
+    if [ "$push_lock_msys" -eq 1 ]; then
+      push_lock_start="$(process_identity "$$")" || push_lock_start=""
+    fi
+    if ! printf '%s\n' "$$" > "$staged/pid" ||
+       { [ -n "$push_lock_start" ] && ! printf '%s\n' "$push_lock_start" > "$staged/start"; }; then
       rm -rf "$staged" 2>/dev/null || true
       return 1
     fi
@@ -952,6 +998,7 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
     if "$python_bin" -c 'import os, sys; os.rename(sys.argv[1], sys.argv[2])' \
       "$staged" "$push_lock" 2>/dev/null; then
       push_lock_owned=1
+      register_push_lock
       return 0
     fi
     rm -rf "$staged" 2>/dev/null || true
@@ -964,11 +1011,15 @@ if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
   fi
   if ! claim_push_lock; then
     push_holder="$(cat "$push_lock/pid" 2>/dev/null || true)"
+    push_holder_start="$(cat "$push_lock/start" 2>/dev/null || true)"
     # Only ESRCH proves the observed owner is dead. Malformed PIDs, EPERM,
-    # missing interpreters and other errors retain the incumbent. Native
-    # Windows Python cannot probe Git Bash/MSYS $$ in its PID namespace;
-    # retain every Windows incumbent rather than misclassify a live shell.
-    if "$python_bin" -c 'import os, sys
+    # missing interpreters and other errors retain the incumbent. Git Bash
+    # takes its own branch; native Windows Python cannot probe its PIDs.
+    if [ "$push_lock_msys" -eq 1 ]; then
+      if msys_owner_abandoned "$push_holder" "$push_holder_start"; then
+        rm -rf "$push_lock" 2>/dev/null || true
+      fi
+    elif "$python_bin" -c 'import os, sys
 if os.name == "nt":
     sys.exit(1)
 try:
