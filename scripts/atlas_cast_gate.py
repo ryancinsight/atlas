@@ -1280,6 +1280,50 @@ def path_refusals(text: str) -> list[str]:
             for value, reason in refused.items()]
 
 
+def discovery_errors(manifest: dict, directory: str, index: PathIndex) -> dict[str, str]:
+    """Why `target_roots` cannot be trusted to find every crate target of a
+    package, by path: a tracked symbolic link at a discovery folder (`src/bin`,
+    `tests`, `examples`, `benches`), on the way to a default crate root or to a
+    target path the manifest declares, or at a directory target (`tests/name`
+    holding a `main.rs`); and a declared target path `windows_rewrites` refuses.
+
+    Cargo lists a discovery folder with `read_dir`, which a Linux checkout
+    with links resolves, and Windows opens the declared path under the name it
+    rewrites. `target_roots` reads tracked paths, so a target beyond a link, or
+    under a spelling it does not read, is absent from it, silently. A link to a
+    file is not here: the walk follows it (`compiled_files`). Where a link leads
+    is not read: the gate names it rather than guess a layout it cannot see.
+    """
+    package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
+    lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
+    declared = [value for value in (lib.get("path"), package.get("build"))
+                if isinstance(value, str)]
+    for key in ("bin", "test", "example", "bench"):
+        entries = manifest.get(key)
+        declared += [entry["path"] for entry in entries if isinstance(entry, dict)
+                     and isinstance(entry.get("path"), str)] if isinstance(entries, list) else []
+    errors: dict[str, str] = {}
+    for value in declared:
+        if reason := windows_rewrites(value):
+            errors[posixpath.join(directory, "Cargo.toml")] = f"the target path {value!r} {reason}"
+    folders = ["src/bin", "tests", "examples", "benches"]
+    spots = [*((folder, True) for folder in folders),
+             *((file, False) for file in ["src/lib.rs", "src/main.rs", "build.rs", *declared])]
+    found: dict[str, str] = {}
+    for spot, whole in spots:
+        parts = path_clean(spot).split("/")
+        for depth in range(1, len(parts) + int(whole)):
+            for link in index.links.intersection(index.at(posixpath.join(directory, *parts[:depth]))):
+                found.setdefault(link, f"a symbolic link on the way to `{spot}`")
+    for folder in folders:
+        parent = path_key(posixpath.join(directory, folder))
+        for link in sorted(index.links):
+            if posixpath.dirname(path_key(link)) == parent and not link.endswith(".rs"):
+                found.setdefault(link, f"a symbolic link in `{folder}`, where a target directory is found")
+    return errors | {link: f"{reason}; the gate does not read through a link there, and a "
+                           "Linux checkout follows it" for link, reason in sorted(found.items())}
+
+
 def compiled_files(index: PathIndex, read: Callable[[str], str | None],
                    root: str) -> tuple[set[str], dict[str, str]]:
     """The files the crate root `root` compiles, and why any could not be read:
@@ -1307,8 +1351,8 @@ def compiled_files(index: PathIndex, read: Callable[[str], str | None],
     finds, whose children resolve beside the link (rustc keeps a module's path
     as written: recalled, not compiled here). A link that leads to no tracked
     file is an error where the walk reaches it or a path through it: the gate
-    does not read through a linked directory, nor does `target_roots`
-    discover a target through one. A file with a path literal that
+    does not read through a linked directory (`discovery_errors` names one
+    where Cargo discovers targets). A file with a path literal that
     `windows_rewrites` refuses is an error too, though its modules are still
     walked: the gate does not model the rewrite. Not followed: a `mod` a macro
     writes, and `include!` of anything but a literal.

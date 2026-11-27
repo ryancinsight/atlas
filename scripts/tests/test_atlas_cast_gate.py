@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import posixpath
 import random
 import shutil
 import subprocess
@@ -2866,6 +2867,77 @@ def test_a_refused_path_is_named_as_it_decodes_and_where_it_is_written(token, va
     files = {"src/lib.rs": f"// {token}\n\n#[path = {token}] mod c;", "src/cast.rs": ""}
     errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1]
     assert errors["src/lib.rs"].startswith(f"line 3: the path {value!r} ")
+
+
+LINK_NOTE = "; the gate does not read through a link there, and a Linux checkout follows it"
+
+
+@pytest.mark.parametrize("manifest, directory, tracked, links, expected", [
+    ({}, "", {"Cargo.toml", "t2/x.rs"}, {"tests"}, {"tests": "a symbolic link on the way to "
+                                                              "`tests`"}),
+    ({}, "", {"Cargo.toml"}, {"src/bin"}, {"src/bin": "a symbolic link on the way to `src/bin`"}),
+    ({}, "", {"Cargo.toml"}, {"Examples"}, {"Examples": "a symbolic link on the way to "
+                                                        "`examples`"}),
+    ({}, "", {"Cargo.toml"}, {"benches"}, {"benches": "a symbolic link on the way to "
+                                                      "`benches`"}),
+    ({}, "", {"Cargo.toml"}, {"src"}, {"src": "a symbolic link on the way to `src/bin`"}),
+    ({}, "pkg", {"pkg/Cargo.toml"}, {"pkg/tests"}, {"pkg/tests": "a symbolic link on the way "
+                                                                 "to `tests`"}),
+    ({"test": [{"name": "x", "path": "t/x.rs"}]}, "", {"Cargo.toml"}, {"t"},
+     {"t": "a symbolic link on the way to `t/x.rs`"}),
+    ({"lib": {"path": "gen/lib.rs"}}, "", {"Cargo.toml"}, {"gen"},
+     {"gen": "a symbolic link on the way to `gen/lib.rs`"}),
+    ({}, "", {"Cargo.toml"}, {"examples/e"},
+     {"examples/e": "a symbolic link in `examples`, where a target directory is found"}),
+    ({}, "", {"Cargo.toml"}, {"src/bin/tool"},
+     {"src/bin/tool": "a symbolic link in `src/bin`, where a target directory is found"}),
+])
+def test_a_link_where_cargo_discovers_targets_is_named(manifest, directory, tracked, links,
+                                                       expected):
+    index = gate.path_index(tracked | links, links)
+    assert gate.discovery_errors(manifest, directory, index) == {
+        link: reason + LINK_NOTE for link, reason in expected.items()}
+
+
+@pytest.mark.parametrize("manifest, directory, tracked, links, expected", [
+    ({}, "", {"Cargo.toml", "tests/x.rs", "src/lib.rs"}, set(), {}),  # the control: real files
+    ({}, "", {"Cargo.toml", "tests/x.rs"}, {"tests/x.rs"}, {}),      # a link to a file is walked
+    ({}, "", {"Cargo.toml", "src/lib.rs"}, {"src/lib.rs"}, {}),
+    ({}, "", {"Cargo.toml", "docs/x.rs"}, {"docs"}, {}),             # no target is found there
+    ({}, "pkg", {"pkg/Cargo.toml"}, {"other/tests"}, {}),
+])
+def test_a_link_off_the_discovery_paths_is_not_named(manifest, directory, tracked, links,
+                                                     expected):
+    index = gate.path_index(tracked | links, links)
+    assert gate.discovery_errors(manifest, directory, index) == expected
+
+
+@pytest.mark.parametrize("manifest, directory, errors", [
+    ({"lib": {"path": "src/lib.rs."}}, "",
+     {"Cargo.toml": "the target path 'src/lib.rs.' " + DOT.format("lib.rs.")}),
+    ({"bin": [{"name": "t", "path": "src/t.rs "}]}, "pkg",
+     {"pkg/Cargo.toml": "the target path 'src/t.rs ' " + DOT.format("t.rs ")}),
+    ({"package": {"build": "build.rs::$DATA"}}, "",
+     {"Cargo.toml": "the target path 'build.rs::$DATA' " + COLON}),
+    ({"lib": {"path": "src/lib.rs"}, "bin": [{"name": "t", "path": "src/t.rs"}]}, "", {}),
+])
+def test_a_declared_target_path_a_windows_host_rewrites_is_named(manifest, directory, errors):
+    index = gate.path_index({posixpath.join(directory, "Cargo.toml")})
+    assert gate.discovery_errors(manifest, directory, index) == errors
+
+
+def test_a_revision_names_a_linked_discovery_folder(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "t2").mkdir()
+    (repo / "t2" / "x.rs").write_bytes(b'#[path = "../src/cast.rs"]\nmod cast;\n')
+    (repo / "Cargo.toml").write_bytes(b'[package]\nname = "core"\n')
+    commit(repo, "files")
+    tip = track_link(repo, tmp_path, "tests", "t2")
+    with gate.Revision(repo, tip) as tree:
+        assert gate.discovery_errors({}, "", tree.index) == {
+            "tests": "a symbolic link on the way to `tests`" + LINK_NOTE}
+        assert gate.target_roots({}, "", tree.index) == []
 
 
 def test_target_roots_are_every_tracked_path_a_host_could_open_under_a_name():
