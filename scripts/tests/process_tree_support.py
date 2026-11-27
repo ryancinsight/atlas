@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import pathlib
 import socket
 import subprocess
@@ -116,3 +117,28 @@ def budget_from_readiness(listener: socket.socket):
             )
         )
         yield
+
+
+def is_running(pid: int) -> bool:
+    """Whether process `pid` is active after process-tree cleanup returns."""
+    if os.name == "nt":
+        import ctypes
+
+        kernel = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        handle = kernel.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
+        if not handle:
+            return False
+        try:
+            # WAIT_OBJECT_0: the process has exited.
+            return kernel.WaitForSingleObject(handle, 0) != 0
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    try:
+        # A killed process is a zombie until its parent reaps it.
+        return pathlib.Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split(") ")[-1][0] != "Z"
+    except OSError:
+        return True

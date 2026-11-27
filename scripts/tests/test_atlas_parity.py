@@ -432,6 +432,49 @@ class RepositoryEvidenceTests(unittest.TestCase):
         self.assertEqual(qualified, {"atlas"})
         self.assertEqual(set(records), {"atlas-exit"})
 
+    def rocm_evidence(self):
+        feature, = self.feature_gate["features"]
+        inventory = self.repos["atlas"]
+        inventory["critical_features"] = ["rocm-laplacian"]
+        inventory["critical_feature_devices"] = {"rocm-laplacian": {"backend": "rocm", "vendor": "amd"}}
+        feature["id"] = "rocm-laplacian"
+        feature["product_path"] = "rocm_laplacian 0"
+        feature["execution_device"] = {
+            "backend": "rocm", "vendor": "amd", "ordinal": 0,
+            "compute_units": 60, "device_memory_bytes": 8 * 1024**3,
+        }
+        return feature
+
+    def test_required_device_evidence_accepted(self):
+        self.rocm_evidence()
+        _, qualified = validate_repository_evidence([self.record], self.repos)
+        self.assertEqual(qualified, {"atlas"})
+
+    def test_cpu_fallback_and_other_gpu_backends_are_rejected(self):
+        feature = self.rocm_evidence()
+        for backend, vendor in [("cpu", "amd"), ("wgpu", "amd"), ("rocm", "nvidia")]:
+            with self.subTest(backend=backend, vendor=vendor):
+                feature["execution_device"].update(backend=backend, vendor=vendor)
+                with self.assertRaisesRegex(ParityError, "execution device mismatch or fallback"):
+                    validate_repository_evidence([self.record], self.repos)
+
+    def test_sdk_only_or_missing_device_evidence_is_rejected(self):
+        feature = self.rocm_evidence()
+        device = feature.pop("execution_device")
+        with self.assertRaisesRegex(ParityError, "execution_device"):
+            validate_repository_evidence([self.record], self.repos)
+        for key, value in [("ordinal", -1), ("compute_units", 0), ("device_memory_bytes", 0)]:
+            with self.subTest(key=key):
+                feature["execution_device"] = {**device, key: value}
+                with self.assertRaisesRegex(ParityError, "incomplete native device identity"):
+                    validate_repository_evidence([self.record], self.repos)
+
+    def test_unlisted_feature_device_requirement_is_rejected(self):
+        self.rocm_evidence()
+        self.repos["atlas"]["critical_features"] = ["integrated-study"]
+        with self.assertRaisesRegex(ParityError, "device required for unlisted feature"):
+            validate_repository_evidence([self.record], self.repos)
+
     def test_missing_actual_repository_gate_rejected(self):
         self.record["gates"].pop()
         with self.assertRaisesRegex(ParityError, "missing repository exit gates"):

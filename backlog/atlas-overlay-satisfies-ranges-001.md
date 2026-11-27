@@ -1,7 +1,0 @@
-<a id="atlas-overlay-satisfies-ranges-001"></a>
-## ATLAS-OVERLAY-SATISFIES-RANGES-001 — Overlay requirement-lag check passes every range requirement [patch] — todo
-- outcome: `satisfies()` in `scripts/atlas-stack-overlay.py` evaluates comparator requirements (`<`, `<=`, `>`, `>=`, `=`, `~`, and comma-joined sets such as `>=0.46.4, <0.49.0`) with Cargo's semantics, and an unparsable form raises a typed error instead of passing.
-- evidence (origin/main b2b4cbb41): `satisfies()` returns True for any requirement whose first character is in `<>=~` (lines 548-549), though its docstring says such forms are "reported as unknown rather than silently passed". Its three callers (lines 411, 465, 711) are the generator's patch-edge selection and the requirement-lag half of `check`. Requirements of the form `>=0.46.4, <0.49.0` are in-stack (version-guard run 43819076415), so the lag half is vacuous for them.
-- Oracle: tests in `scripts/tests/test_atlas_stack_overlay.py`: `satisfies("0.50.0", ">=0.46.4, <0.49.0")` is False, `satisfies("0.48.0", ">=0.46.4, <0.49.0")` is True, one case per operator against the Cargo reference's examples, and a malformed requirement raises the typed error.
-- basis: b2b4cbb41fef14582d71d9c260db0d12426ed8fd; priority: verification; needs: none; scope: `scripts/atlas-stack-overlay.py`, `scripts/tests/test_atlas_stack_overlay.py`
-- Next step: replace the `<>=~` early return with a comparator evaluator; the first run after it lands reports the leto range lag, so sequence it with the leto leg of ATLAS-VERSION-COHERENCE-SWEEP-2026-09-30.
