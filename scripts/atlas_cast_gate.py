@@ -670,7 +670,9 @@ def second_target_problems(tip: Revision, cast_modules: Mapping[str, str]) -> li
     `clippy::duplicate_mod` works per crate, and `sites()` merges a span two
     builds report, so a second target that mounts the module is counted once
     and linted once. A file the walk reaches and cannot read fails the package:
-    the gate cannot tell what that file mounts.
+    the gate cannot tell what that file mounts. A registered package no
+    manifest that parses declares is not walked: `unparsed_manifests` refuses
+    the push when that package is pushed and names the manifest otherwise.
     """
     problems = []
     for path, manifest in tip.manifests[0].items():

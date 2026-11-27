@@ -3087,3 +3087,24 @@ def test_a_registered_package_whose_manifest_only_cargo_parses_is_refused(tmp_pa
         manifest_extra=MULTILINE_TABLE)
     assert _check_targets(repo, tip, rules, sites) == 1
     assert "cast gate: Cargo.toml does not parse as TOML here (" in capsys.readouterr().err
+
+
+# `core` mounts its cast module from two targets and the push is of `p` alone.
+# While the manifest of `core` parses, the second mount fails the push; once
+# only cargo parses it, the walk cannot find `core` and the run names the
+# manifest instead of refusing a push of another package for it.
+@pytest.mark.parametrize("manifest_extra, code, problem, note", [
+    ("", 1, "cast gate: core: cast module src/cast.rs is compiled by more than one", ""),
+    (MULTILINE_TABLE, 0, "", f"cast gate: Cargo.toml{UNPARSED}"),
+])
+def test_a_registered_package_not_pushed_is_walked_only_while_its_manifest_parses(
+        tmp_path, capsys, manifest_extra, code, problem, note):
+    files = {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN,
+             "other/Cargo.toml": MEMBER_MANIFEST, "other/src/lib.rs": FINE}
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, files, manifest_extra=manifest_extra)
+    assert code == gate.main(["--baseline", str(rules), "check", "--member", "m",
+                              "--repo", str(repo), "--tip", tip, "--package", "p",
+                              "--sites", str(sites)])
+    said = capsys.readouterr()
+    assert (said.err.startswith(problem), said.out.startswith(note)) == (True, True)
+    assert (bool(said.err), bool(said.out)) == (bool(problem), bool(note))
