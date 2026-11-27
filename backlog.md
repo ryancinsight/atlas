@@ -75,7 +75,6 @@
 <a id="atlas-substrate-004"></a>- [ATLAS-SUBSTRATE-004](backlog/atlas-substrate-004.md) — Generic plan/execution layer for Apollo [arch] — todo
 <a id="atlas-target-001"></a>- [ATLAS-TARGET-001](backlog/atlas-target-001.md) — One build cache, one debug budget [patch] — todo
 <a id="atlas-test-tempdir-leaks"></a>- [ATLAS-TEST-TEMPDIR-LEAKS](backlog/atlas-test-tempdir-leaks.md) — Atlas Python tests leave temp directories behind [tightening] [patch] — todo
-<a id="atlas-unwired-gates-224"></a>- [ATLAS-UNWIRED-GATES-224](backlog/atlas-unwired-gates-224.md) — Instruments that exist, pass, and are never run [patch] — todo
 <a id="atlas-us-capability-023"></a>- [ATLAS-US-CAPABILITY-023](backlog/atlas-us-capability-023.md) — ITKUltrasound capability parity [arch] — todo
 <a id="atlas-usct-fwi-024"></a>- [ATLAS-USCT-FWI-024](backlog/atlas-usct-fwi-024.md) — Transmission-USCT FWI parity [minor] — todo
 <a id="atlas-version-guard-001"></a>- [ATLAS-VERSION-GUARD-001](backlog/atlas-version-guard-001.md) — Manifest-version guard and stack coherence check [patch] — todo
@@ -133,5 +132,6 @@
 <a id="atlas-semver-pr-probe-guard"></a>- [ATLAS-SEMVER-PR-PROBE-GUARD](backlog/atlas-semver-pr-probe-guard.md) — The import-probe deadline test runs only on POSIX hosted runners, where a bare `subprocess.run` passes it [verification] [patch] — todo
 <a id="atlas-stack-overlay-red-2026-11-24"></a>- [ATLAS-STACK-OVERLAY-RED-2026-11-24](backlog/atlas-stack-overlay-red-2026-11-24.md) — The `atlas-stack-overlay` workflow is red on main with four requirement lags and seven drifted lock entries in two lockfiles [verification] [patch] — todo
 <a id="atlas-workflow-bound-sources"></a>- [ATLAS-WORKFLOW-BOUND-SOURCES](backlog/atlas-workflow-bound-sources.md) — Run-sourced timeout bounds name runs outside their stated window, and pytest-fast's inner deadline equals its job bound [verification] [patch] — todo
+<a id="atlas-dependency-cohort-20261127"></a>- [ATLAS-DEPENDENCY-COHORT-20261127](backlog/atlas-dependency-cohort-20261127.md) — Land the Melinoe 0.10.1 dependency cohort [patch] — blocked
 <a id="atlas-conformance-installed-state"></a>- [ATLAS-CONFORMANCE-INSTALLED-STATE](backlog/atlas-conformance-installed-state.md) — The conformance scan asserts no installed state: hook path, config include, target dir [verification] [patch] — todo
 <a id="atlas-semver-foreign-supertrait"></a>- [ATLAS-SEMVER-FOREIGN-SUPERTRAIT](backlog/atlas-semver-foreign-supertrait.md) — The SemVer gate reports no break when a published trait drops a foreign supertrait [verification] [patch] — todo

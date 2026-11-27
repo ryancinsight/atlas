@@ -23,7 +23,8 @@ from atlas_parity_numpy_dtype import prepare_numpy_dtype, validate_numpy_dtype
 from atlas_parity_torch_dtype import prepare_torch_dtype, validate_torch_dtype
 from atlas_parity_public_evidence import prepare_public_evidence, validate_public_evidence
 from atlas_parity_tf_conversion import prepare_tf_conversion, validate_tf_conversion
-from atlas_parity_repository import ATLAS_GATES, RUST_GATES, validate_repository_evidence
+from atlas_parity_repository import (ATLAS_GATES, RUST_GATES, critical_feature_devices,
+                                     validate_repository_evidence)
 from atlas_parity_schema import (ParityError, api_identity, dag, digest, fields, finite_number, https,
                                  local_path, need, nonempty, read_json, revision, source_entry_at, unique)
 
@@ -43,6 +44,7 @@ def program_structure(program: dict, capabilities: dict, repositories: dict, pac
         need(minimum <= set(row["required_gates"]), f"{repo}: required exit gates removed")
         need(bool(row["entry"]) and bool(row["exit"]), f"{repo}: missing 1.0 criteria")
         nonempty(row["specific_exit"], repo)
+        critical_feature_devices(row, repo)
     for identity, row in capabilities.items():
         fields(row, {"owner": str, "contract": dict, "tests": dict, "benchmark": dict,
                      "status": dict, "definition_of_done": str}, identity)
