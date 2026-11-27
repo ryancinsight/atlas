@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import types
 import unittest
 from pathlib import Path
@@ -14,6 +16,7 @@ from unittest import mock
 import pytest
 
 import atlas_semver_pr as gate
+import process_tree
 
 
 class ComparisonTests(unittest.TestCase):
@@ -123,18 +126,149 @@ class SummaryTests(unittest.TestCase):
 
 
 PINNED = "nightly-2026-08-01"
+SEMVER_CHECKS_TOOL = "cargo-semver-checks 0.51.0"
+# `skipUnless` below is evaluated when the module is imported, so a probe that
+# stalls here blocks collection of the whole file before any test's own budget
+# applies. Measured on a development host, ten runs each on 2026-11-24:
+# `cargo semver-checks --version` 0.09 s median and 0.10 s maximum, `rustup
+# toolchain list` 0.04 s. No hosted-runner figure exists for either probe;
+# process_tree.py records a 15x CI-to-host slowdown, which puts the 0.10 s
+# maximum at 1.5 s. 60 s is therefore a finite stall detector, 40x that, not a
+# derived limit; a probe past it reads as not ready.
+PROBE_TIMEOUT_SECONDS = 60
+TOOLS = ("cargo", "git", "cargo-semver-checks", "rustup")
+PROBES = (["cargo", "semver-checks", "--version"], ["rustup", "toolchain", "list"])
 
 
-def tool_ready() -> bool:
-    if not all(shutil.which(tool) for tool in ("cargo", "git", "cargo-semver-checks")):
-        return False
-    version = subprocess.run(["cargo", "semver-checks", "--version"], capture_output=True, text=True)
-    installed = subprocess.run(["rustup", "toolchain", "list"], capture_output=True, text=True)
-    return version.stdout.strip() == "cargo-semver-checks 0.51.0" and PINNED in installed.stdout
+def probe(argv: list[str]) -> tuple[str | None, str]:
+    """The probe's stdout, or why it did not answer: a stall is not a verdict."""
+    try:
+        done = process_tree.run(argv, timeout=PROBE_TIMEOUT_SECONDS)
+    except process_tree.ProcessTreeTimeout:
+        return None, f"`{' '.join(argv)}` did not answer within {PROBE_TIMEOUT_SECONDS:g} s"
+    except process_tree.ProcessTreeCleanupError as error:
+        return None, f"`{' '.join(argv)}` left a process tree it could not retire: {error.cleanup_error}"
+    except OSError as error:
+        return None, f"`{' '.join(argv)}` could not run: {error.strerror}"
+    return done.stdout.decode("utf-8", "replace"), ""
+
+
+def tool_ready() -> tuple[bool, str]:
+    """Whether this host can run the slow test, and the reason when it cannot."""
+    missing = [tool for tool in TOOLS if not shutil.which(tool)]
+    if missing:
+        return False, f"needs {', '.join(TOOLS)}; not on PATH: {', '.join(missing)}"
+    version, reason = probe(PROBES[0])
+    if reason:
+        return False, reason
+    installed, reason = probe(PROBES[1])
+    if reason:
+        return False, reason
+    if version.strip() != SEMVER_CHECKS_TOOL:
+        return False, f"needs {SEMVER_CHECKS_TOOL}, found {version.strip() or 'no version'}"
+    if PINNED not in installed:
+        return False, f"needs the pinned toolchain {PINNED}"
+    return True, ""
+
+
+READY, READY_REASON = tool_ready()
+
+
+class ReadinessTests(unittest.TestCase):
+    """The import-time probe is bounded, so collecting this file cannot hang."""
+
+    def readiness(self, run, which=lambda tool: f"/bin/{tool}"):
+        """`tool_ready()` with the host replaced: no probe here touches the tools."""
+        with mock.patch.object(process_tree, "run", run), mock.patch.object(shutil, "which", which):
+            return tool_ready()
+
+    def test_each_probe_carries_the_one_deadline(self) -> None:
+        calls = []
+
+        def run(argv, **kwargs):
+            calls.append((argv, kwargs))
+            answer = SEMVER_CHECKS_TOOL if argv == PROBES[0] else PINNED
+            return types.SimpleNamespace(stdout=(answer + "\n").encode())
+
+        self.assertEqual(self.readiness(run), (True, ""))
+        self.assertEqual([kwargs.get("timeout") for _, kwargs in calls],
+                         [PROBE_TIMEOUT_SECONDS] * len(PROBES))
+        self.assertEqual([argv for argv, _ in calls], list(PROBES))
+
+    def test_a_stalled_probe_is_not_ready_and_names_itself(self) -> None:
+        for stalled in PROBES:
+            with self.subTest(probe=" ".join(stalled)):
+                def run(argv, **kwargs):
+                    if argv == stalled:
+                        raise process_tree.ProcessTreeTimeout(argv, kwargs["timeout"], None, None, None)
+                    return types.SimpleNamespace(stdout=b"")
+                ready, reason = self.readiness(run)
+                self.assertFalse(ready)
+                self.assertIn(f"`{' '.join(stalled)}` did not answer within", reason)
+
+    def test_the_deadline_ends_a_child_that_leaves_a_grandchild_holding_the_pipe(self) -> None:
+        """A bare `subprocess.run(timeout=)` waits for the grandchild on Windows.
+
+        Its kill reaches the child only, and the `communicate()` that follows
+        returns when every holder of the stdout pipe has closed it: the
+        grandchild's whole sleep. The runner owns the tree, so the probe returns
+        within the deadline plus the runner's bounded cleanup.
+        """
+        deadline = 3.0
+        bound = deadline + process_tree.PROCESS_TREE_CLEANUP_SECONDS
+        grandchild_seconds = 3 * bound
+        with tempfile.TemporaryDirectory() as scratch:
+            spawned = Path(scratch) / "grandchild-spawned"
+            child = (
+                "import pathlib, subprocess, sys, time\n"
+                f"subprocess.Popen([sys.executable, '-c', 'import time; time.sleep({grandchild_seconds})'])\n"
+                f"pathlib.Path({str(spawned)!r}).write_bytes(b'')\n"
+                f"time.sleep({grandchild_seconds})\n")
+            started = time.monotonic()
+            with mock.patch.object(sys.modules[__name__], "PROBE_TIMEOUT_SECONDS", deadline):
+                stdout, reason = probe([sys.executable, "-c", child])
+            elapsed = time.monotonic() - started
+            self.assertTrue(spawned.is_file(), "the child was killed before it spawned the grandchild")
+        self.assertIsNone(stdout)
+        self.assertIn(f"did not answer within {deadline:g} s", reason)
+        self.assertLess(elapsed, bound)
+
+    def test_every_other_not_ready_answer_says_why(self) -> None:
+        def answer(version=SEMVER_CHECKS_TOOL, installed=PINNED):
+            return lambda argv, **kwargs: types.SimpleNamespace(
+                stdout=((version if argv == PROBES[0] else installed) + "\n").encode())
+
+        cases = {
+            "not on PATH: rustup": (
+                answer(), lambda tool: None if tool == "rustup" else "/bin/x"),
+            "found cargo-semver-checks 0.50.0": (
+                answer(version="cargo-semver-checks 0.50.0"), None),
+            f"pinned toolchain {PINNED}": (
+                answer(installed="stable-x86_64-unknown-linux-gnu"), None),
+        }
+        for expected, (run, which) in cases.items():
+            with self.subTest(expected):
+                ready, reason = self.readiness(run, which) if which else self.readiness(run)
+                self.assertFalse(ready)
+                self.assertIn(expected, reason)
+
+    def test_a_tree_the_runner_cannot_retire_is_not_ready(self) -> None:
+        def run(argv, **kwargs):
+            raise process_tree.ProcessTreeCleanupError("job still holds a process")
+        ready, reason = self.readiness(run)
+        self.assertFalse(ready)
+        self.assertIn("could not retire: job still holds a process", reason)
+
+    def test_a_probe_that_cannot_start_is_not_ready(self) -> None:
+        def run(argv, **kwargs):
+            raise FileNotFoundError(2, "No such file or directory", argv[0])
+        ready, reason = self.readiness(run)
+        self.assertFalse(ready)
+        self.assertIn("could not run", reason)
 
 
 @pytest.mark.slow
-@unittest.skipUnless(tool_ready(), "needs git, cargo, cargo-semver-checks 0.51.0 and the pinned nightly")
+@unittest.skipUnless(READY, READY_REASON)
 class MovedGitDependencyTests(unittest.TestCase):
     """The base requires `^0.11.0` of a git dependency whose head is now 0.12.0."""
 
