@@ -26,9 +26,12 @@ on a new cast. This gate is the enforcement:
   and `include!("literal")` files of any extension, wherever they lie) and the
   tracked `.rs` files under its directory that no other workspace member holds,
   with comments and strings blanked, and refuses a file that cannot be read as
-  Rust. A manifest `tomllib` rejects fails the push naming the manifest. A
-  predicate built by macro substitution (`#[cfg(not($p))]`) has no `cfg(` token
-  and is not seen;
+  Rust. A tracked manifest `tomllib` rejects may declare any package
+  (`unparsed_manifests`): it fails the push, named, when no manifest that
+  parses declares some pushed package, and is otherwise named on standard
+  output while the files under it stay in the scan of the package around
+  them. A predicate built by macro substitution (`#[cfg(not($p))]`) has no
+  `cfg(` token and is not seen;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -563,8 +566,9 @@ def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], d
     adds every tracked `.rs` file under the package directory that no other
     workspace member's directory contains: a file no `mod` reaches can still
     be compiled by a macro the walk does not read. A manifest that declares no
-    package, or is not a member, fences nothing off. A package no manifest
-    names has no files.
+    package, is not a member, or does not parse fences nothing off. A package
+    no parsed manifest names has no files (`unparsed_manifests` refuses the
+    push when a manifest that does not parse could be its own).
     """
     manifests = tip.manifests[0]
     members = member_directories(manifests)
@@ -586,6 +590,33 @@ def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], d
                   if file.endswith(".rs") and file.startswith(prefix)
                   and not file.startswith(nested)}
     return files, errors
+
+
+def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str], list[str]]:
+    """The tracked manifests `tomllib` rejects, as (problems, notes): each is
+    named once, in the first list when it refuses the push.
+
+    A manifest that does not parse may declare any package. When some pushed
+    package is declared by no manifest that parses, one of them may be its
+    own, `package_sources` then finds the package no files, and every such
+    manifest is a problem. When a manifest that parses declares each pushed
+    package, its targets and directory give the scan its files, and the
+    manifest that does not parse is not a workspace member the scan steps
+    around (`member_directories` reads parsed manifests), so the files under
+    it stay with the package around them: the push is not refused for a
+    manifest it may not own, and a note names the manifest.
+    """
+    parsed, refused = tip.manifests
+    declared = {package_name(manifest) for manifest in parsed.values()}
+    unnamed = sorted(set(packages).difference(declared))
+    if unnamed:
+        names = ", ".join(f"`{name}`" for name in unnamed)
+        return [f"{error}, and no manifest that parses declares the pushed package {names}"
+                for _, error in sorted(refused.items())], []
+    return [], [f"{error}; a manifest that parses declares every pushed package, so the "
+                "push is not refused for it, and the files under its directory stay in "
+                "the scan of a pushed package whose directory holds them"
+                for _, error in sorted(refused.items())]
 
 
 def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
@@ -1833,8 +1864,14 @@ def check(args: argparse.Namespace) -> int:
     problems += violations(args.member, found, added, args.package, baseline, base,
                            held, modules)
     with Revision(repo, args.tip) as tip:
-        problems += [str(error) for error in tip.manifests[1].values()]
+        refusals, notes = unparsed_manifests(tip, args.package)
+        problems += refusals
         problems += cfg_clippy_problems(tip, args.package)
+    # Standard error holds what fails the push and the base line above. A note
+    # fails nothing and goes to standard output, which the pre-push hook sends
+    # to the same terminal (`check ... >&2`).
+    for note in notes:
+        print(f"cast gate: {note}")
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:
