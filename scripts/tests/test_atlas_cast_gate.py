@@ -2765,6 +2765,109 @@ def test_a_reached_file_that_does_not_lex_is_reported_with_its_path():
         {"src/lib.rs", "src/a.rs", "src/b.rs"}, {"src/a.rs": "an unclosed block comment"})
 
 
+DOT = "has the component {0!r}, whose trailing dot or space Windows drops"
+COLON = "holds a colon, which Windows reads as a drive or a data stream"
+DEVICE = "has the component {0!r}, which Windows reads as a device"
+ALIAS = "has the component {0!r}, which may be an 8.3 alias of another name"
+
+
+@pytest.mark.parametrize("text, value, reason", [
+    ('#[path = "cast.rs."]\nmod c;', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = "cast.rs "]\nmod c;', "cast.rs ", DOT.format("cast.rs ")),
+    ('#[path = "cast.rs::$DATA"]\nmod c;', "cast.rs::$DATA", COLON),
+    ('#[path = "src./cast.rs"]\nmod c;', "src./cast.rs", DOT.format("src.")),
+    ('#[path = "../gen/h.inc."]\nmod h;', "../gen/h.inc.", DOT.format("h.inc.")),
+    ('#[path = "../gen/dir /h.inc"]\nmod h;', "../gen/dir /h.inc", DOT.format("dir ")),
+    ('#[cfg_attr(unix, path = "cast.rs.")]\nmod c;', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = "sub."]\nmod m { mod cast; }', "sub.", DOT.format("sub.")),
+    ('include!("cast.rs.");', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = r"gen\\h.inc "]\nmod h;', "gen\\h.inc ", DOT.format("h.inc ")),
+    ('#[path = "c:cast.rs"]\nmod c;', "c:cast.rs", COLON),
+    ('#[path = "nul.rs"]\nmod c;', "nul.rs", DEVICE.format("nul.rs")),
+    ('#[path = "x/COM1"]\nmod c;', "x/COM1", DEVICE.format("COM1")),
+    ('#[path = "CAST~1.RS"]\nmod c;', "CAST~1.RS", ALIAS.format("CAST~1.RS")),
+])
+def test_a_path_a_windows_host_reads_as_another_file_is_refused_naming_line_and_value(
+        text, value, reason):
+    # `src/lib.rs` line 3 holds the literal; line 1 mentions the same value in a comment
+    source = f"// {value}\npub fn f() {{}}\n{text}"
+    files = {"src/lib.rs": source, "src/cast.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1] == {
+        "src/lib.rs": f"line 3: the path {value!r} {reason}"}
+
+
+@pytest.mark.parametrize("text", [
+    '#[path = "cast.rs"]\nmod c;', '#[path = "./cast.rs"]\nmod c;', '#[path = "../src/cast.rs"]\nmod c;',
+    '#[path = "a b.rs"]\nmod c;', '#[path = "dir.d/x.rs"]\nmod c;', '#[path = "x..y.rs"]\nmod c;',
+    '#[path = r"..\\src\\cast.rs"]\nmod c;', 'include!("sub/inc.in");',
+    'let path = "x.";\nlet other = r#"#[path = "y."] mod z;"#;',
+    '// #[path = "x."]\n/* include!("y."); */\nmod c;',
+    '#[doc(path = "x.")]\nfn f() {}',
+])
+def test_a_path_every_host_reads_alike_is_not_refused(text):
+    files = {"src/lib.rs": text, "src/cast.rs": "", "src/x..y.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1] == {}
+
+
+def test_a_refused_path_leaves_the_rest_of_the_walk_to_run():
+    files = {"src/lib.rs": '#[path = "cast.rs."] mod c;\nmod a;', "src/a.rs": "mod b;",
+             "src/a/b.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert (reached, list(errors)) == ({"src/lib.rs", "src/a.rs", "src/a/b.rs"}, ["src/lib.rs"])
+
+
+@pytest.mark.parametrize("text", [
+    r'#[path = "ca\x73t.rs"] mod c;',
+    r'#[path = "ca\u{73}t.rs"] mod c;',
+    r'#[path = "ca\u{0073}t.rs"] mod c;',
+    r'#[path = "ca\u{7_3}t.rs"] mod c;',
+    '#[path = "ca\\\n        st.rs"] mod c;',
+    '#[path = "ca\\\r\n        st.rs"] mod c;',
+    r'#[path = "\x2e/cast.rs"] mod c;',
+    r'#[path = "..\\src\\cast.rs"] mod c;',
+    r'#[path = "../src/ca\x73t.rs"] mod c;',
+    r'#[cfg_attr(unix, path = "ca\x73t.rs")] mod c;',
+    r'include!("ca\x73t.rs");',
+    r'#[path = "\x2e"] mod m { mod cast; }',
+])
+def test_a_path_literal_is_read_with_its_escapes_decoded_as_rustc_does(text):
+    files = {"src/lib.rs": text, "src/cast.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert (reached, errors) == ({"src/lib.rs", "src/cast.rs"}, {})
+
+
+@pytest.mark.parametrize("text", [
+    r'#[path = r"ca\x73t.rs"] mod c;',      # a raw string has no escapes
+    r'#[path = r#"ca\u{73}t.rs"#] mod c;',
+])
+def test_a_raw_path_literal_is_read_as_written(text):
+    files = {"src/lib.rs": text, "src/cast.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+
+
+@pytest.mark.parametrize("token", [
+    r'"ca\qt.rs"', r'"\x80"', r'"\x7"', r'"\u{D800}"', r'"\u{110000}"', r'"\u{1234567}"',
+    r'"\u{}"', r'"\u{"', r'"\101"',
+])
+def test_a_path_literal_with_an_escape_rust_does_not_have_is_refused(token):
+    files = {"src/lib.rs": f"#[path = {token}] mod c;", "src/cast.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert reached == {"src/lib.rs"}
+    assert list(errors) == ["src/lib.rs"]
+    assert errors["src/lib.rs"].startswith(f"the string literal {token} holds the escape ")
+
+
+@pytest.mark.parametrize("token, value", [
+    (r'"cast.rs\x2e"', "cast.rs."), (r'"cast.rs\u{20}"', "cast.rs "),
+    (r'"cast.rs\u{3A}\x3a$DATA"', "cast.rs::$DATA"),
+])
+def test_a_refused_path_is_named_as_it_decodes_and_where_it_is_written(token, value):
+    files = {"src/lib.rs": f"// {token}\n\n#[path = {token}] mod c;", "src/cast.rs": ""}
+    errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1]
+    assert errors["src/lib.rs"].startswith(f"line 3: the path {value!r} ")
+
+
 def test_target_roots_are_every_tracked_path_a_host_could_open_under_a_name():
     roots = {"src/lib.rs", "src/Lib.rs", "Tests/a.rs", "tests/A.rs", "Examples/e/Main.rs",
              "SRC/BIN/t.rs"}

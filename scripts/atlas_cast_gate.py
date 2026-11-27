@@ -749,11 +749,13 @@ def path_key(path: str) -> str:
 class PathIndex:
     """Tracked paths by `path_key`, and which of them are symbolic links.
 
-    A key holds every tracked path a host opens under that spelling. Windows
-    folds case and reads a backslash as a separator; Linux does neither, so two
-    names under one key are two files there, and rustc compiles the one its
-    host resolves. A lookup yields them all: one path too many widens a scan,
-    one too few hides a file from it."""
+    A key holds every tracked path that differs from its spelling only by what
+    Windows folds: case, and a backslash read as a separator. Linux does
+    neither, so two names under one key are two files there, and rustc compiles
+    the one its host resolves. A lookup yields them all: one path too many
+    widens a scan, one too few hides a file from it. The other rewrites Windows
+    makes (a trailing dot or space, a colon, a device name, an 8.3 alias) are
+    not keyed: a spelling that holds one is refused (`windows_rewrites`)."""
 
     named: Mapping[str, tuple[str, ...]]
     links: frozenset[str] = frozenset()
@@ -1108,7 +1110,7 @@ class Mount:
 
 def attribute_paths(tokens: list[tuple[str, str]], head: str) -> tuple[list[str], list[str]]:
     """The `path = "..."` values one outer attribute sets: (`#[path]`, `cfg_attr`)."""
-    found = [literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
+    found = [path_literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
              if tokens[index] == ("word", "path") and tokens[index + 1] == ("punct", "=")
              and tokens[index + 2][0] == "string"]
     return (found, []) if head == "path" else ([], found) if head == "cfg_attr" else ([], [])
@@ -1144,7 +1146,7 @@ def mod_declarations(text: str) -> tuple[tuple[Mount, ...], tuple[str, ...]]:
         if ((kind, word) == ("word", "include") and len(after) == 3 and after[0] == ("punct", "!")
                 and after[1] in (("punct", "("), ("punct", "["), ("punct", "{"))
                 and after[2][0] == "string"):
-            included.append(literal(after[2][1]))
+            included.append(path_literal(after[2][1]))
             index += 4
             continue
         if ((kind, word) == ("word", "mod") and len(after) >= 2 and after[0][0] == "word"
@@ -1217,6 +1219,67 @@ def mounted(text: str, directory: str, stem: str | None) -> list[tuple[str, str 
     return found
 
 
+# Windows reads a name differently from the spelling written, and the hook runs on
+# Windows: "Naming Files, Paths, and Namespaces",
+# https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file (read 2026-11-27).
+# A name must not end in a space or a period ("Do not end a file or directory name
+# with a space or a period"), a colon names a drive or a stream, `NUL.txt` "is
+# equivalent to NUL", and a long name may be opened by its 8.3 alias. rustc 1.97.0 on
+# Windows loads `src/cast.rs` for `#[path = "cast.rs."]`, `"cast.rs "` and
+# `"cast.rs::$DATA"` (atlas805-2 G1, observed there). The gate does not model these
+# rewrites: it refuses a path it cannot read as every host does.
+DEVICE_NAME = re.compile(r"(?i)(?:con|prn|aux|nul|(?:com|lpt)[0-9¹²³])(?:\..*)?")
+SHORT_ALIAS = re.compile(r"~[0-9]")
+
+
+def windows_rewrites(value: str) -> str | None:
+    """Why a Windows host may open another file than the one the path `value`
+    names, or None when it reads `value` as a Linux host does (up to case and
+    the backslash, which `path_key` reads as Windows does)."""
+    if ":" in value:
+        return "holds a colon, which Windows reads as a drive or a data stream"
+    for component in re.split(r"[\\/]", value):
+        if component in ("", ".", ".."):
+            continue
+        if component.endswith((".", " ")):
+            return (f"has the component {component!r}, whose trailing dot or space "
+                    "Windows drops")
+        if DEVICE_NAME.fullmatch(component):
+            return f"has the component {component!r}, which Windows reads as a device"
+        if SHORT_ALIAS.search(component):
+            return f"has the component {component!r}, which may be an 8.3 alias of another name"
+    return None
+
+
+def path_values(text: str) -> list[str]:
+    """The `#[path]`, `cfg_attr` path and `include!` literals `text` loads
+    files through, as `mod_declarations` reads them."""
+    mounts, included = mod_declarations(text)
+    values = list(included)
+    for mount in mounts:
+        for module in (mount.module, *mount.enclosing):
+            values += (*module.paths, *module.conditional)
+    return list(dict.fromkeys(values))
+
+
+def path_refusals(text: str) -> list[str]:
+    """One line per path literal of `text` that `windows_rewrites` refuses,
+    naming the line it is written on and its value."""
+    refused = {value: reason for value in path_values(text)
+               if (reason := windows_rewrites(value))}
+    if not refused:
+        return []
+    lines: dict[str, int] = {}
+    tokens = lex_spans(text)
+    for index, (kind, word, start) in enumerate(tokens):
+        before = [token[1] for token in tokens[max(index - 4, 0):index]]
+        if kind == "string" and (before[-2:] == ["path", "="] or (
+                before[-3:-1] == ["include", "!"] and before[-1] in ("(", "[", "{"))):
+            lines.setdefault(path_literal(word), text.count("\n", 0, start) + 1)
+    return [f"line {lines.get(value, 1)}: the path {value!r} {reason}"
+            for value, reason in refused.items()]
+
+
 def compiled_files(index: PathIndex, read: Callable[[str], str | None],
                    root: str) -> tuple[set[str], dict[str, str]]:
     """The files the crate root `root` compiles, and why any could not be read:
@@ -1245,8 +1308,10 @@ def compiled_files(index: PathIndex, read: Callable[[str], str | None],
     as written: recalled, not compiled here). A link that leads to no tracked
     file is an error where the walk reaches it or a path through it: the gate
     does not read through a linked directory, nor does `target_roots`
-    discover a target through one. Not followed: a `mod` a macro writes, and
-    `include!` of anything but a literal.
+    discover a target through one. A file with a path literal that
+    `windows_rewrites` refuses is an error too, though its modules are still
+    walked: the gate does not model the rewrite. Not followed: a `mod` a macro
+    writes, and `include!` of anything but a literal.
     """
     files: set[str] = set()
     errors: dict[str, str] = {}
@@ -1275,6 +1340,8 @@ def compiled_files(index: PathIndex, read: Callable[[str], str | None],
                 files.add(source)
                 try:
                     pending += mounted(text, posixpath.dirname(real), stem)
+                    if refusals := path_refusals(text):
+                        errors[source] = "; ".join(refusals)
                 except ValueError as error:
                     errors[source] = str(error)
     return files, errors
@@ -1469,7 +1536,12 @@ CAST_LINTS = frozenset(f"clippy::{name}" for name in (
 def lex(text: str) -> list[tuple[str, str]]:
     """The (kind, text) Rust tokens of `text`, comments (nested) and space
     dropped. An unclosed literal or comment, or a stray character, raises."""
-    tokens: list[tuple[str, str]] = []
+    return [(kind, word) for kind, word, _ in lex_spans(text)]
+
+
+def lex_spans(text: str) -> list[tuple[str, str, int]]:
+    """`lex`, each token with the offset it starts at."""
+    tokens: list[tuple[str, str, int]] = []
     index = 0
     while index < len(text):
         if text.startswith("/*", index):
@@ -1482,7 +1554,7 @@ def lex(text: str) -> list[tuple[str, str]]:
                                 else (depth - 1, close + 2))
         elif match := TOKEN.match(text, index):
             if match.lastgroup not in ("space", "comment"):
-                tokens.append((match.lastgroup, match.group()))
+                tokens.append((match.lastgroup, match.group(), index))
             index = match.end()
         else:
             raise ValueError(f"no token at offset {index}")
@@ -1537,6 +1609,46 @@ def copying_fault(tokens: list[tuple[str, str]],
 
 def literal(text: str) -> str:  # the body of a string literal token
     return re.sub(r'^[bc]?r?#*"|"#*$', "", text)
+
+
+ESCAPE = re.compile(r"\\(?:x([0-9a-fA-F]{2})|u\{([0-9a-fA-F_]+)\}|(\r?\n[ \t\r\n]*)|(.))", re.S)
+SIMPLE_ESCAPES = {"n": "\n", "r": "\r", "t": "\t", "\\": "\\", "0": "\0", "'": "'", '"': '"'}
+
+
+def path_literal(token: str) -> str:
+    """The string a string-literal token spells, as rustc reads it: the body of
+    a raw string as written, the escapes of any other decoded.
+
+    Specification: the Rust Reference, "String literals" in
+    https://doc.rust-lang.org/reference/tokens.html (read 2026-11-27). The
+    escapes are `\\'`, `\\"`, `\\n`, `\\r`, `\\t`, `\\\\`, `\\0`, `\\x` and two hex
+    digits up to 7F, and `\\u{..}` with one to six hex digits (underscores
+    allowed) naming a scalar value; a backslash before a line break skips the
+    break and the white space after it. Any other escape is no literal rustc
+    compiles, and raises. `#[path = "ca\\x73t.rs"]` loads `cast.rs` (rustc
+    1.97.0 `--emit=dep-info`), a file the body as written would not name.
+    """
+    body = literal(token)
+    if re.match(r"[bc]?r", token):
+        return body
+
+    def decode(match: re.Match[str]) -> str:
+        byte, scalar, continuation, other = match.groups()
+        if continuation is not None:
+            return ""
+        if byte is not None and int(byte, 16) < 0x80:
+            return chr(int(byte, 16))
+        if scalar is not None:
+            digits = scalar.replace("_", "")
+            if 0 < len(digits) <= 6 and (code := int(digits, 16)) <= 0x10FFFF \
+                    and not 0xD800 <= code < 0xE000:
+                return chr(code)
+        elif other in SIMPLE_ESCAPES:
+            return SIMPLE_ESCAPES[other]
+        raise ValueError(f"the string literal {token} holds the escape {match.group()!r}, "
+                         "which is no escape of a Rust string")
+
+    return ESCAPE.sub(decode, body)
 
 
 def cast_module_fault(text: str | None) -> str | None:
