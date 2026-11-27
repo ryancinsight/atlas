@@ -1,0 +1,9 @@
+<a id="atlas-aequitas-scalar-aliases"></a>
+## ATLAS-AEQUITAS-SCALAR-ALIASES — Report and then schedule module-level primitive scalar aliases [tightening] [patch] — todo
+- Outcome: `scripts/atlas-aequitas-units.py` lists each module-level primitive scalar alias (`type Real = f64;`, column 0) per member and each `(name, primitive)` pair defined in more than one file, report-only; a later increment decides whether `--strict` fails on them.
+- Why: a local `type Real = f64;` erases the scalar law Eunomia owns and the dimension Aequitas carries, and a repeated alias has no owner (ADR 0005 scalar SSOT, ADR 0021 quantity-law ownership; standards: datatype trait abstraction, integrity: alias-driven architecture).
+- Oracle (report slice): in `scripts/tests/test_atlas_aequitas_units.py`, `test_primitive_aliases_are_reported_but_associated_types_are_not`, `test_the_same_alias_in_two_files_is_reported_as_duplicate`, `test_a_test_source_alias_is_not_counted` and `test_the_member_record_carries_alias_evidence` fail on the unchanged script (no `_scalar_aliases`, no alias fields on `Member`) and pass with it.
+- Remainder (the README's "until the debt is scheduled"): run the audit over the member checkouts, record the per-member counts, then either gate `--strict` on them with a baseline row per member or record the deferral. Oracle: a `--strict` run over a record with an unbaselined alias returns 1.
+- Known gaps of the report slice: a two-line alias and a `core::primitive::f64` path are not matched; a column-0 alias under `#[cfg(test)]` in `lib.rs` is counted.
+- basis: 6bdbdf69b5461cf9284fc7ad306709a82b6a962e; priority: tightening; needs: none; scope: `scripts/atlas-aequitas-units.py`, `scripts/tests/test_atlas_aequitas_units.py`, `README.md` (Aequitas cohort and unit audit)
+- Next step: run the audit over the member checkouts and decide the `--strict` gate; this item stays open until that decision is recorded.

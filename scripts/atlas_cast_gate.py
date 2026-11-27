@@ -27,9 +27,12 @@ on a new cast. This gate is the enforcement:
   and `include!("literal")` files of any extension, wherever they lie) and the
   tracked `.rs` files under its directory that no other workspace member holds,
   with comments and strings blanked, and refuses a file that cannot be read as
-  Rust. A manifest `tomllib` rejects fails the push naming the manifest. A
-  predicate built by macro substitution (`#[cfg(not($p))]`) has no `cfg(` token
-  and is not seen;
+  Rust. A tracked manifest `tomllib` rejects may declare any package
+  (`unparsed_manifests`): it fails the push, named, when no manifest that
+  parses declares some pushed package, and is otherwise named on standard
+  output while the files under it stay in the scan of the package around
+  them. A predicate built by macro substitution (`#[cfg(not($p))]`) has no
+  `cfg(` token and is not seen;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -83,7 +86,10 @@ holds the ones the base's workspace had: a package the base never had carries
 no count there, so its casts are judged by the row that records them, and a
 crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
-absent from it. `--zero-base-package` records the proven standalone exception.
+absent from it. A base manifest `tomllib` rejects leaves the membership unread:
+the gate says so and holds every named package to its base count, so a push
+that raises no count lands, the one repairing the manifest included.
+`--zero-base-package` records the proven standalone exception.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
     atlas_cast_gate.py new-standalone-owners --repo <dir> --base <sha> \
         --tip <sha> --manifest fuzz/Cargo.toml [--manifest ...]
@@ -571,8 +577,9 @@ def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], d
     adds every tracked `.rs` file under the package directory that no other
     workspace member's directory contains: a file no `mod` reaches can still
     be compiled by a macro the walk does not read. A manifest that declares no
-    package, or is not a member, fences nothing off. A package no manifest
-    names has no files.
+    package, is not a member, or does not parse fences nothing off. A package
+    no parsed manifest names has no files (`unparsed_manifests` refuses the
+    push when a manifest that does not parse could be its own).
     """
     manifests = tip.manifests[0]
     members = member_directories(manifests)
@@ -594,6 +601,33 @@ def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], d
                   if file.endswith(".rs") and file.startswith(prefix)
                   and not file.startswith(nested)}
     return files, errors
+
+
+def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str], list[str]]:
+    """The tracked manifests `tomllib` rejects, as (problems, notes): each is
+    named once, in the first list when it refuses the push.
+
+    A manifest that does not parse may declare any package. When some pushed
+    package is declared by no manifest that parses, one of them may be its
+    own, `package_sources` then finds the package no files, and every such
+    manifest is a problem. When a manifest that parses declares each pushed
+    package, its targets and directory give the scan its files, and the
+    manifest that does not parse is not a workspace member the scan steps
+    around (`member_directories` reads parsed manifests), so the files under
+    it stay with the package around them: the push is not refused for a
+    manifest it may not own, and a note names the manifest.
+    """
+    parsed, refused = tip.manifests
+    declared = {package_name(manifest) for manifest in parsed.values()}
+    unnamed = sorted(set(packages).difference(declared))
+    if unnamed:
+        names = ", ".join(f"`{name}`" for name in unnamed)
+        return [f"{error}, and no manifest that parses declares the pushed package {names}"
+                for _, error in sorted(refused.items())], []
+    return [], [f"{error}; a manifest that parses declares every pushed package, so the "
+                "push is not refused for it, and the files under its directory stay in "
+                "the scan of a pushed package whose directory holds them"
+                for _, error in sorted(refused.items())]
 
 
 def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
@@ -972,22 +1006,46 @@ def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
 
 
 def path_clean(path: str) -> str:
-    """`path` as rustc finds a file on the Windows host the gate runs on:
-    backslash separators accepted, `.` and `..` components collapsed."""
+    """`path` with a backslash read as a separator, as Windows reads it, and
+    its `.` and `..` components collapsed."""
     return posixpath.normpath(path.replace("\\", "/"))
 
 
 def path_key(path: str) -> str:
     """The key a path is looked up under: `path_clean` with case folded, as
-    NTFS compares names. The reading is the Windows one on every host, a safe
-    superset where a Linux checkout holds names that differ only in case; two
-    such tracked paths count as one."""
+    NTFS compares names. Names a Linux host tells apart, by case or by a
+    backslash it reads as part of a name, share a key."""
     return path_clean(path).casefold()
 
 
-def path_index(paths: Iterable[str]) -> dict[str, str]:
-    """Tracked paths by `path_key`."""
-    return {path_key(path): path for path in paths}
+@dataclass(frozen=True)
+class PathIndex:
+    """Tracked paths by `path_key`, and which of them are symbolic links.
+
+    A key holds every tracked path a host opens under that spelling. Windows
+    folds case and reads a backslash as a separator; Linux does neither, so two
+    names under one key are two files there, and rustc compiles the one its
+    host resolves. A lookup yields them all: one path too many widens a scan,
+    one too few hides a file from it."""
+
+    named: Mapping[str, tuple[str, ...]]
+    links: frozenset[str] = frozenset()
+
+    def at(self, path: str) -> tuple[str, ...]:
+        """The tracked paths a host could open as `path`, whether it collapses
+        `..` after reading a backslash as a separator (Windows) or before
+        folding the name into its key (Linux, where `a\\b/..` is `.`)."""
+        spellings = (path, posixpath.normpath(path)) if "\\" in path else (path,)
+        keys = dict.fromkeys(map(path_key, spellings))
+        return tuple(found for key in keys for found in self.named.get(key, ()))
+
+
+def path_index(paths: Iterable[str], links: Iterable[str] = ()) -> PathIndex:
+    """`PathIndex` of the tracked `paths`, of which `links` are symbolic links."""
+    named: dict[str, list[str]] = {}
+    for path in paths:
+        named.setdefault(path_key(path), []).append(path)
+    return PathIndex({key: tuple(found) for key, found in named.items()}, frozenset(links))
 
 
 class ManifestError(ValueError):
@@ -1012,11 +1070,15 @@ class Revision:
             capture_output=True, check=True).stdout.decode("utf-8", errors="replace")
         self.repo = repo
         self.blobs: dict[str, str] = {}
+        links = set()
         for entry in listing.split("\0"):
             fields, _, path = entry.partition("\t")
             if path and fields.split()[1] == "blob":  # a gitlink is a commit
                 self.blobs[path] = fields.split()[2]
+                if fields.split()[0] == "120000":
+                    links.add(path)
         self.paths = list(self.blobs)
+        self.links = frozenset(links)
         self._texts: dict[str, str] = {}
         self._reader: subprocess.Popen[bytes] | None = None
 
@@ -1032,7 +1094,8 @@ class Revision:
             reader.stdout.close()
 
     def read(self, path: str) -> str | None:
-        """The text of `path`, or None when the revision tracks no such file."""
+        """The text of the blob at `path`, which for a symbolic link (`links`) is
+        the path it names; None when the revision tracks no such file."""
         oid = self.blobs.get(path)
         if oid is None:
             return None
@@ -1051,9 +1114,9 @@ class Revision:
         return self._texts[path]
 
     @functools.cached_property
-    def index(self) -> dict[str, str]:
-        """The tracked paths by `path_index` key."""
-        return path_index(self.paths)
+    def index(self) -> PathIndex:
+        """The tracked paths and links as `path_index` holds them."""
+        return path_index(self.paths, self.links)
 
     @functools.cached_property
     def manifests(self) -> tuple[dict[str, dict], dict[str, ManifestError]]:
@@ -1178,9 +1241,10 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
         return frozenset(packages)
 
 
-def target_roots(manifest: dict, directory: str, index: Mapping[str, str]) -> list[str]:
+def target_roots(manifest: dict, directory: str, index: PathIndex) -> list[str]:
     """The crate-root files of one package: library, build script, bins, tests,
-    examples and benches that exist among the tracked paths `index` (`path_index`).
+    examples and benches among the tracked paths `index`, every path a host
+    could open under each name (Cargo lists `tests` on NTFS whatever its case).
 
     Specification: the Cargo Book, "Target auto-discovery" in
     https://doc.rust-lang.org/cargo/reference/cargo-targets.html and
@@ -1193,10 +1257,10 @@ def target_roots(manifest: dict, directory: str, index: Mapping[str, str]) -> li
     The build script is a root: clippy-driver wraps every rustc call of a
     workspace package, the script's included (recalled, not run here).
     """
-    prefix = f"{directory}/" if directory else ""
+    prefix = f"{path_key(directory)}/" if directory else ""
     package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
     lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
-    own = {path.removeprefix(prefix) for path in index.values() if path.startswith(prefix)}
+    own = [key.removeprefix(prefix) for key in index.named if key.startswith(prefix)]
     found = []
     if "lib" in manifest or package.get("autolib", True) is not False:
         found.append(lib["path"] if isinstance(lib.get("path"), str) else "src/lib.rs")
@@ -1221,8 +1285,8 @@ def target_roots(manifest: dict, directory: str, index: Mapping[str, str]) -> li
                 found.append("src/main.rs")
             found += [path for path in own
                       if re.fullmatch(rf"{folder}/([^/]+|[^/]+/main)\.rs", path)]
-    keys = dict.fromkeys(path_key(prefix + path) for path in found)
-    return [index[key] for key in keys if key in index]
+    roots = [path for name in found for path in index.at(posixpath.join(directory, name))]
+    return list(dict.fromkeys(roots))
 
 
 @dataclass(frozen=True)
@@ -1317,7 +1381,44 @@ def module_directories(states: set[tuple[str, str | None]],
     return found
 
 
-def compiled_files(index: Mapping[str, str], read: Callable[[str], str | None],
+def link_files(index: PathIndex, read: Callable[[str], str | None], link: str) -> set[str]:
+    """The tracked files the symbolic link `link` leads to through any chain of
+    links: none when it dangles, leaves the tree, names a directory or loops."""
+    found: set[str] = set()
+    seen: set[str] = set()
+    pending = [link]
+    while pending:
+        path = pending.pop()
+        if path not in index.links:
+            found.add(path)
+        elif path not in seen:
+            seen.add(path)
+            pending += index.at(posixpath.join(posixpath.dirname(path), read(path) or ""))
+    return found
+
+
+def mounted(text: str, directory: str, stem: str | None) -> list[tuple[str, str | None]]:
+    """The (path, stem) candidates the file `text` loads as a module with
+    `directory` and `stem`; a text that does not lex raises."""
+    mounts, included = mod_declarations(text)
+    found: list[tuple[str, str | None]] = [
+        (posixpath.join(directory, path), None) for path in included]
+    for mount in mounts:
+        states = {(directory, stem)}
+        for module in mount.enclosing:
+            states = module_directories(states, module)
+        module = mount.module
+        for here, here_stem in states:
+            found += [(posixpath.join(here, path), None)
+                      for path in (*module.paths, *module.conditional)]
+            if not module.paths:
+                base = posixpath.join(here, *filter(None, [here_stem]))
+                found += [(posixpath.join(base, f"{module.name}.rs"), module.name),
+                          (posixpath.join(base, module.name, "mod.rs"), None)]
+    return found
+
+
+def compiled_files(index: PathIndex, read: Callable[[str], str | None],
                    root: str) -> tuple[set[str], dict[str, str]]:
     """The files the crate root `root` compiles, and why any could not be read:
     (tracked paths, error by path). `index` is `path_index` of the tracked
@@ -1334,47 +1435,49 @@ def compiled_files(index: Mapping[str, str], read: Callable[[str], str | None],
     in `src/a.rs` loads `src/num/cast.rs`). A file loaded through `#[path]` or
     `include!("literal")`, the latter relative to the file holding the call,
     resolves its children beside itself. A `cfg_attr` path counts as both
-    outcomes, since its predicate is not evaluated. Each candidate is
-    normalised and matched as `path_index` reads names. Not followed: a `mod`
-    a macro writes, and `include!` of anything but a literal.
+    outcomes, since its predicate is not evaluated.
+
+    A candidate names every tracked path `PathIndex.at` yields, and each is
+    walked from its own directory, once per stem: the states are tracked paths
+    and declared names, so the walk ends however a path respells a directory.
+    A symbolic link is read both ways: as the file holding its target path,
+    which a checkout without links compiles, and as each file `link_files`
+    finds, whose children resolve beside the link (rustc keeps a module's path
+    as written: recalled, not compiled here). A link that leads to no tracked
+    file is an error where the walk reaches it or a path through it: the gate
+    does not read through a linked directory, nor does `target_roots`
+    discover a target through one. Not followed: a `mod` a macro writes, and
+    `include!` of anything but a literal.
     """
     files: set[str] = set()
     errors: dict[str, str] = {}
-    seen: set[tuple[str, str, str | None]] = set()
-    pending: list[tuple[str, str, str | None]] = [(root, posixpath.dirname(root), None)]
+    seen: set[tuple[str, str | None]] = set()
+    pending: list[tuple[str, str | None]] = [(root, None)]
     while pending:
-        file, directory, stem = pending.pop()
-        file = path_clean(file)
-        if (path_key(file), directory, stem) in seen:
-            continue
-        seen.add((path_key(file), directory, stem))
-        real = index.get(path_key(file))
-        text = None if real is None else read(real)
-        if real is None or text is None:
-            continue
-        files.add(real)
-        try:
-            mounts, included = mod_declarations(text)
-        except ValueError as error:
-            errors[real] = str(error)
-            continue
-        for literal_path in included:
-            path = path_clean(posixpath.join(posixpath.dirname(file), literal_path))
-            pending.append((path, posixpath.dirname(path), None))
-        for mount in mounts:
-            states = {(directory, stem)}
-            for module in mount.enclosing:
-                states = module_directories(states, module)
-            module = mount.module
-            for here, here_stem in states:
-                for path in (*module.paths, *module.conditional):
-                    path = path_clean(posixpath.join(here, path))
-                    pending.append((path, posixpath.dirname(path), None))
-                if not module.paths:
-                    base = posixpath.join(here, *filter(None, [here_stem]))
-                    pending += [(posixpath.join(base, f"{module.name}.rs"), base, module.name),
-                                (posixpath.join(base, module.name, "mod.rs"),
-                                 posixpath.join(base, module.name), None)]
+        file, stem = pending.pop()
+        parts = file.replace("\\", "/").split("/") if index.links else []
+        for depth in range(1, len(parts)):
+            for link in index.links.intersection(index.at("/".join(parts[:depth]))):
+                if not link_files(index, read, link):
+                    errors[link] = f"a symbolic link to no tracked file, on the path to {file}"
+        for real in index.at(file):
+            if (real, stem) in seen:
+                continue
+            seen.add((real, stem))
+            sources = {real}
+            if real in index.links:
+                sources |= link_files(index, read, real)
+                if len(sources) == 1:
+                    errors[real] = "a symbolic link to no tracked file"
+            for source in sorted(sources):
+                text = read(source)
+                if text is None:
+                    continue
+                files.add(source)
+                try:
+                    pending += mounted(text, posixpath.dirname(real), stem)
+                except ValueError as error:
+                    errors[source] = str(error)
     return files, errors
 
 
@@ -1788,8 +1891,12 @@ def check(args: argparse.Namespace) -> int:
     try:
         held = held_to_base(repo, args.base, args.base_package, base)
     except ManifestError as error:
-        held = frozenset()
-        problems.append(str(error))
+        # No candidate is shown absent from the base, so each is held to its
+        # count there: a package the push adds is then held to zero until the
+        # manifest parses, and a push that raises no count is not refused.
+        held = frozenset(args.base_package)
+        print(f"cast gate: {error}; every `--base-package` is held to its count at "
+              "the pushed base", file=sys.stderr)
     held |= frozenset(args.zero_base_package)
     doubled = {s.package for s in found if not s.line}
     found, base = {s for s in found if s.line}, {s for s in base if s.line}
@@ -1802,10 +1909,16 @@ def check(args: argparse.Namespace) -> int:
     problems += violations(args.member, found, added, args.package, baseline, base,
                            held, modules)
     with Revision(repo, args.tip) as tip:
-        problems += [str(error) for error in tip.manifests[1].values()]
+        refusals, notes = unparsed_manifests(tip, args.package)
+        problems += refusals
         problems += cfg_clippy_problems(tip, args.package)
         problems += second_target_problems(
             tip, {package: path for package, (path, _) in modules.items()})
+    # Standard error holds what fails the push and the base line above. A note
+    # fails nothing and goes to standard output, which the pre-push hook sends
+    # to the same terminal (`check ... >&2`).
+    for note in notes:
+        print(f"cast gate: {note}")
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:

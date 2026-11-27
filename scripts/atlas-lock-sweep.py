@@ -570,18 +570,30 @@ def selected_source_environment(plan: Plan, targets: dict[str, str],
         if key is None or value is None:
             raise ValueError("inherited Git process configuration is inconsistent")
         inherited.append((key, value))
+    # The saved entries are restored after the isolated source views are built.
+    environment["GIT_CONFIG_COUNT"] = "0"
     root = plan.member.parent.parent
+    global_pairs = git_config_pairs(environment, "global", root)
     configured = [
         *git_config_pairs(environment, "system", root),
-        *git_config_pairs(environment, "global", root),
+        *global_pairs,
         *inherited,
     ]
-    empty_config = views / "empty.gitconfig"
-    empty_config.write_bytes(b"")
+    # Isolation drops every global setting, including the `safe.directory`
+    # entries that let Git read a member owned by another account. A stack
+    # shared between accounts is readable exactly because of them, so the
+    # isolated file keeps only those: the caller's trust is inherited, every
+    # other setting and every URL rewrite is still dropped.
+    trusted = [value for key, value in global_pairs
+               if key.lower() == "safe.directory"]
+    isolated_config = views / "isolated.gitconfig"
+    isolated_config.write_bytes(b"")
+    for value in trusted:
+        lockfile.run_git(["config", "--file", str(isolated_config), "--add",
+                          "safe.directory", value], root, env=environment)
     environment.update({
-        "GIT_CONFIG_SYSTEM": str(empty_config),
-        "GIT_CONFIG_GLOBAL": str(empty_config),
-        "GIT_CONFIG_COUNT": "0",
+        "GIT_CONFIG_SYSTEM": str(isolated_config),
+        "GIT_CONFIG_GLOBAL": str(isolated_config),
     })
     members = {name.lower(): name for name in registered_member_names(root)}
     sources: dict[str, set[str]] = {}

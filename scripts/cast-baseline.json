@@ -7,6 +7,9 @@
  "cast_modules": {
   "metis": {
    "metis-platform": "crates/metis-platform/src/conversion.rs"
+  },
+  "mnemosyne": {
+   "mnemosyne-prof": "crates/mnemosyne-prof/src/cast.rs"
   }
  },
  "basis": {

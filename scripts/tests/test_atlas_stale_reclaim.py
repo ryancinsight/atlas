@@ -25,8 +25,23 @@ if not GIT or not Path(GIT).is_absolute():
     raise RuntimeError('git must resolve to an absolute executable')
 
 
+def dead_pid():
+    # The hook probes the pid in its own namespace: Git Bash's on Windows.
+    if os.name == 'nt':
+        return subprocess.check_output([BASH, '-c', 'echo $$'], text=True).strip()
+    dead = subprocess.Popen([sys.executable, '-c', 'pass']); dead.wait()
+    return str(dead.pid)
+
+
+def live_pid(test):
+    holder = subprocess.Popen([BASH, '-c', 'echo $$; read -r _'], stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, text=True)
+    test.enterContext(holder)
+    return holder.stdout.readline().strip()
+
+
 class StaleReclaimTests(unittest.TestCase):
-    def start(self, root, pause=True, cleanup=False):
+    def start(self, root, pause=True, cleanup=False, prelude=':'):
         source = HOOK.read_text()
         block = source[source.index('# One push of a ref at a time.'):source.index('prepared_stack_scripts=""')]
         cleanup_code = source[source.index('run_temps=()'):source.index('# Per-step wall-clock')]
@@ -34,7 +49,7 @@ class StaleReclaimTests(unittest.TestCase):
             'set -euo pipefail', 'exec 3>&1',
             f'repo_store={shlex.quote(root.as_posix())}',
             f'python_bin={shlex.quote(Path(sys.executable).as_posix())}',
-            'gate_phase=push', 'run_temps=()',
+            'gate_phase=push', 'run_temps=()', prelude,
             cleanup_code if cleanup else ':',
             'content_lines=("refs/heads/topic abc refs/heads/topic 000")',
             # Pause only owner observations; real filesystem/PID operations
@@ -59,8 +74,7 @@ class StaleReclaimTests(unittest.TestCase):
             key = subprocess.check_output([GIT, 'hash-object', '--stdin'], input=b'refs/heads/topic').decode().strip()[:16]
             lock = root / 'atlas-push-locks' / key
             lock.mkdir(parents=True)
-            dead = subprocess.Popen([sys.executable, '-c', 'pass']); dead.wait()
-            (lock / 'pid').write_text(str(dead.pid) + '\n')
+            (lock / 'pid').write_text(dead_pid() + '\n')
             first = self.start(root)
             second = None
             try:
@@ -68,10 +82,6 @@ class StaleReclaimTests(unittest.TestCase):
                 second = self.start(root)
                 event = self.line(second)
                 self.send(first, 'resume')
-                if os.name == 'nt':
-                    self.assertEqual(self.line(first), '')
-                    self.assertEqual((lock / 'pid').read_text(), str(dead.pid) + '\n')
-                    return
                 self.assertEqual(self.line(first), 'ACQUIRED')
                 winner_pid = (lock / 'pid').read_text()
                 if event == 'OBSERVED':
@@ -106,6 +116,35 @@ class StaleReclaimTests(unittest.TestCase):
                 self.assertNotIn('ACQUIRED', out)
                 self.assertTrue(lock.is_dir())
                 self.assertEqual((lock / 'pid').read_text() if owner is not None else None, owner)
+
+    @unittest.skipUnless(os.name == 'nt', 'identities tell Git Bash pids apart, which only Windows reuses')
+    def test_git_bash_owner_is_judged_by_pid_and_identity(self):
+        live, dead = live_pid(self), dead_pid()
+        root, born = (subprocess.check_output([BASH, '-c', c, live], text=True).strip()
+                      for c in ('cygpath -m /', 'stat -c %W /proc/$0'))
+        same, later = f'{root}|{born}', f'{root}|{int(born) + 1}'
+        kill_fails, stat_zero, stat_fails = 'kill() { return 1; }', 'stat() { echo 0; }', 'stat() { return 1; }'
+        cases = [  # (pid, recorded identity, shell prelude, reclaimed)
+            (dead, same, ':', True), (dead, None, ':', True),
+            (live, same, ':', False), (live, later, ':', True),
+            (live, None, ':', False), (live, '', ':', False), (live, 'garbage', ':', False),
+            (live, later, stat_zero, False), (live, later, stat_fails, False),
+            # `kill -0` fails while /proc/<pid> exists: only the identity decides.
+            (live, same, kill_fails, False), (live, later, kill_fails, True),
+            (dead, 'D:/other/|1', ':', False), (live, 'D:/other/|1', ':', False),
+            ('9' * 10, same, ':', False)]
+        for pid, recorded, prelude, reclaimed in cases:
+            with self.subTest(pid=pid, recorded=recorded, prelude=prelude), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); lock = self.fixture_lock(root); lock.mkdir()
+                (lock / 'pid').write_text(pid + '\n')
+                if recorded is not None:
+                    (lock / 'start').write_text(recorded + '\n')
+                process = self.start(root, pause=False, cleanup=True, prelude=prelude)
+                out, err = process.communicate('release\n', timeout=10)
+                self.assertEqual(process.returncode == 0, reclaimed, err)
+                self.assertEqual('ACQUIRED' in out, reclaimed)
+                if not reclaimed:
+                    self.assertEqual((lock / 'pid').read_text(), pid + '\n')
 
     def test_abandoned_guard_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

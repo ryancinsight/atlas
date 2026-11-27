@@ -2391,24 +2391,81 @@ def test_a_manifest_tomllib_rejects_names_its_path_and_error(tmp_path):
         gate.base_workspace_packages(repo, base)
 
 
-def test_a_base_manifest_only_cargo_parses_refuses_the_push(tmp_path, capsys):
+def track_link(repo, tmp_path, path, target):
+    """Track a symbolic link at `path` without the host creating one, and commit it."""
+    (tmp_path / "target").write_bytes(target.encode())
+    oid = git(repo, "hash-object", "-w", "--no-filters", str(tmp_path / "target"))
+    git(repo, "update-index", "--add", "--cacheinfo", f"120000,{oid},{path}")
+    git(repo, "commit", "-q", "-m", f"link {path}")
+    return git(repo, "rev-parse", "HEAD")
+
+
+def test_a_revision_names_its_symbolic_links_and_reads_each_as_its_target_path(tmp_path):
     repo = tmp_path / "repo"
     init(repo)
-    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/p"]\n')
-    (repo / "crates" / "p" / "src").mkdir(parents=True)
-    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST + MULTILINE_TABLE)
-    (repo / "crates" / "p" / "src" / "lib.rs").write_text("pub fn f() {}\n")
-    base = commit(repo, "base")
-    (repo / "crates" / "p" / "Cargo.toml").write_text(MEMBER_MANIFEST)
-    tip = commit(repo, "the manifest becomes TOML 1.0")
+    (repo / "gen").mkdir()
+    (repo / "gen" / "a.inc").write_bytes(b"pub fn a() {}\n")
+    commit(repo, "file")
+    tip = track_link(repo, tmp_path, "src/a.rs", "../gen/a.inc")
+    with gate.Revision(repo, tip) as tree:
+        assert (sorted(tree.paths), tree.links) == (
+            ["gen/a.inc", "src/a.rs"], frozenset({"src/a.rs"}))
+        assert tree.read("src/a.rs") == "../gen/a.inc"
+
+
+Q_MANIFEST = MEMBER_MANIFEST.replace('"p"', '"q"')
+TWO_MEMBERS = {
+    "Cargo.toml": '[workspace]\nmembers = ["crates/p", "crates/q"]\n',
+    "crates/p/Cargo.toml": MEMBER_MANIFEST, "crates/p/src/lib.rs": "pub fn f() {}\n",
+    "crates/q/Cargo.toml": Q_MANIFEST, "crates/q/src/lib.rs": "pub fn g() {}\n",
+}
+CAST_LINE = "pub fn c(x: u32) -> u64 { x as u64 }\n"
+CAST_ROW = ["p", "crates/p/src/lib.rs", 1, 27, 27, 35, 1]
+RISES = "cast gate: p: 1 bare `as` casts, up from 0 at the pushed base"
+
+
+# Each push is two commits of `TWO_MEMBERS` with the named files replaced. A
+# base manifest only cargo parses hides the base's membership, so `p` is held
+# to its base count: a push that raises no count lands, and a counted site the
+# base did not measure is refused, never read as a package the base lacked.
+@pytest.mark.parametrize("unparsed, base, tip, found, expected", [
+    # the push only repairs the manifest
+    ("crates/p/Cargo.toml", {"crates/p/Cargo.toml": MEMBER_MANIFEST + MULTILINE_TABLE}, {},
+     [], (0, [])),
+    # another member's manifest stays unparsed and the push adds no cast
+    ("crates/q/Cargo.toml", {"crates/q/Cargo.toml": Q_MANIFEST + MULTILINE_TABLE},
+     {"crates/q/Cargo.toml": Q_MANIFEST + MULTILINE_TABLE,
+      "crates/p/src/lib.rs": "pub fn f() {}\npub fn h() {}\n"}, [], (0, [])),
+    # a site on a line the push does not add, in the package the manifest declares
+    ("crates/p/Cargo.toml", {"crates/p/Cargo.toml": MEMBER_MANIFEST + MULTILINE_TABLE,
+                             "crates/p/src/lib.rs": CAST_LINE},
+     {"crates/p/src/lib.rs": CAST_LINE + "pub fn more() {}\n"}, [CAST_ROW], (1, [RISES])),
+    # the same site when the root manifest is the one that does not parse
+    ("Cargo.toml", {"Cargo.toml": TWO_MEMBERS["Cargo.toml"] + MULTILINE_TABLE,
+                    "crates/p/src/lib.rs": CAST_LINE},
+     {"crates/p/src/lib.rs": CAST_LINE + "pub fn more() {}\n"}, [CAST_ROW], (1, [RISES])),
+])
+def test_a_base_manifest_only_cargo_parses_holds_every_package_to_its_base_count(
+        tmp_path, capsys, unparsed, base, tip, found, expected):
+    repo = tmp_path / "repo"
+    init(repo)
+    heads = []
+    for files in (base, tip):
+        for path, text in (TWO_MEMBERS | files).items():
+            (repo / path).parent.mkdir(parents=True, exist_ok=True)
+            (repo / path).write_bytes(text.encode())
+        heads.append(commit(repo, "push"))
     rules = tmp_path / "rules.json"
-    rules.write_text('{"sanctioned": {}, "counts": {"m": {"p": 0}}}')
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {"p": len(found)}}}))
     sites = tmp_path / "sites.json"
-    sites.write_text("[]")
-    assert gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
-                      "--base", base, "--tip", tip, "--package", "p", "--sites", str(sites),
-                      "--base-package", "p"]) == 1
-    assert "cast gate: crates/p/Cargo.toml does not parse as TOML here" in capsys.readouterr().err
+    sites.write_text(json.dumps(found))
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", heads[0], "--tip", heads[1], "--package", "p",
+                      "--sites", str(sites), "--base-package", "p"])
+    said, *problems = capsys.readouterr().err.splitlines()
+    assert said.startswith(f"cast gate: {unparsed} does not parse as TOML here (")
+    assert said.endswith("; every `--base-package` is held to its count at the pushed base")
+    assert (code, problems) == expected
 
 
 ROOT_TREE = frozenset({
@@ -2520,6 +2577,16 @@ def walk(root, files):
     ("src/main.rs", {"src/main.rs": '#[path = "CAST.rs"] mod c;', "src/cast.rs": ""},
      {"src/cast.rs"}),
     ("src/main.rs", {"src/main.rs": "mod Cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+    # names a Linux host tells apart are each walked, from their own directory
+    ("src/lib.rs", {"src/lib.rs": "mod cast;", "src/cast.rs": "", "src/Cast.rs": "mod k;",
+                    "src/Cast/k.rs": ""}, {"src/cast.rs", "src/Cast.rs", "src/Cast/k.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "../gen/H.inc"]\nmod h;', "gen/h.inc": "",
+                    "gen/H.inc": ""}, {"gen/h.inc", "gen/H.inc"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = r"a\\b.rs"] mod x;\nmod a;', "src/a.rs": "mod b;",
+                    "src/a/b.rs": "", "src/a\\b.rs": "mod c;", "src/c.rs": "", "src/a/c.rs": ""},
+     {"src/a.rs", "src/a/b.rs", "src/a\\b.rs", "src/c.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = r"x\\y/../c.rs"] mod c;', "src/c.rs": "",
+                    "src/x/c.rs": ""}, {"src/c.rs", "src/x/c.rs"}),
 ])
 def test_modules_resolve_as_the_rust_reference_and_rustc_load_them(root, files, expected):
     assert walk(root, files) == ({root, *expected}, {})
@@ -2529,6 +2596,80 @@ def test_a_reached_file_that_does_not_lex_is_reported_with_its_path():
     files = {"src/lib.rs": "mod a;\nmod b;", "src/a.rs": "/* open", "src/b.rs": ""}
     assert walk("src/lib.rs", files) == (
         {"src/lib.rs", "src/a.rs", "src/b.rs"}, {"src/a.rs": "an unclosed block comment"})
+
+
+def test_target_roots_are_every_tracked_path_a_host_could_open_under_a_name():
+    roots = {"src/lib.rs", "src/Lib.rs", "Tests/a.rs", "tests/A.rs", "Examples/e/Main.rs",
+             "SRC/BIN/t.rs"}
+    assert set(gate.target_roots({}, "", gate.path_index({"Cargo.toml", *roots}))) == roots
+    nested = gate.path_index({"Pkg/Cargo.toml", *(f"PKG/{path}" for path in roots)})
+    assert set(gate.target_roots({}, "Pkg", nested)) == {f"PKG/{path}" for path in roots}
+
+
+@pytest.mark.parametrize("source", [
+    '#[cfg(any())] #[path = "."] mod m { mod lib; }\npub fn f() {}',
+    '#[path = "../src"] mod m { mod lib; }',
+    'macro_rules! never { () => { #[path = "./."] mod m { mod lib; } } }',
+    '#[cfg_attr(unix, path = "x/..")] mod m { #[path = "."] mod n { mod lib; } }',
+])
+def test_an_inline_module_that_respells_its_directory_ends_the_walk(source):
+    files = {"src/lib.rs": source}
+    reads: list[str] = []
+
+    def read(path):
+        reads.append(path)
+        assert len(reads) < 10, "the walk revisits one state under a longer spelling"
+        return files.get(path)
+
+    assert gate.compiled_files(gate.path_index(files), read, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+    assert reads == ["src/lib.rs"] * 2  # as the crate root, and as the module `lib`
+
+
+NO_FILE = "a symbolic link to no tracked file"
+
+
+@pytest.mark.parametrize("files, links, expected, errors", [
+    # the link's target is the module's text, and its children resolve beside the link
+    ({"src/lib.rs": "mod a;", "src/a.rs": "../gen/a.inc", "gen/a.inc": "mod b;",
+      "src/a/b.rs": "", "gen/b.rs": "", "gen/a/b.rs": ""}, {"src/a.rs"},
+     {"src/a.rs", "gen/a.inc", "src/a/b.rs"}, {}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "b.lnk", "src/b.lnk": "..\\GEN\\a.inc",
+      "gen/a.inc": ""}, {"src/a.rs", "src/b.lnk"}, {"src/a.rs", "gen/a.inc"}, {}),
+    # a checkout without links compiles the target path as the module's text
+    ({"src/lib.rs": "mod a;", "src/a.rs": "mod x;", "src/a/x.rs": ""}, {"src/a.rs"},
+     {"src/a.rs", "src/a/x.rs"}, {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "../gen/none.rs"}, {"src/a.rs"}, {"src/a.rs"},
+     {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "/etc/a.rs"}, {"src/a.rs"}, {"src/a.rs"},
+     {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "b.rs", "src/b.rs": "a.rs"}, {"src/a.rs", "src/b.rs"},
+     {"src/a.rs"}, {"src/a.rs": NO_FILE}),
+    # a linked directory is not read through, on a path that names it or backs out of it
+    ({"src/lib.rs": "mod sub;", "src/sub": "../gen", "gen/mod.rs": ""}, {"src/sub"}, set(),
+     {"src/sub": NO_FILE + ", on the path to src/sub/mod.rs"}),
+    ({"src/lib.rs": '#[path = "sub/../x.rs"] mod x;', "src/sub": "../gen", "src/x.rs": ""},
+     {"src/sub"}, {"src/x.rs"}, {"src/sub": NO_FILE + ", on the path to src/sub/../x.rs"}),
+    # a link to a file is no directory, so no path leads through it
+    ({"src/lib.rs": "mod a;", "src/a.rs": "", "src/a": "a.rs"}, {"src/a"}, {"src/a.rs"}, {}),
+])
+def test_a_symbolic_link_is_followed_to_its_tracked_file_or_reported(
+        files, links, expected, errors):
+    assert gate.compiled_files(gate.path_index(files, links), files.get, "src/lib.rs") == (
+        {"src/lib.rs", *expected}, errors)
+
+
+def test_a_revision_walks_a_linked_module_to_its_target(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    for path, text in {"src/lib.rs": "mod a;\n", "gen/a.inc": "pub fn a() {}\n"}.items():
+        (repo / path).parent.mkdir(parents=True)
+        (repo / path).write_bytes(text.encode())
+    commit(repo, "files")
+    tip = track_link(repo, tmp_path, "src/a.rs", "../gen/a.inc")
+    with gate.Revision(repo, tip) as tree:
+        assert gate.compiled_files(tree.index, tree.read, "src/lib.rs") == (
+            {"src/lib.rs", "src/a.rs", "gen/a.inc"}, {})
 
 
 def test_a_path_cycle_that_respells_its_directory_is_walked_once():
@@ -2692,11 +2833,17 @@ def test_a_rust_file_naming_clippy_that_does_not_lex_is_refused(tmp_path, capsys
 
 HID = "#[cfg(not(clippy))] pub fn h(x: u32) -> u64 { x as u64 }\n"
 FINE = "pub fn fine() {}\n"
+DECOY = '[package]\nname = "decoy"\nversion = "0.1.0"\n'
+
+
+def _scan_streams(tmp_path, capsys, lib, extra=None, package="hidden"):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, lib, extra)
+    return _check_hidden(repo, base, tip, rules, sites, package=package), capsys.readouterr()
 
 
 def _scan(tmp_path, capsys, lib, extra=None, package="hidden"):
-    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, lib, extra)
-    return _check_hidden(repo, base, tip, rules, sites, package=package), capsys.readouterr().err
+    code, said = _scan_streams(tmp_path, capsys, lib, extra, package)
+    return code, said.err
 
 
 @pytest.mark.parametrize("lib, extra, where", [
@@ -2704,8 +2851,7 @@ def _scan(tmp_path, capsys, lib, extra=None, package="hidden"):
      "src/hidden/mod.rs:1"),
     (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": "not = [toml"},
      "src/hidden/mod.rs:1"),
-    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml":
-                              '[package]\nname = "decoy"\nversion = "0.1.0"\n'},
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": DECOY},
      "src/hidden/mod.rs:1"),
     (FINE + '#[path = "hidden.inc"] mod hidden;\n', {"src/hidden.inc": HID}, "src/hidden.inc:1"),
     (FINE + 'include!("hidden.in");\n', {"src/hidden.in": HID}, "src/hidden.in:1"),
@@ -2728,22 +2874,73 @@ def test_a_path_mount_outside_the_package_directory_is_scanned(tmp_path, capsys)
     assert "shared/h.rs:1: a `cfg` predicate names `clippy`" in err
 
 
-def test_a_manifest_only_cargo_parses_fails_the_push_naming_it(tmp_path, capsys):
-    nested = {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": "not = [toml"}
-    code, err = _scan(tmp_path / "nested", capsys, FINE + "mod hidden;\n", nested)
-    assert code == 1
-    assert "cast gate: src/hidden/Cargo.toml does not parse as TOML here" in err
-    root = {"Cargo.toml": HIDDEN_MANIFEST + MULTILINE_TABLE}
-    code, err = _scan(tmp_path / "root", capsys, FINE + HID, root)
-    assert code == 1
-    assert "cast gate: Cargo.toml does not parse as TOML here (" in err
-    code, err = _scan(tmp_path / "control", capsys, FINE + HID, {"Cargo.toml": HIDDEN_MANIFEST})
-    assert (code, "src/lib.rs:2" in err, "does not parse" in err) == (1, True, False)
+UNPARSED = " does not parse as TOML here ("
+UNDECLARED = ("), so the gate cannot tell which package it declares, and no manifest that "
+              "parses declares the pushed package ")
+NOT_REFUSED = ("), so the gate cannot tell which package it declares; a manifest that parses "
+               "declares every pushed package, so the push is not refused for it, and the "
+               "files under its directory stay in the scan of a pushed package whose "
+               "directory holds them")
+Q_UNPARSED = {**TWO_MEMBERS, "crates/q/Cargo.toml": Q_MANIFEST + MULTILINE_TABLE}
+
+
+# No file of these pushes names `clippy`: each is refused only because a
+# manifest that does not parse could be the one declaring a pushed package.
+@pytest.mark.parametrize("extra, pushed, manifests, undeclared", [
+    # the pushed package's own manifest
+    ({"Cargo.toml": HIDDEN_MANIFEST + MULTILINE_TABLE}, ["hidden"], ["Cargo.toml"], "`hidden`"),
+    # every manifest that does not parse is named: any could be the package's
+    ({"Cargo.toml": HIDDEN_MANIFEST + MULTILINE_TABLE, "src/in/Cargo.toml": "not = [toml"},
+     ["hidden"], ["Cargo.toml", "src/in/Cargo.toml"], "`hidden`"),
+    # two pushed members, one declared by a manifest that parses
+    (Q_UNPARSED, ["p", "q"], ["crates/q/Cargo.toml"], "`q`"),
+])
+def test_a_pushed_package_only_an_unparsed_manifest_could_declare_is_refused(
+        tmp_path, capsys, extra, pushed, manifests, undeclared):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, FINE, extra)
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--sites", str(sites),
+                      *(flag for name in pushed for flag in ("--package", name))])
+    said = capsys.readouterr()
+    lines = said.err.splitlines()
+    assert (code, said.out, len(lines)) == (1, "", len(manifests))
+    for line, manifest in zip(lines, manifests):
+        assert line.startswith(f"cast gate: {manifest}{UNPARSED}")
+        assert line.endswith(UNDECLARED + undeclared)
+
+
+# The nested manifest is tracked at the tip only and `hidden` is declared by
+# the root manifest, which parses, so the manifest does not refuse the push.
+# The files under it stay in the scan: no `mod` reaches `src/stray/lib.rs`.
+@pytest.mark.parametrize("stray, expected", [
+    (FINE, (0, "")),
+    (HID, (1, "cast gate: src/stray/lib.rs:1: a `cfg` predicate names `clippy`, which "
+              "clippy-driver sets and rustc does not, so the gate cannot count the code "
+              "it guards\n")),
+])
+def test_an_unparsed_manifest_no_pushed_package_needs_is_named_and_stays_scanned(
+        tmp_path, capsys, stray, expected):
+    nested = {"src/stray/Cargo.toml": DECOY + MULTILINE_TABLE, "src/stray/lib.rs": stray}
+    code, said = _scan_streams(tmp_path, capsys, FINE, nested)
+    assert (code, said.err) == expected
+    note, = said.out.splitlines()
+    assert note.startswith(f"cast gate: src/stray/Cargo.toml{UNPARSED}")
+    assert note.endswith(NOT_REFUSED)
+
+
+def test_a_member_whose_manifest_stops_parsing_joins_the_scan_around_it(tmp_path, capsys):
+    root = {"Cargo.toml": HIDDEN_MANIFEST + '[workspace]\nmembers = ["src/stray"]\n',
+            "src/stray/lib.rs": HID}
+    fenced = {**root, "src/stray/Cargo.toml": DECOY}
+    assert _scan_streams(tmp_path / "parsed", capsys, FINE, fenced) == (0, ("", ""))
+    joined = {**root, "src/stray/Cargo.toml": DECOY + MULTILINE_TABLE}
+    code, said = _scan_streams(tmp_path / "unparsed", capsys, FINE, joined)
+    assert (code, "cast gate: src/stray/lib.rs:1: a `cfg` predicate" in said.err) == (1, True)
+    assert said.out.startswith(f"cast gate: src/stray/Cargo.toml{UNPARSED}")
 
 
 def test_a_file_no_mod_reaches_is_scanned_unless_a_workspace_member_holds_it(tmp_path, capsys):
-    stray = {"src/stray/Cargo.toml": '[package]\nname = "decoy"\nversion = "0.1.0"\n',
-             "src/stray/lib.rs": HID}
+    stray = {"src/stray/Cargo.toml": DECOY, "src/stray/lib.rs": HID}
     code, err = _scan(tmp_path / "decoy", capsys, FINE, stray)
     assert (code, "src/stray/lib.rs:1" in err) == (1, True)
     member = {"Cargo.toml": HIDDEN_MANIFEST + '[workspace]\nmembers = ["src/stray"]\n', **stray}
