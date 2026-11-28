@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 import os
 import pathlib
+import random
 import shutil
 import subprocess
 import sys
 import uuid
 
 import pytest
+from lockfile import GitUnavailable
+
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "atlas_cast_gate.py"
 _SPEC = importlib.util.spec_from_file_location("atlas_cast_gate", SCRIPT)
 assert _SPEC is not None and _SPEC.loader is not None
@@ -2425,6 +2429,174 @@ def test_a_revision_names_its_symbolic_links_and_reads_each_as_its_target_path(t
         assert (sorted(tree.paths), tree.links) == (
             ["gen/a.inc", "src/a.rs"], frozenset({"src/a.rs"}))
         assert tree.read("src/a.rs") == "../gen/a.inc"
+
+
+NOISE = "\n".join(  # incompressible comment lines: the manifest's object is tens of KB
+    "# " + base64.b64encode(random.Random(n).randbytes(60)).decode() for n in range(400))
+LOOSE_MANIFEST = NOISE + '\n[workspace]\nmembers = ["crates/*"]\n'
+
+
+def tracked_blob(repo, path):
+    """The object id of `path`, and the loose object file that holds it."""
+    oid = git(repo, "rev-parse", f"HEAD:{path}")
+    return oid, repo / ".git" / "objects" / oid[:2] / oid[2:]
+
+
+def truncated_manifest_repo(tmp_path, keep):
+    """Two commits of one workspace member `e`; the root manifest's object is cut to
+    `keep` of its bytes in the base, which is how a damaged object store presents."""
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "crates" / "e" / "src").mkdir(parents=True)
+    (repo / "Cargo.toml").write_bytes(LOOSE_MANIFEST.encode())
+    (repo / "crates" / "e" / "Cargo.toml").write_bytes(
+        b'[package]\nname = "e"\nversion = "0.1.0"\n')
+    (repo / "crates" / "e" / "src" / "lib.rs").write_bytes(b"pub fn a() {}\n")
+    base = commit(repo, "base")
+    (repo / "crates" / "e" / "src" / "lib.rs").write_bytes(b"pub fn a() {}\npub fn b() {}\n")
+    tip = commit(repo, "tip")
+    _, loose = tracked_blob(repo, "Cargo.toml")
+    whole = loose.read_bytes()
+    loose.chmod(0o644)
+    if keep is None:
+        loose.unlink()
+    else:
+        loose.write_bytes(whole[:int(len(whole) * keep)])
+    return repo, base, tip
+
+
+@pytest.mark.parametrize(("keep", "said"), [
+    (0.5, "git cat-file exited 128"),  # the header and a prefix arrive, then git dies
+    (None, "git answered"),            # git reports the object missing
+])
+def test_a_blob_git_does_not_hand_over_whole_raises_naming_its_path(tmp_path, keep, said):
+    repo, base, _ = truncated_manifest_repo(tmp_path, keep)
+    with gate.Revision(repo, base) as tree:
+        assert tree.read("crates/e/Cargo.toml") == '[package]\nname = "e"\nversion = "0.1.0"\n'
+        with pytest.raises(GitUnavailable, match=r"Cargo\.toml \([0-9a-f]+\)") as failure:
+            tree.read("Cargo.toml")
+    assert said in str(failure.value)
+
+
+@pytest.mark.parametrize("keep", [0.5, None])
+def test_a_check_whose_base_manifest_is_unreadable_exits_nonzero(tmp_path, capsys, keep):
+    # `e` has a site on a line the push does not add and a row of 1; only the base
+    # membership, read from the root manifest, says whether `e` is held to a count.
+    repo, base, tip = truncated_manifest_repo(tmp_path, keep)
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {"e": 1}}}))
+    sites = tmp_path / "sites.json"
+    sites.write_text(json.dumps([["e", "crates/e/src/lib.rs", 1, 27, 27, 35, 1]]))
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--package", "e", "--sites", str(sites),
+                      "--base-package", "e"])
+    error = capsys.readouterr().err
+    assert code == 2
+    assert error.startswith("cast gate: could not run: GitUnavailable: git could not read Cargo.toml")
+
+
+@pytest.mark.parametrize(("frame", "status", "reached", "said"), [
+    ("{oid} blob 3~abc~", 0, "abc", None),                       # control: the whole frame
+    ("{oid} blob 3~abcX", 0, None, "git did not end the content with a line feed"),
+    ("{oid} blob 5~ab~", 0, None, "git sent 3 of the 6 bytes"),   # fewer bytes than announced
+    ("{oid} tree 3~abc~", 0, None, "git answered"),               # not a blob
+    ("0000 blob 3~abc~", 0, None, "git answered"),                # not the requested object
+    ("{oid} blob three~abc~", 0, None, "git answered"),           # a size that is no number
+    ("{oid} missing~", 0, None, "git answered"),
+    ("", 0, None, "git answered ''"),                             # git exits without a frame
+    ("{oid} blob 3~abc~", 3, "abc", "git cat-file exited 3"),     # a whole frame, a failed exit
+])
+def test_a_reader_frame_is_checked_end_to_end(tmp_path, monkeypatch, frame, status, reached,
+                                              said):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "a.rs").write_bytes(b"abc")
+    tip = commit(repo, "file")
+    oid = git(repo, "rev-parse", "HEAD:a.rs")
+    program = ("import sys; sys.stdin.readline(); "
+               "sys.stdout.buffer.write(sys.argv[1].replace('~', chr(10)).encode()); "
+               "sys.stdout.flush(); sys.exit(int(sys.argv[2]))")
+    real = subprocess.Popen
+
+    def fake(command, *args, **kwargs):
+        if "cat-file" in command:
+            command = [sys.executable, "-I", "-c", program, frame.format(oid=oid), str(status)]
+        return real(command, *args, **kwargs)
+
+    monkeypatch.setattr(gate.subprocess, "Popen", fake)
+    outcome = None
+    try:
+        with gate.Revision(repo, tip) as tree:
+            outcome = tree.read("a.rs")
+    except GitUnavailable as failure:
+        assert said is not None and said in str(failure)
+        assert "a.rs" in str(failure) or "exited" in str(failure)
+    else:
+        assert said is None
+    assert outcome == reached
+
+
+def test_a_reader_that_does_not_answer_is_killed_at_the_deadline(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "a.rs").write_bytes(b"abc")
+    tip = commit(repo, "file")
+    real = subprocess.Popen
+
+    def silent(command, *args, **kwargs):
+        if "cat-file" in command:
+            command = [sys.executable, "-I", "-c", "import sys, time; sys.stdin.readline(); "
+                       "time.sleep(60)"]
+        return real(command, *args, **kwargs)
+
+    monkeypatch.setattr(gate.subprocess, "Popen", silent)
+    with gate.Revision(repo, tip) as tree:
+        tree.deadline = 0.5
+        with pytest.raises(GitUnavailable, match=r"a\.rs .*did not answer within 0\.5 s"):
+            tree.read("a.rs")
+
+
+def test_a_tree_git_cannot_list_raises_instead_of_reading_empty(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    with pytest.raises(GitUnavailable, match="ls-tree exited 128"):
+        gate.Revision(repo, "0" * 40)
+
+
+SUBSET_MODULE = ('#![expect(clippy::as_conversions, reason = "fixture")]\n'
+                 "pub fn x(a: u32) -> u64 { a as u64 }\n")
+
+
+@pytest.mark.parametrize("base_manifest", [MEMBER_MANIFEST, MEMBER_MANIFEST + MULTILINE_TABLE])
+def test_a_base_package_that_is_not_pushed_keeps_its_cast_module_count_check(
+        tmp_path, capsys, base_manifest):
+    # `q` is named by `--base-package` and its cast module gains a cast on an added line,
+    # but only `p` is pushed: whether or not the base manifest parses, nothing proves `q`
+    # had a count at the base, so the cast is refused rather than read as held to one.
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "Cargo.toml").write_text('[workspace]\nmembers = ["crates/*"]\n')
+    (repo / "crates" / "p" / "src").mkdir(parents=True)
+    (repo / "crates" / "p" / "src" / "lib.rs").write_text("pub fn f() {}\n")
+    (repo / "crates" / "p" / "Cargo.toml").write_text(base_manifest)
+    base = commit(repo, "base")
+    (repo / "crates" / "q" / "src").mkdir(parents=True)
+    (repo / "crates" / "q" / "Cargo.toml").write_text(Q_MANIFEST)
+    (repo / "crates" / "q" / "src" / "lib.rs").write_text("pub fn g() {}\n")
+    (repo / "crates" / "q" / "src" / "conv.rs").write_text(SUBSET_MODULE)
+    tip = commit(repo, "tip")
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {"p": 0, "q": 1}},
+                                 "cast_modules": {"m": {"q": "crates/q/src/conv.rs"}}}))
+    sites = tmp_path / "sites.json"
+    sites.write_text(json.dumps([["q", "crates/q/src/conv.rs", 2, 27, 27, 35, 2]]))
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--package", "p", "--sites", str(sites),
+                      "--base-package", "p", "--base-package", "q"])
+    assert code == 1
+    assert capsys.readouterr().err.splitlines()[-1] == (
+        "cast gate: crates/q/src/conv.rs:2:27: `as` cast added to q's cast module "
+        "without a count at the pushed base")
 
 
 Q_MANIFEST = MEMBER_MANIFEST.replace('"p"', '"q"')

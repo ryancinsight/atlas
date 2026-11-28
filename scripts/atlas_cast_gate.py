@@ -61,8 +61,10 @@ no count there, so its casts are judged by the row that records them, and a
 crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
 absent from it. A base manifest `tomllib` rejects leaves the membership unread:
-the gate says so and holds every named package to its base count, so a push
-that raises no count lands, the one repairing the manifest included.
+the gate says so and holds every pushed package it names to its base count, so
+a push that raises no count lands, the one repairing the manifest included. A
+blob git does not hand over whole (a truncated or missing object, a nonzero
+exit, no answer within the deadline) is no manifest: `check` exits 2.
 `--zero-base-package` records the proven standalone exception.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
     atlas_cast_gate.py new-standalone-owners --repo <dir> --base <sha> \
@@ -94,10 +96,13 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 import tomllib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from typing import IO
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
@@ -759,16 +764,32 @@ class ManifestError(ValueError):
         self.path = path
 
 
+def unavailable(message: str) -> Exception:
+    """The error for a git read that did not complete, which the gate never
+    reads as an absent file (`lockfile` owns the type its callers share)."""
+    from lockfile import GitUnavailable
+
+    return GitUnavailable(message)
+
+
 class Revision:
     """The tracked files of one revision. Blobs are read through one `git
     cat-file --batch` process, started on the first read, so a scan that reads
-    thousands of files pays for one process, not one per file."""
+    thousands of files pays for one process, not one per file.
+
+    A read that git does not complete -- a header that is not the requested
+    blob's, fewer bytes than the header announces, a missing object, a nonzero
+    exit, no answer within `GIT_DEADLINE_SECONDS` -- raises `GitUnavailable`
+    naming the path. A short read is never the blob: the truncated prefix of a
+    manifest would read as a manifest that declares less."""
 
     def __init__(self, repo: pathlib.Path, revision: str) -> None:
-        listing = subprocess.run(
-            ["git", "-C", str(repo), "ls-tree", "-r", "-z", revision],
-            capture_output=True, check=True).stdout.decode("utf-8", errors="replace")
+        from lockfile import GIT_DEADLINE_SECONDS, run_git
+
+        listing = run_git(["ls-tree", "-r", "-z", revision], repo).decode(
+            "utf-8", errors="replace")
         self.repo = repo
+        self.deadline = GIT_DEADLINE_SECONDS
         self.blobs: dict[str, str] = {}
         links = set()
         for entry in listing.split("\0"):
@@ -781,37 +802,106 @@ class Revision:
         self.links = frozenset(links)
         self._texts: dict[str, str] = {}
         self._reader: subprocess.Popen[bytes] | None = None
+        self._errors: IO[bytes] | None = None
 
     def __enter__(self) -> Revision:
         return self
 
-    def __exit__(self, *exception: object) -> None:
+    def __exit__(self, kind: object, *exception: object) -> None:
+        """Ends the reader; its nonzero exit raises unless an error is already on its way."""
         reader = self._reader
-        if reader is not None:
-            assert reader.stdin is not None and reader.stdout is not None
+        if reader is None:
+            return
+        ending = self._finish(reader)
+        if ending and kind is None:
+            raise unavailable(f"git cat-file ended badly at {self.repo}: {ending}")
+
+    def _finish(self, reader: subprocess.Popen[bytes]) -> str:
+        """Closes the reader's pipes, reaps it, and returns what its exit says,
+        empty for a clean one. A reader that outlives the deadline is killed."""
+        self._reader = None
+        assert reader.stdin is not None and reader.stdout is not None
+        try:
             reader.stdin.close()
+        except OSError:  # the reader is already gone; its exit status says why
+            pass
+        timed_out = False
+        try:
+            reader.wait(timeout=self.deadline)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            reader.kill()
             reader.wait()
-            reader.stdout.close()
+        reader.stdout.close()
+        detail = ""
+        if self._errors is not None:
+            self._errors.seek(0)
+            detail = self._errors.read().decode("utf-8", errors="replace").strip()
+            self._errors.close()
+            self._errors = None
+        if timed_out:
+            return f"git cat-file did not exit within {self.deadline} s"
+        if reader.returncode != 0:
+            return f"git cat-file exited {reader.returncode}: {detail}"
+        return ""
 
     def read(self, path: str) -> str | None:
         """The text of the blob at `path`, which for a symbolic link (`links`) is
-        the path it names; None when the revision tracks no such file."""
+        the path it names; None when the revision tracks no such file. Raises
+        `GitUnavailable` when git does not hand over the whole blob."""
         oid = self.blobs.get(path)
         if oid is None:
             return None
         if path not in self._texts:
-            if self._reader is None:
-                self._reader = subprocess.Popen(
-                    ["git", "-C", str(self.repo), "cat-file", "--batch"],
-                    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            reader = self._reader
-            assert reader.stdin is not None and reader.stdout is not None
+            self._texts[path] = self._blob(path, oid).decode("utf-8", errors="replace")
+        return self._texts[path]
+
+    def _blob(self, path: str, oid: str) -> bytes:
+        """The bytes of one blob, checked against the frame `cat-file --batch`
+        prints: `<oid> blob <size>`, the content, a line feed."""
+        if self._reader is None:
+            self._errors = tempfile.TemporaryFile()
+            self._reader = subprocess.Popen(
+                ["git", "--no-replace-objects", "-C", str(self.repo), "cat-file", "--batch"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self._errors)
+        reader = self._reader
+        assert reader.stdin is not None and reader.stdout is not None
+        late = threading.Event()
+
+        def overdue() -> None:
+            late.set()
+            reader.kill()
+
+        expired = threading.Timer(self.deadline, overdue)
+        expired.start()
+        problem = ""
+        body = b""
+        try:
             reader.stdin.write(f"{oid}\n".encode())
             reader.stdin.flush()
-            size = int(reader.stdout.readline().split()[2])
-            self._texts[path] = reader.stdout.read(size + 1)[:size].decode(
-                "utf-8", errors="replace")
-        return self._texts[path]
+            header = reader.stdout.readline().split()
+            if len(header) != 3 or header[:2] != [oid.encode(), b"blob"] \
+                    or not header[2].isdigit():
+                answer = b" ".join(header).decode("utf-8", errors="replace")
+                problem = f"git answered {answer!r}"
+            else:
+                size = int(header[2])
+                body = reader.stdout.read(size + 1)
+                if len(body) != size + 1:
+                    problem = f"git sent {len(body)} of the {size + 1} bytes its header announces"
+                elif not body.endswith(b"\n"):
+                    problem = "git did not end the content with a line feed"
+        except OSError as error:
+            problem = f"the pipe failed: {error}"
+        finally:
+            expired.cancel()
+        if late.is_set():
+            problem = f"git did not answer within {self.deadline} s"
+        if problem:
+            ending = self._finish(reader)
+            raise unavailable(f"git could not read {path} ({oid}) at {self.repo}: "
+                              + "; ".join(filter(None, (problem, ending))))
+        return body[:-1]
 
     def manifest_at(self, path: str) -> dict | None:
         """The parsed manifest at `path`; None when none is tracked there; an
@@ -1329,8 +1419,11 @@ def check(args: argparse.Namespace) -> int:
     except ManifestError as error:
         # No candidate is shown absent from the base, so each is held to its
         # count there: a package the push adds is then held to zero until the
-        # manifest parses, and a push that raises no count is not refused.
-        held = frozenset(args.base_package)
+        # manifest parses, and a push that raises no count is not refused. Only
+        # a pushed package is compared to its count, so a `--base-package` that
+        # is not also a `--package` stays unproven: its cast module is not read
+        # as one with a base count.
+        held = frozenset(args.base_package) & frozenset(args.package)
         print(f"cast gate: {error}; every `--base-package` is held to its count at "
               "the pushed base", file=sys.stderr)
     held |= frozenset(args.zero_base_package)
