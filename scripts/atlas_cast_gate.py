@@ -17,6 +17,21 @@ on a new cast. This gate is the enforcement:
   into it neither raises nor lowers the package's count. Its added lines pass
   only under `cast_module_fault`, no file of its package mounted twice
   (`clippy::duplicate_mod`, force-warned), and the base count;
+- a pushed package whose Rust text holds a `cfg` or `cfg_attr` predicate, or a
+  `cfg_select!` arm head, naming `clippy` fails (`cfg_clippy_problems`):
+  clippy-driver sets `cfg(clippy)` and rustc does not, so code under
+  `cfg(not(clippy))` is compiled only by the run that skips it, and code under
+  `cfg(clippy)` by no build the gate counts. The scan reads the files the
+  package's crate targets compile (`package_sources`: module trees, `#[path]`
+  and `include!("literal")` files of any extension, wherever they lie) and the
+  tracked `.rs` files under its directory that no other workspace member holds,
+  with comments and strings blanked, and refuses a file that cannot be read as
+  Rust. A tracked manifest `tomllib` rejects may declare any package
+  (`unparsed_manifests`): it fails the push, named, when no manifest that
+  parses declares some pushed package, and is otherwise named on standard
+  output while the files under it stay in the scan of the package around
+  them. A predicate built by macro substitution (`#[cfg(not($p))]`) has no
+  `cfg(` token and is not seen;
 - a package whose site count rises above its row in `cast-baseline.json`
   fails, a package with no row counting as zero -- a newly registered member
   is measured (`measure`) before its first gated push;
@@ -520,6 +535,140 @@ def cfg_clippy_lines(text: str) -> list[int]:
             if CLIPPY_PREDICATE.search(head):
                 found.append(code.count("\n", 0, start + len(head) - len(head.lstrip())) + 1)
     return sorted(found)
+
+
+def member_directories(manifests: Mapping[str, dict]) -> frozenset[str]:
+    """The directories of packages cargo builds apart from the package above
+    them: each workspace member (`members` globs less `exclude`) and each
+    manifest that opens a workspace of its own. A package that is only a path
+    dependency of a workspace root is not named here; its files stay with the
+    package above, which only widens that package's scan."""
+    found: set[str] = set()
+    for path, manifest in manifests.items():
+        table = manifest.get("workspace")
+        if not isinstance(table, dict):
+            continue
+        root = posixpath.dirname(path)
+        prefix = f"{root}/" if root else ""
+        inside = [other.removeprefix(prefix) for other in manifests if other.startswith(prefix)]
+        excluded = [entry for entry in table.get("exclude", []) if isinstance(entry, str)]
+        found.add(root)
+        members = [member for member in table.get("members", []) if isinstance(member, str)]
+        named = [name for member in members for name in member_manifests(member, inside)]
+        for manifest_path in named:
+            directory = posixpath.dirname(manifest_path)
+            if not any(is_excluded(directory, entry) for entry in excluded):
+                found.add("/".join(filter(None, [root, directory])))
+    return frozenset(found)
+
+
+def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], dict[str, str]]:
+    """The tracked files the named packages compile, and why any could not be
+    read: (paths, error by path).
+
+    A package compiles the files its crate targets' module trees reach
+    (`compiled_files`), whatever their extension or directory, and the scan
+    adds every tracked `.rs` file under the package directory that no other
+    workspace member's directory contains: a file no `mod` reaches can still
+    be compiled by a macro the walk does not read. A manifest that declares no
+    package, is not a member, or does not parse fences nothing off. A package
+    no manifest names has no files: `unparsed_manifests` refuses the push when a
+    manifest that does not parse could be its own, and otherwise the package
+    passes with nothing scanned.
+
+    A manifest `tomllib` rejects is scanned for every push, as if it declared a
+    pushed package: the package it declares is unknown, and a parsed manifest of
+    the same name elsewhere (a fixture, an excluded copy) would otherwise take
+    the files of the real one out of the scan. The scan then holds that
+    directory's tracked `.rs` files and the module trees of its default targets;
+    a target the manifest declares by a path outside the defaults is out of
+    reach, and `unparsed_manifests` refuses the push when such a manifest may be
+    a pushed package's own.
+    """
+    manifests, refused = tip.manifests
+    unparsed = {path: {} for path in refused}
+    members = member_directories(manifests)
+    wanted = frozenset(packages)
+    files: set[str] = set()
+    errors: dict[str, str] = {}
+    for path, manifest in [*manifests.items(), *unparsed.items()]:
+        if path not in unparsed and package_name(manifest) not in wanted:
+            continue
+        directory = posixpath.dirname(path)
+        prefix = f"{directory}/" if directory else ""
+        errors |= discovery_errors(manifest, directory, tip.index)
+        for root in target_roots(manifest, directory, tip.index):
+            reached, unreadable = compiled_files(tip.index, tip.read, root)
+            files |= reached
+            errors |= unreadable
+        nested = tuple(f"{member}/" for member in members
+                       if member and member != directory and f"{member}/".startswith(prefix))
+        files |= {file for file in tip.paths
+                  if file.endswith(".rs") and file.startswith(prefix)
+                  and not file.startswith(nested)}
+    return files, errors
+
+
+def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str], list[str]]:
+    """The tracked manifests `tomllib` rejects, as (problems, notes): each is
+    named once, in the first list when it refuses the push.
+
+    A manifest that does not parse may declare any package, and the targets it
+    declares may lie outside its directory, where the scan cannot find them. A
+    package counts as declared only by a manifest the root builds (`built_packages`):
+    a parsed manifest elsewhere that carries its name (a fixture, a copy the
+    workspace excludes) declares nothing. When some pushed package is not built
+    by a manifest that parses, one that does not parse may be its own, and every
+    such manifest is a problem. A pushed package that no manifest names, with no
+    manifest that fails to parse, is not refused and has no files scanned.
+    When the root builds each pushed package, the push is not refused for a
+    manifest it may not own: `package_sources` scans the directory of each
+    manifest that does not parse, and a note names it.
+    """
+    parsed, refused = tip.manifests
+    declared = built_packages(parsed)
+    unnamed = sorted(set(packages).difference(declared))
+    if unnamed:
+        names = ", ".join(f"`{name}`" for name in unnamed)
+        return [f"{error}, and no manifest that parses declares the pushed package {names}"
+                for _, error in sorted(refused.items())], []
+    return [], [f"{error}; a manifest that parses declares every pushed package, so the "
+                "push is not refused for it, and its directory and default targets are "
+                "scanned in every push"
+                for _, error in sorted(refused.items())]
+
+
+def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
+    """One problem per `cfg` predicate naming `clippy` in a pushed package.
+
+    The scan covers the files the package compiles (`package_sources`) and no
+    other text. A file holds such a predicate only if the word `clippy` occurs
+    in it, and the lexer then decides whether a hit is code and whether the
+    predicate -- not a `cfg_attr` body -- names `clippy`. A file that cannot be
+    read as Rust is refused: its predicates, and the modules it declares,
+    cannot be read.
+    """
+    files, unreadable = package_sources(tip, packages)
+    problems = [f"{path}: cannot be read as Rust ({error}), so the gate cannot tell "
+                "whether a `cfg` predicate names `clippy`"
+                for path, error in sorted(unreadable.items())]
+    for path in sorted(files.difference(unreadable)):
+        text = tip.read(path) or ""
+        if not CLIPPY_PREDICATE.search(text):
+            continue
+        try:
+            lines = cfg_clippy_lines(text)
+        except ValueError as error:
+            problems.append(
+                f"{path}: cannot be read as Rust ({error}), so the gate cannot tell "
+                "whether a `cfg` predicate names `clippy`")
+            continue
+        problems += [
+            f"{path}:{line}: a `cfg` predicate names `clippy`, which clippy-driver sets "
+            "and rustc does not, so the gate cannot count the code it guards"
+            for line in lines
+        ]
+    return problems
 
 
 def pushed_diff(repo: pathlib.Path, base: str | None, tip: str, form: list[str]) -> bytes:
@@ -1052,6 +1201,19 @@ class Revision:
         """The tracked paths and links as `path_index` holds them."""
         return path_index(self.paths, self.links)
 
+    @functools.cached_property
+    def manifests(self) -> tuple[dict[str, dict], dict[str, ManifestError]]:
+        """Every tracked manifest as (parsed by path, refused by path)."""
+        parsed: dict[str, dict] = {}
+        refused: dict[str, ManifestError] = {}
+        for path in self.paths:
+            if is_manifest(path):
+                try:
+                    parsed[path] = self.manifest_at(path) or {}
+                except ManifestError as error:
+                    refused[path] = error
+        return parsed, refused
+
     def manifest_at(self, path: str) -> dict | None:
         """The parsed manifest at `path`; None when none is tracked there; an
         unparseable one raises `ManifestError`."""
@@ -1128,6 +1290,34 @@ def is_excluded(directory: str, pattern: str) -> bool:
     return directory == entry or directory.startswith(entry + "/")
 
 
+def root_members(workspace: dict, manifests: list[str]) -> list[str]:
+    """The manifests among `manifests` that the root workspace table `workspace`
+    names as members (`members` globs less `exclude`)."""
+    excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
+    named = [path for member in workspace.get("members", []) if isinstance(member, str)
+             for path in member_manifests(member, manifests)]
+    return [path for path in named
+            if not any(is_excluded(posixpath.dirname(path), entry) for entry in excluded)]
+
+
+def built_packages(manifests: Mapping[str, dict]) -> frozenset[str]:
+    """The packages the root manifest builds, among the manifests that parse
+    (`manifests` by path): the root's own package and each workspace member's.
+
+    A parsed manifest elsewhere that carries a package's name (a fixture, a copy
+    the workspace excludes) is not built by the root and declares nothing. A
+    root manifest that does not parse leaves nothing known to be built.
+    """
+    root = manifests.get("Cargo.toml")
+    if root is None:
+        return frozenset()
+    workspace = root.get("workspace")
+    named = [root]
+    if isinstance(workspace, dict):
+        named += [manifests[path] for path in root_members(workspace, list(manifests))]
+    return frozenset(name for manifest in named if (name := package_name(manifest)))
+
+
 def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
     """The packages the workspace at `base` had.
 
@@ -1147,18 +1337,11 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
         name = package_name(data)
         if name:
             packages.add(name)
-        excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
         manifests = [path for path in tree.paths if is_manifest(path)]
-        for member in workspace.get("members", []):
-            if not isinstance(member, str):
-                continue
-            for manifest in member_manifests(member, manifests):
-                directory = posixpath.dirname(manifest)
-                if any(is_excluded(directory, entry) for entry in excluded):
-                    continue
-                name = package_name(tree.manifest_at(manifest) or {})
-                if name:
-                    packages.add(name)
+        for manifest in root_members(workspace, manifests):
+            name = package_name(tree.manifest_at(manifest) or {})
+            if name:
+                packages.add(name)
         return frozenset(packages)
 
 
@@ -1982,6 +2165,15 @@ def check(args: argparse.Namespace) -> int:
         modules[package] = (path, fault)
     problems += violations(args.member, found, added, args.package, baseline, base,
                            held, modules)
+    with Revision(repo, args.tip) as tip:
+        refusals, notes = unparsed_manifests(tip, args.package)
+        problems += refusals
+        problems += cfg_clippy_problems(tip, args.package)
+    # Standard error holds what fails the push and the base line above. A note
+    # fails nothing and goes to standard output, which the pre-push hook sends
+    # to the same terminal (`check ... >&2`).
+    for note in notes:
+        print(f"cast gate: {note}")
     for problem in problems:
         print(f"cast gate: {problem}", file=sys.stderr)
     if problems and args.member not in baseline.counts:

@@ -2289,8 +2289,11 @@ HOLDS = "holds {} inner `#![expect(...)]` attributes, not one"
 ])
 def test_a_cast_module_opens_with_one_expect_naming_cast_lints(tmp_path, capsys, text, fault):
     found = (site("prof", MODULE, 1, 1),)  # line 1 is added in every shape
+    unread = ([f"{MODULE}: cannot be read as Rust (an unclosed attribute), so the gate cannot "
+               "tell whether a `cfg` predicate names `clippy`"]
+              if "an unclosed attribute" in str(fault) else [])  # the walk reads it as well
     assert cast_module_push(tmp_path, capsys, text, found=found)[1:] == (
-        (0, []) if fault is None else (1, faults(fault, "1:1")))
+        (0, []) if fault is None else (1, faults(fault, "1:1") + unread))
 
 
 # The round-2 judge's witnesses, each with the sites clippy 1.97.0 reports for it.
@@ -2595,9 +2598,8 @@ def test_a_base_package_that_is_not_pushed_keeps_its_cast_module_count_check(
                       "--base", base, "--tip", tip, "--package", "p", "--sites", str(sites),
                       "--base-package", "p", "--base-package", "q"])
     assert code == 1
-    assert capsys.readouterr().err.splitlines()[-1] == (
-        "cast gate: crates/q/src/conv.rs:2:27: `as` cast added to q's cast module "
-        "without a count at the pushed base")
+    assert ("cast gate: crates/q/src/conv.rs:2:27: `as` cast added to q's cast module "
+            "without a count at the pushed base") in capsys.readouterr().err.splitlines()
 
 
 Q_MANIFEST = MEMBER_MANIFEST.replace('"p"', '"q"')
@@ -3060,6 +3062,76 @@ def test_a_cfg_predicate_naming_clippy_is_found_by_line():
     assert gate.cfg_clippy_lines(text) == [2, 3, 7]
 
 
+HIDDEN_MANIFEST = '[package]\nname = "hidden"\nversion = "0.1.0"\nedition = "2021"\n'
+
+
+def _hidden_cast_repo(tmp_path, lib_source, extra=None):
+    repo = tmp_path / "member"
+    init(repo)
+    (repo / "src").mkdir()
+    (repo / "Cargo.toml").write_bytes(HIDDEN_MANIFEST.encode())
+    (repo / "src" / "lib.rs").write_bytes(b"pub fn fine() {}\n")
+    base = commit(repo, "base")
+    (repo / "src" / "lib.rs").write_bytes(lib_source.encode())
+    for name, body in (extra or {}).items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_bytes(body.encode())
+    tip = commit(repo, "tip")
+    rules = tmp_path / "rules.json"
+    rules.write_text('{"sanctioned": {}, "counts": {"m": {"hidden": 0}}}')
+    sites = tmp_path / "sites.json"
+    sites.write_text("[]")
+    return repo, base, tip, rules, sites
+
+
+def _check_hidden(repo, base, tip, rules, sites, package="hidden"):
+    return gate.main(["--baseline", str(rules), "check", "--member", "m",
+                      "--repo", str(repo), "--base", base, "--tip", tip,
+                      "--package", package, "--sites", str(sites)])
+
+
+def test_a_cast_under_cfg_not_clippy_cannot_pass_unmeasured(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path,
+        "pub fn fine() {}\n"
+        "#[cfg(not(clippy))]\n"
+        "pub fn hidden(x: u32) -> u64 { x as u64 }\n",
+    )
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "src/lib.rs:2" in err
+    assert "`cfg` predicate names `clippy`" in err
+
+
+def test_a_second_mount_under_cfg_not_clippy_cannot_pass_unmeasured(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path,
+        "pub fn fine() {}\n"
+        "#[cfg(not(clippy))]\n"
+        "#[path = \"cast.rs\"]\n"
+        "pub mod again;\n",
+    )
+    (repo / "src" / "cast.rs").write_text("pub fn cast(x: u32) -> u64 { x as u64 }\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "mount")
+    tip = git(repo, "rev-parse", "HEAD")
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "src/lib.rs:2" in err
+    assert "`cfg` predicate names `clippy`" in err
+
+
+def test_a_package_without_a_clippy_predicate_still_passes(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path,
+        'pub fn fine() {}\n'
+        '#[cfg_attr(test, allow(clippy::unwrap_used, reason = "test scope"))]\n'
+        "pub fn ok() {}\n",
+    )
+    assert _check_hidden(repo, base, tip, rules, sites) == 0
+    assert "predicate names `clippy`" not in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("source, lines", [
     ("#[cfg(all(not(test), not(clippy)))] fn h() {}\n", [1]),
     ('#[cfg(all(\n    not(clippy),\n    target_pointer_width = "64"\n))]\nfn h() {}\n', [1]),
@@ -3086,3 +3158,336 @@ def test_a_predicate_that_does_not_close_cannot_be_read():
     for source in ("#[cfg(not(clippy)\nfn h() {}\n", "cfg_select! { not(clippy) => {}\n"):
         with pytest.raises(ValueError, match="an unclosed bracket"):
             gate.cfg_clippy_lines(source)
+
+
+@pytest.mark.parametrize("lib", [
+    "#[cfg(all(not(test), not(clippy)))] pub fn hidden(x: u32) -> u64 { x as u64 }\n",
+    '#[cfg(all(\n    not(clippy),\n    target_pointer_width = "64"\n))]\n'
+    "pub fn hidden(x: u32) -> u64 {\n    x as u64\n}\n",
+    "#[cfg(\n    not(clippy)\n)]\npub fn hidden(x: u32) -> u64 { x as u64 }\n",
+])
+def test_a_split_or_nested_clippy_predicate_cannot_pass_unmeasured(tmp_path, capsys, lib):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, "pub fn fine() {}\n" + lib)
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    assert "src/lib.rs:2" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("name, body", [
+    ("README.md", "# hidden\n\nCode under `#[cfg(not(clippy))]` is invisible.\n"),
+    ("README.md", "# hidden\n\nAvoid `#[cfg(clippy)]`; sources live in `src/*`.\n"),
+    ("docs/notes.md", "We never write cfg(not(clippy)) in this crate.\n"),
+    ("Cargo.toml", HIDDEN_MANIFEST + "[lints.rust]\nunexpected_cfgs = "
+     "{ level = \"warn\", check-cfg = ['cfg(clippy)'] }\n"),
+])
+def test_text_that_is_not_rust_source_is_not_scanned(tmp_path, capsys, name, body):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, "pub fn fine() {}\n", {name: body})
+    assert _check_hidden(repo, base, tip, rules, sites) == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_a_rust_file_naming_clippy_that_does_not_lex_is_refused(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, "pub fn fine() {}\n", {"src/bad.rs": "/* clippy\n"})
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert "src/bad.rs: cannot be read as Rust (an unclosed block comment)" in err
+
+
+HID = "#[cfg(not(clippy))] pub fn h(x: u32) -> u64 { x as u64 }\n"
+FINE = "pub fn fine() {}\n"
+DECOY = '[package]\nname = "decoy"\nversion = "0.1.0"\n'
+
+
+def _scan_streams(tmp_path, capsys, lib, extra=None, package="hidden"):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, lib, extra)
+    return _check_hidden(repo, base, tip, rules, sites, package=package), capsys.readouterr()
+
+
+def _scan(tmp_path, capsys, lib, extra=None, package="hidden"):
+    code, said = _scan_streams(tmp_path, capsys, lib, extra, package)
+    return code, said.err
+
+
+@pytest.mark.parametrize("lib, extra, where", [
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": ""},
+     "src/hidden/mod.rs:1"),
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": "not = [toml"},
+     "src/hidden/mod.rs:1"),
+    (FINE + "mod hidden;\n", {"src/hidden/mod.rs": HID, "src/hidden/Cargo.toml": DECOY},
+     "src/hidden/mod.rs:1"),
+    (FINE + '#[path = "hidden.inc"] mod hidden;\n', {"src/hidden.inc": HID}, "src/hidden.inc:1"),
+    (FINE + 'include!("hidden.in");\n', {"src/hidden.in": HID}, "src/hidden.in:1"),
+    (FINE + "#[path = \"..\\\\shared\\\\h.rs\"] mod h;\n", {"shared/h.rs": HID},
+     "shared/h.rs:1"),
+])
+def test_the_scan_reads_the_files_the_package_compiles(tmp_path, capsys, lib, extra, where):
+    code, err = _scan(tmp_path, capsys, lib, extra)
+    assert (code, where in err) == (1, True)
+
+
+def test_a_path_mount_outside_the_package_directory_is_scanned(tmp_path, capsys):
+    code, err = _scan(
+        tmp_path, capsys, FINE,
+        {"Cargo.toml": '[workspace]\nmembers = ["crates/p"]\n',
+         "crates/p/Cargo.toml": '[package]\nname = "p"\nversion = "0.1.0"\n',
+         "crates/p/src/lib.rs": '#[path = "../../../shared/h.rs"]\nmod h;\n',
+         "shared/h.rs": HID}, package="p")
+    assert code == 1
+    assert "shared/h.rs:1: a `cfg` predicate names `clippy`" in err
+
+
+UNPARSED = " does not parse as TOML here ("
+UNDECLARED = ("), so the gate cannot tell which package it declares, and no manifest that "
+              "parses declares the pushed package ")
+NOT_REFUSED = ("), so the gate cannot tell which package it declares; a manifest that parses "
+               "declares every pushed package, so the push is not refused for it, and its "
+               "directory and default targets are scanned in every push")
+Q_UNPARSED = {**TWO_MEMBERS, "crates/q/Cargo.toml": Q_MANIFEST + MULTILINE_TABLE}
+
+
+# No file of these pushes names `clippy`: each is refused only because a
+# manifest that does not parse could be the one declaring a pushed package.
+@pytest.mark.parametrize("extra, pushed, manifests, undeclared", [
+    # the pushed package's own manifest
+    ({"Cargo.toml": HIDDEN_MANIFEST + MULTILINE_TABLE}, ["hidden"], ["Cargo.toml"], "`hidden`"),
+    # every manifest that does not parse is named: any could be the package's
+    ({"Cargo.toml": HIDDEN_MANIFEST + MULTILINE_TABLE, "src/in/Cargo.toml": "not = [toml"},
+     ["hidden"], ["Cargo.toml", "src/in/Cargo.toml"], "`hidden`"),
+    # two pushed members, one declared by a manifest that parses
+    (Q_UNPARSED, ["p", "q"], ["crates/q/Cargo.toml"], "`q`"),
+])
+def test_a_pushed_package_only_an_unparsed_manifest_could_declare_is_refused(
+        tmp_path, capsys, extra, pushed, manifests, undeclared):
+    repo, base, tip, rules, sites = _hidden_cast_repo(tmp_path, FINE, extra)
+    code = gate.main(["--baseline", str(rules), "check", "--member", "m", "--repo", str(repo),
+                      "--base", base, "--tip", tip, "--sites", str(sites),
+                      *(flag for name in pushed for flag in ("--package", name))])
+    said = capsys.readouterr()
+    lines = said.err.splitlines()
+    assert (code, said.out, len(lines)) == (1, "", len(manifests))
+    for line, manifest in zip(lines, manifests):
+        assert line.startswith(f"cast gate: {manifest}{UNPARSED}")
+        assert line.endswith(UNDECLARED + undeclared)
+
+
+# The nested manifest is tracked at the tip only and `hidden` is declared by
+# the root manifest, which parses, so the manifest does not refuse the push.
+# The files under it stay in the scan: no `mod` reaches `src/stray/lib.rs`.
+@pytest.mark.parametrize("stray, expected", [
+    (FINE, (0, "")),
+    (HID, (1, "cast gate: src/stray/lib.rs:1: a `cfg` predicate names `clippy`, which "
+              "clippy-driver sets and rustc does not, so the gate cannot count the code "
+              "it guards\n")),
+])
+def test_an_unparsed_manifest_no_pushed_package_needs_is_named_and_stays_scanned(
+        tmp_path, capsys, stray, expected):
+    nested = {"src/stray/Cargo.toml": DECOY + MULTILINE_TABLE, "src/stray/lib.rs": stray}
+    code, said = _scan_streams(tmp_path, capsys, FINE, nested)
+    assert (code, said.err) == expected
+    note, = said.out.splitlines()
+    assert note.startswith(f"cast gate: src/stray/Cargo.toml{UNPARSED}")
+    assert note.endswith(NOT_REFUSED)
+
+
+def test_a_member_whose_manifest_stops_parsing_joins_the_scan_around_it(tmp_path, capsys):
+    root = {"Cargo.toml": HIDDEN_MANIFEST + '[workspace]\nmembers = ["src/stray"]\n',
+            "src/stray/lib.rs": HID}
+    fenced = {**root, "src/stray/Cargo.toml": DECOY}
+    assert _scan_streams(tmp_path / "parsed", capsys, FINE, fenced) == (0, ("", ""))
+    joined = {**root, "src/stray/Cargo.toml": DECOY + MULTILINE_TABLE}
+    code, said = _scan_streams(tmp_path / "unparsed", capsys, FINE, joined)
+    assert (code, "cast gate: src/stray/lib.rs:1: a `cfg` predicate" in said.err) == (1, True)
+    assert said.out.startswith(f"cast gate: src/stray/Cargo.toml{UNPARSED}")
+
+
+def test_a_file_no_mod_reaches_is_scanned_unless_a_workspace_member_holds_it(tmp_path, capsys):
+    stray = {"src/stray/Cargo.toml": DECOY, "src/stray/lib.rs": HID}
+    code, err = _scan(tmp_path / "decoy", capsys, FINE, stray)
+    assert (code, "src/stray/lib.rs:1" in err) == (1, True)
+    member = {"Cargo.toml": HIDDEN_MANIFEST + '[workspace]\nmembers = ["src/stray"]\n', **stray}
+    assert _scan(tmp_path / "member", capsys, FINE, member) == (0, "")
+    assert _scan(tmp_path / "other", capsys, FINE, member, package="decoy")[0] == 1
+    assert _scan(tmp_path / "none", capsys, FINE, member, package="nosuch") == (0, "")
+
+
+DECOYED = {  # crates/p's manifest only cargo parses; a manifest that parses is also named `p`
+    "Cargo.toml": '[workspace]\nmembers = ["crates/p"]\n',
+    "crates/p/Cargo.toml": MEMBER_MANIFEST + MULTILINE_TABLE,
+    "crates/p/src/lib.rs": FINE,
+    "fixtures/p/Cargo.toml": MEMBER_MANIFEST,
+    "fixtures/p/src/lib.rs": FINE,
+}
+EXCLUDED = {**DECOYED, "Cargo.toml": '[workspace]\nmembers = ["crates/*"]\nexclude = ["crates/old"]\n',
+            "crates/old/Cargo.toml": MEMBER_MANIFEST, "crates/old/src/lib.rs": FINE}
+for _name in ("fixtures/p/Cargo.toml", "fixtures/p/src/lib.rs"):
+    del EXCLUDED[_name]
+REPARSED = {**DECOYED, "crates/p/Cargo.toml": MEMBER_MANIFEST}
+
+
+def _scan_workspace(tmp_path, capsys, base, tip, package="p"):
+    repo = tmp_path / "member"
+    init(repo)
+    heads = []
+    for state in (base, tip):
+        for path, body in state.items():
+            (repo / path).parent.mkdir(parents=True, exist_ok=True)
+            (repo / path).write_bytes(body.encode())
+        heads.append(commit(repo, "state"))
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps({"sanctioned": {}, "counts": {"m": {package: 0}}}))
+    sites = tmp_path / "sites.json"
+    sites.write_text("[]")
+    code = _check_hidden(repo, heads[0], heads[1], rules, sites, package=package)
+    return code, capsys.readouterr()
+
+
+@pytest.mark.parametrize("workspace, tip, where", [
+    # the real manifest does not parse, and a manifest that parses is named like it
+    (DECOYED, {"crates/p/src/lib.rs": FINE + HID}, "crates/p/src/lib.rs:2"),
+    # the same, the copy a workspace excludes
+    (EXCLUDED, {"crates/p/src/lib.rs": FINE + HID}, "crates/p/src/lib.rs:2"),
+    # a file no `mod` of a `.rs` file names
+    (DECOYED, {"crates/p/src/lib.rs": FINE + '#[path = "../../../gen/h.inc"] mod h;\n',
+               "gen/h.inc": HID}, "gen/h.inc:1"),
+    (DECOYED, {"crates/p/src/lib.rs": FINE + "mod hidden;\n", "crates/p/src/hidden.rs": HID},
+     "crates/p/src/hidden.rs:1"),
+    # the control: every manifest parses
+    (REPARSED, {"crates/p/src/lib.rs": FINE + HID}, "crates/p/src/lib.rs:2"),
+])
+def test_an_unparsed_manifest_is_scanned_though_a_manifest_that_parses_has_its_name(
+        tmp_path, capsys, workspace, tip, where):
+    code, said = _scan_workspace(tmp_path, capsys, workspace, tip)
+    assert code == 1
+    assert f"cast gate: {where}: a `cfg` predicate names `clippy`" in said.err
+
+
+@pytest.mark.parametrize("mount", [
+    '#[path = "../gen/h.inc."]\nmod h;\n', '#[path = "../gen/h.inc "]\nmod h;\n',
+    '#[path = "../gen/h.inc::$DATA"]\nmod h;\n', '#[path = "../gen/h.inc\\x2e"]\nmod h;\n',
+])
+def test_a_path_a_windows_host_reads_as_the_file_it_hides_is_refused_by_the_scan(
+        tmp_path, capsys, mount):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, FINE + mount, {"gen/h.inc": HID})
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("cast gate: src/lib.rs: cannot be read as Rust (line 2: the path ")
+
+
+def test_a_path_written_with_an_escape_is_scanned_as_the_file_rustc_loads(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, FINE + '#[path = "../gen/h\\x2einc"]\nmod h;\n', {"gen/h.inc": HID})
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    assert "cast gate: gen/h.inc:1: a `cfg` predicate names `clippy`" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("link, where", [("tests", "tests"), ("benches", "benches")])
+def test_a_linked_discovery_folder_is_refused_by_the_scan(tmp_path, capsys, link, where):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, FINE, {"t2/x.rs": '#[path = "../gen/t.inc"]\nmod t;\n', "gen/t.inc": HID})
+    tip = track_link(repo, tmp_path, link, "t2")
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    assert capsys.readouterr().err.startswith(
+        f"cast gate: {where}: cannot be read as Rust (a symbolic link on the way to `{where}`")
+
+
+def test_a_real_discovery_folder_is_walked_like_a_linked_one_is_refused(tmp_path, capsys):
+    repo, base, tip, rules, sites = _hidden_cast_repo(
+        tmp_path, FINE, {"tests/x.rs": '#[path = "../gen/t.inc"]\nmod t;\n', "gen/t.inc": HID})
+    assert _check_hidden(repo, base, tip, rules, sites) == 1
+    assert "cast gate: gen/t.inc:1: a `cfg` predicate names `clippy`" in capsys.readouterr().err
+
+
+def test_member_directories_name_members_and_nested_workspaces():
+    manifests = {"Cargo.toml": {"workspace": {"members": ["crates/*"], "exclude": ["crates/old"]}},
+                 "crates/a/Cargo.toml": {}, "crates/old/Cargo.toml": {}, "tools/x/Cargo.toml": {},
+                 "fuzz/Cargo.toml": {"workspace": {}}}
+    assert gate.member_directories(manifests) == {"", "crates/a", "fuzz"}
+
+
+def test_a_cfg_select_arm_naming_clippy_cannot_pass_unmeasured(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "cfg_select! {\n"
+                      "    not(clippy) => { pub fn h(x: u32) -> u64 { x as u64 } }\n"
+                      "    _ => {}\n}\n")
+    assert code == 1
+    assert "src/lib.rs:3: a `cfg` predicate names `clippy`" in err
+
+
+def test_a_file_the_walk_reaches_that_does_not_lex_is_refused(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "mod bad;\n", {"src/bad.rs": "/* open\n"})
+    assert code == 1
+    assert "src/bad.rs: cannot be read as Rust (an unclosed block comment)" in err
+
+
+def test_an_unreadable_file_naming_clippy_is_refused_once(tmp_path, capsys):
+    code, err = _scan(tmp_path, capsys, FINE + "mod bad;\n", {"src/bad.rs": "/* clippy\n"})
+    assert code == 1
+    assert err.count("src/bad.rs: cannot be read as Rust (an unclosed block comment)") == 1
+
+
+BIN_OUTSIDE = '[[bin]]\nname = "b"\npath = "../../tools/b.rs"\n'
+OUTSIDE = {  # crates/p declares a bin outside its directory, and a parsed manifest elsewhere is `p`
+    "Cargo.toml": '[workspace]\nmembers = ["crates/p"]\n',
+    "crates/p/Cargo.toml": MEMBER_MANIFEST + BIN_OUTSIDE + MULTILINE_TABLE,
+    "crates/p/src/lib.rs": FINE,
+    "tools/b.rs": "fn main() {}\n",
+    "fixtures/p/Cargo.toml": MEMBER_MANIFEST,
+    "fixtures/p/src/lib.rs": FINE,
+}
+OUTSIDE_TIP = {"tools/b.rs": "fn main() {}\n" + HID, "crates/p/src/lib.rs": FINE + "pub fn also() {}\n"}
+
+
+@pytest.mark.parametrize("workspace, refused", [
+    (OUTSIDE, True),  # atlas822-1 G1: the declared path is unknown, and the decoy names `p`
+    ({k: v for k, v in OUTSIDE.items() if not k.startswith("fixtures/")}, True),  # no decoy
+    ({**OUTSIDE, "crates/p/Cargo.toml": MEMBER_MANIFEST + BIN_OUTSIDE}, False),  # all parse
+])
+def test_a_target_an_unparsed_manifest_declares_outside_its_directory_is_not_passed_unread(
+        tmp_path, capsys, workspace, refused):
+    code, said = _scan_workspace(tmp_path, capsys, workspace, OUTSIDE_TIP)
+    assert code == 1
+    refusal = [line for line in said.err.splitlines()
+               if line.startswith(f"cast gate: crates/p/Cargo.toml{UNPARSED}")
+               and line.endswith(UNDECLARED + "`p`")]
+    assert bool(refusal) is refused
+    if not refused:  # the manifest parses, so the declared target is read
+        assert "cast gate: tools/b.rs:2: a `cfg` predicate names `clippy`" in said.err
+
+
+def test_a_manifest_the_root_does_not_build_declares_no_package():
+    parsed = {
+        "Cargo.toml": {"workspace": {"members": ["crates/*", "tools/t"], "exclude": ["crates/x"]}},
+        "crates/a/Cargo.toml": {"package": {"name": "a"}},
+        "crates/x/Cargo.toml": {"package": {"name": "x"}},
+        "tools/t/Cargo.toml": {"package": {"name": "t"}},
+        "fixtures/a/Cargo.toml": {"package": {"name": "decoy"}},
+    }
+    assert gate.built_packages(parsed) == {"a", "t"}
+    rooted = {**parsed, "Cargo.toml": {"package": {"name": "top"}, **parsed["Cargo.toml"]}}
+    assert gate.built_packages(rooted) == {"top", "a", "t"}
+    assert gate.built_packages({k: v for k, v in parsed.items() if k != "Cargo.toml"}) == set()
+
+
+STRAY = {"tools/x/Cargo.toml": MEMBER_MANIFEST.replace('"p"', '"x"') + MULTILINE_TABLE,
+         "tools/x/src/lib.rs": FINE}
+
+
+def test_an_unparsed_manifest_no_pushed_package_needs_is_named_and_the_push_passes(
+        tmp_path, capsys):
+    code, said = _scan_workspace(tmp_path, capsys, {**REPARSED, **STRAY},
+                                 {"crates/p/src/lib.rs": FINE + "pub fn more() {}\n"})
+    assert (code, said.err) == (0, "")
+    note, = said.out.splitlines()
+    assert note.startswith(f"cast gate: tools/x/Cargo.toml{UNPARSED}")
+    assert note.endswith(NOT_REFUSED)
+
+
+def test_a_decoyed_package_with_no_predicate_is_refused_for_its_unparsed_manifest(
+        tmp_path, capsys):
+    code, said = _scan_workspace(tmp_path, capsys, DECOYED,
+                                 {"crates/p/src/lib.rs": FINE + "pub fn more() {}\n"})
+    assert code == 1
+    assert said.out == ""
+    assert any(line.startswith(f"cast gate: crates/p/Cargo.toml{UNPARSED}")
+               and line.endswith(UNDECLARED + "`p`") for line in said.err.splitlines())
