@@ -3045,3 +3045,44 @@ def test_a_path_cycle_that_respells_its_directory_is_walked_once():
     assert gate.compiled_files(gate.path_index(files), read, "src/lib.rs") == (
         {"src/lib.rs"}, {})
     assert reads == ["src/lib.rs"]
+
+
+def test_a_cfg_predicate_naming_clippy_is_found_by_line():
+    text = "\n".join((
+        "pub fn fine() {}",
+        "#[cfg(not(clippy))] pub fn hidden(x: u32) -> u64 { x as u64 }",
+        "#[cfg_attr(clippy, derive(Debug))] struct S;",
+        "#[cfg_attr(test, allow(clippy::unwrap_used, reason = \"test scope\"))] fn t() {}",
+        "// #[cfg(clippy)] in a comment is not code",
+        "const DOC: &str = \"#[cfg(clippy)]\";",
+        "#[cfg(all(test, not(clippy)))] fn both() {}",
+    ))
+    assert gate.cfg_clippy_lines(text) == [2, 3, 7]
+
+
+@pytest.mark.parametrize("source, lines", [
+    ("#[cfg(all(not(test), not(clippy)))] fn h() {}\n", [1]),
+    ('#[cfg(all(\n    not(clippy),\n    target_pointer_width = "64"\n))]\nfn h() {}\n', [1]),
+    ("#[cfg(\n    not(clippy)\n)]\nfn h() {}\n", [1]),
+    ("fn a() {}\n#[cfg(any(clippy, test))] fn h() {}\n", [2]),
+    ("#[cfg_attr(test, cfg(clippy))] fn h() {}\n", [1]),
+    ("#[cfg(not(clippy_x))] fn h() {}\n", []),
+    ("#[cfg(my_clippy)] fn h() {}\n", []),
+    ('#[cfg(feature = "clippy")] fn h() {}\n', []),
+    ("/* #[cfg(clippy)] /* nested */ */ fn h() {}\n", []),
+    ("#[cfg(\n    not(test)\n)]\nfn h() { let _ = clippy; }\n", []),
+    # a `cfg_select!` arm head is a predicate; its body is not
+    ("cfg_select! {\n    not(clippy) => { fn h() {} }\n    _ => {}\n}\n", [2]),
+    ('cfg_select! { feature = "x" => {}, clippy => {}, _ => {} }\n', [1]),
+    ("cfg_select!(unix => fn a() {}, all(unix, not(clippy)) => fn b() {}, _ => fn c() {})\n", [1]),
+    ("cfg_select! { unix => { let _ = clippy; } _ => match x { clippy => 1 } }\n", []),
+    ("cfg_select! { unix => {}\n    // clippy => {}\n    _ => {} }\n", []),
+])
+def test_a_cfg_predicate_is_read_across_lines_and_whole_words(source, lines):
+    assert gate.cfg_clippy_lines(source) == lines
+
+
+def test_a_predicate_that_does_not_close_cannot_be_read():
+    for source in ("#[cfg(not(clippy)\nfn h() {}\n", "cfg_select! { not(clippy) => {}\n"):
+        with pytest.raises(ValueError, match="an unclosed bracket"):
+            gate.cfg_clippy_lines(source)

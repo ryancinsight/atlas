@@ -101,7 +101,7 @@ import tempfile
 import threading
 import time
 import tomllib
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import IO
 
@@ -112,6 +112,16 @@ HISTORICAL_CAST_KEY = "atlas-pre-push-casts-base"
 HISTORICAL_CAST_PROFILE = "cast-history"
 HISTORICAL_CAST_CONFIG = ("--config", f'profile.{HISTORICAL_CAST_PROFILE}.inherits="dev"')
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+# `cfg(...)` and `cfg_attr(...)` name their predicate in the first argument, and
+# each arm of `cfg_select! { <predicate> => ..., }` begins with one.
+# `clippy` is a real cfg set by clippy-driver and not by rustc, so code under
+# `cfg(not(clippy))` compiles only in the clippy run -- which then skips it --
+# and code under `cfg(clippy)` compiles only where the gate is looking. Both
+# are unmeasurable, and a gate that cannot see a cast must refuse the push
+# rather than count the rest of the package and pass.
+CFG_PREDICATE = re.compile(r"\b(cfg|cfg_attr)\s*\(")
+CFG_SELECT = re.compile(r"\bcfg_select\s*!\s*[({\[]")
+CLIPPY_PREDICATE = re.compile(r"\bclippy\b")
 
 
 @dataclass(frozen=True, order=True)
@@ -422,6 +432,94 @@ def pushed_additions(repo: pathlib.Path, base: str | None, tip: str) -> dict[str
     # Bytes, decoded without newline translation: text mode would turn a
     # carriage return inside a source line into a line break.
     return added_lines(diff.decode("utf-8", errors="replace"))
+
+
+def code_without_comments_or_strings(text: str) -> str:
+    """`text` with comments and literals blanked, newlines kept in place.
+
+    A `cfg` predicate inside a comment or a string is not code, so it must not
+    be read as one. Offsets and line breaks survive the blanking so a fault can
+    name the line the predicate is written on.
+    """
+    return "".join(
+        re.sub(r"[^\n]", " ", text[start:end]) if kind in ("comment", "string", "char")
+        else text[start:end]
+        for kind, start, end in spans(text)
+    )
+
+
+def closing_bracket(code: str, opening: int) -> int:
+    """The index of the bracket closing the one at `opening`; unclosed raises."""
+    depth = 0
+    for index in range(opening, len(code)):
+        if code[index] in "([{":
+            depth += 1
+        elif code[index] in ")]}":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise ValueError("an unclosed bracket")
+
+
+def cfg_predicate(code: str, name: str, opening: int, closing: int) -> str:
+    """The predicate text of one `cfg`/`cfg_attr`; only the first argument of
+    `cfg_attr` is its predicate -- the rest is the attribute it applies."""
+    inner = code[opening + 1:closing]
+    if name == "cfg":
+        return inner
+    depth = 0
+    for index, char in enumerate(inner):
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif char == "," and depth == 0:
+            return inner[:index]
+    return inner
+
+
+def cfg_select_heads(code: str, opening: int, closing: int) -> Iterator[tuple[int, str]]:
+    """The (offset, text) of each arm head of the `cfg_select!` group between
+    `opening` and `closing`: its grammar is `<predicate> => <block or expression>`,
+    arms separated by a comma that a block body does not need."""
+    index = opening + 1
+    while index < closing:
+        depth, arrow = 0, index
+        while arrow < closing and (depth or not code.startswith("=>", arrow)):
+            depth += (code[arrow] in "([{") - (code[arrow] in ")]}")
+            arrow += 1
+        if arrow >= closing:
+            return
+        yield index, code[index:arrow]
+        index = arrow + 2
+        while code[index].isspace():
+            index += 1
+        if code[index] == "{":
+            index = closing_bracket(code, index) + 1
+        else:
+            depth = 0
+            while index < closing and (depth or code[index] != ","):
+                depth += (code[index] in "([{") - (code[index] in ")]}")
+                index += 1
+        while index < closing and (code[index].isspace() or code[index] == ","):
+            index += 1
+
+
+def cfg_clippy_lines(text: str) -> list[int]:
+    """Lines whose `cfg`/`cfg_attr` predicate, or `cfg_select!` arm head, names `clippy`."""
+    code = code_without_comments_or_strings(text)
+    found: list[int] = []
+    for match in CFG_PREDICATE.finditer(code):
+        opening = code.find("(", match.start())
+        closing = closing_bracket(code, opening)
+        if CLIPPY_PREDICATE.search(cfg_predicate(code, match.group(1), opening, closing)):
+            found.append(code.count("\n", 0, match.start()) + 1)
+    for match in CFG_SELECT.finditer(code):
+        opening = match.end() - 1
+        for start, head in cfg_select_heads(code, opening, closing_bracket(code, opening)):
+            if CLIPPY_PREDICATE.search(head):
+                found.append(code.count("\n", 0, start + len(head) - len(head.lstrip())) + 1)
+    return sorted(found)
 
 
 def pushed_diff(repo: pathlib.Path, base: str | None, tip: str, form: list[str]) -> bytes:
@@ -1292,7 +1390,8 @@ def path_refusals(text: str) -> list[str]:
     if not refused:
         return []
     lines: dict[str, int] = {}
-    tokens = lex_spans(text)
+    tokens = [(kind, text[start:end], start) for kind, start, end in spans(text)
+              if kind not in ("space", "comment")]
     for index, (kind, word, start) in enumerate(tokens):
         before = [token[1] for token in tokens[max(index - 4, 0):index]]
         if kind == "string" and (before[-2:] == ["path", "="] or (
@@ -1599,17 +1698,13 @@ CAST_LINTS = frozenset(f"clippy::{name}" for name in (
     "ptr_offset_with_cast ref_as_ptr unnecessary_cast").split())
 
 
-def lex(text: str) -> list[tuple[str, str]]:
-    """The (kind, text) Rust tokens of `text`, comments (nested) and space
-    dropped. An unclosed literal or comment, or a stray character, raises."""
-    return [(kind, word) for kind, word, _ in lex_spans(text)]
-
-
-def lex_spans(text: str) -> list[tuple[str, str, int]]:
-    """`lex`, each token with the offset it starts at."""
-    tokens: list[tuple[str, str, int]] = []
+def spans(text: str) -> Iterator[tuple[str, int, int]]:
+    """The (kind, start, end) of every Rust token of `text`, space and comments
+    (block ones nested) included. An unclosed literal or comment, or a stray
+    character, raises."""
     index = 0
     while index < len(text):
+        start = index
         if text.startswith("/*", index):
             depth, index = 1, index + 2
             while depth:
@@ -1618,13 +1713,18 @@ def lex_spans(text: str) -> list[tuple[str, str, int]]:
                     raise ValueError("an unclosed block comment")
                 depth, index = ((depth + 1, opened + 2) if 0 <= opened < close
                                 else (depth - 1, close + 2))
+            yield "comment", start, index
         elif match := TOKEN.match(text, index):
-            if match.lastgroup not in ("space", "comment"):
-                tokens.append((match.lastgroup, match.group(), index))
             index = match.end()
+            yield match.lastgroup, start, index
         else:
             raise ValueError(f"no token at offset {index}")
-    return tokens
+
+
+def lex(text: str) -> list[tuple[str, str]]:
+    """The (kind, text) Rust tokens of `text`, comments and space dropped."""
+    return [(kind, text[start:end]) for kind, start, end in spans(text)
+            if kind not in ("space", "comment")]
 
 
 def attributes(tokens: list[tuple[str, str]]) -> list[tuple[int, int, bool, str]]:
