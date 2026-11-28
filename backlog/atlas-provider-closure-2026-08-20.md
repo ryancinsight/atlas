@@ -1,4 +1,0 @@
-<a id="atlas-provider-closure-2026-08-20"></a>
-## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — todo
-- **outcome:** each provider's executable-book gate and named integration slice is hosted-verified at its merged default, gitlink advanced to that default without touching dirty primary checkouts.
-- **open — Hyperion:** PR [#21](https://github.com/ryancinsight/hyperion/pull/21) merged (`4df62f63`); post-merge CI/mdBook/Pages still queued. Pointer holds at `e2dbc9b` until terminal and page verified.

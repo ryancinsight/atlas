@@ -87,8 +87,10 @@ no count there, so its casts are judged by the row that records them, and a
 crate that returns to the workspace brings that debt with it. The membership
 is read from the base revision's own manifests, so a package the push adds is
 absent from it. A base manifest `tomllib` rejects leaves the membership unread:
-the gate says so and holds every named package to its base count, so a push
-that raises no count lands, the one repairing the manifest included.
+the gate says so and holds every pushed package it names to its base count, so
+a push that raises no count lands, the one repairing the manifest included. A
+blob git does not hand over whole (a truncated or missing object, a nonzero
+exit, no answer within the deadline) is no manifest: `check` exits 2.
 `--zero-base-package` records the proven standalone exception.
     atlas_cast_gate.py base-triggers --repo <dir> --base <sha> --tip <sha>
     atlas_cast_gate.py new-standalone-owners --repo <dir> --base <sha> \
@@ -121,10 +123,13 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import time
 import tomllib
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
+from typing import IO
 
 BASELINE = pathlib.Path(__file__).resolve().with_name("cast-baseline.json")
 LINT = "clippy::as_conversions"
@@ -578,19 +583,26 @@ def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], d
     workspace member's directory contains: a file no `mod` reaches can still
     be compiled by a macro the walk does not read. A manifest that declares no
     package, is not a member, or does not parse fences nothing off. A package
-    no parsed manifest names has no files (`unparsed_manifests` refuses the
-    push when a manifest that does not parse could be its own).
+    no manifest names has no files (`unparsed_manifests` refuses the push).
+
+    A manifest `tomllib` rejects is scanned for every push, as if it declared a
+    pushed package: the package it declares is unknown, and a parsed manifest of
+    the same name elsewhere (a fixture, an excluded copy) would otherwise take
+    the files of the real one out of the scan. The scan then holds that
+    directory's tracked `.rs` files and the module trees of its default targets.
     """
-    manifests = tip.manifests[0]
+    manifests, refused = tip.manifests
+    unparsed = {path: {} for path in refused}
     members = member_directories(manifests)
     wanted = frozenset(packages)
     files: set[str] = set()
     errors: dict[str, str] = {}
-    for path, manifest in manifests.items():
-        if package_name(manifest) not in wanted:
+    for path, manifest in [*manifests.items(), *unparsed.items()]:
+        if path not in unparsed and package_name(manifest) not in wanted:
             continue
         directory = posixpath.dirname(path)
         prefix = f"{directory}/" if directory else ""
+        errors |= discovery_errors(manifest, directory, tip.index)
         for root in target_roots(manifest, directory, tip.index):
             reached, unreadable = compiled_files(tip.index, tip.read, root)
             files |= reached
@@ -609,13 +621,10 @@ def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str
 
     A manifest that does not parse may declare any package. When some pushed
     package is declared by no manifest that parses, one of them may be its
-    own, `package_sources` then finds the package no files, and every such
-    manifest is a problem. When a manifest that parses declares each pushed
-    package, its targets and directory give the scan its files, and the
-    manifest that does not parse is not a workspace member the scan steps
-    around (`member_directories` reads parsed manifests), so the files under
-    it stay with the package around them: the push is not refused for a
-    manifest it may not own, and a note names the manifest.
+    own, and every such manifest is a problem.
+    When a manifest that parses declares each pushed package, the push is not
+    refused for a manifest it may not own: `package_sources` scans the
+    directory of each manifest that does not parse, and a note names it.
     """
     parsed, refused = tip.manifests
     declared = {package_name(manifest) for manifest in parsed.values()}
@@ -625,8 +634,8 @@ def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str
         return [f"{error}, and no manifest that parses declares the pushed package {names}"
                 for _, error in sorted(refused.items())], []
     return [], [f"{error}; a manifest that parses declares every pushed package, so the "
-                "push is not refused for it, and the files under its directory stay in "
-                "the scan of a pushed package whose directory holds them"
+                "push is not refused for it, and its directory and default targets are "
+                "scanned in every push"
                 for _, error in sorted(refused.items())]
 
 
@@ -1024,11 +1033,13 @@ def path_key(path: str) -> str:
 class PathIndex:
     """Tracked paths by `path_key`, and which of them are symbolic links.
 
-    A key holds every tracked path a host opens under that spelling. Windows
-    folds case and reads a backslash as a separator; Linux does neither, so two
-    names under one key are two files there, and rustc compiles the one its
-    host resolves. A lookup yields them all: one path too many widens a scan,
-    one too few hides a file from it."""
+    A key holds every tracked path that differs from its spelling only by what
+    Windows folds: case, and a backslash read as a separator. Linux does
+    neither, so two names under one key are two files there, and rustc compiles
+    the one its host resolves. A lookup yields them all: one path too many
+    widens a scan, one too few hides a file from it. The other rewrites Windows
+    makes (a trailing dot or space, a colon, a device name, an 8.3 alias) are
+    not keyed: a spelling that holds one is refused (`windows_rewrites`)."""
 
     named: Mapping[str, tuple[str, ...]]
     links: frozenset[str] = frozenset()
@@ -1061,16 +1072,32 @@ class ManifestError(ValueError):
         self.path = path
 
 
+def unavailable(message: str) -> Exception:
+    """The error for a git read that did not complete, which the gate never
+    reads as an absent file (`lockfile` owns the type its callers share)."""
+    from lockfile import GitUnavailable
+
+    return GitUnavailable(message)
+
+
 class Revision:
     """The tracked files of one revision. Blobs are read through one `git
     cat-file --batch` process, started on the first read, so a scan that reads
-    thousands of files pays for one process, not one per file."""
+    thousands of files pays for one process, not one per file.
+
+    A read that git does not complete -- a header that is not the requested
+    blob's, fewer bytes than the header announces, a missing object, a nonzero
+    exit, no answer within `GIT_DEADLINE_SECONDS` -- raises `GitUnavailable`
+    naming the path. A short read is never the blob: the truncated prefix of a
+    manifest would read as a manifest that declares less."""
 
     def __init__(self, repo: pathlib.Path, revision: str) -> None:
-        listing = subprocess.run(
-            ["git", "-C", str(repo), "ls-tree", "-r", "-z", revision],
-            capture_output=True, check=True).stdout.decode("utf-8", errors="replace")
+        from lockfile import GIT_DEADLINE_SECONDS, run_git
+
+        listing = run_git(["ls-tree", "-r", "-z", revision], repo).decode(
+            "utf-8", errors="replace")
         self.repo = repo
+        self.deadline = GIT_DEADLINE_SECONDS
         self.blobs: dict[str, str] = {}
         links = set()
         for entry in listing.split("\0"):
@@ -1083,37 +1110,106 @@ class Revision:
         self.links = frozenset(links)
         self._texts: dict[str, str] = {}
         self._reader: subprocess.Popen[bytes] | None = None
+        self._errors: IO[bytes] | None = None
 
     def __enter__(self) -> Revision:
         return self
 
-    def __exit__(self, *exception: object) -> None:
+    def __exit__(self, kind: object, *exception: object) -> None:
+        """Ends the reader; its nonzero exit raises unless an error is already on its way."""
         reader = self._reader
-        if reader is not None:
-            assert reader.stdin is not None and reader.stdout is not None
+        if reader is None:
+            return
+        ending = self._finish(reader)
+        if ending and kind is None:
+            raise unavailable(f"git cat-file ended badly at {self.repo}: {ending}")
+
+    def _finish(self, reader: subprocess.Popen[bytes]) -> str:
+        """Closes the reader's pipes, reaps it, and returns what its exit says,
+        empty for a clean one. A reader that outlives the deadline is killed."""
+        self._reader = None
+        assert reader.stdin is not None and reader.stdout is not None
+        try:
             reader.stdin.close()
+        except OSError:  # the reader is already gone; its exit status says why
+            pass
+        timed_out = False
+        try:
+            reader.wait(timeout=self.deadline)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            reader.kill()
             reader.wait()
-            reader.stdout.close()
+        reader.stdout.close()
+        detail = ""
+        if self._errors is not None:
+            self._errors.seek(0)
+            detail = self._errors.read().decode("utf-8", errors="replace").strip()
+            self._errors.close()
+            self._errors = None
+        if timed_out:
+            return f"git cat-file did not exit within {self.deadline} s"
+        if reader.returncode != 0:
+            return f"git cat-file exited {reader.returncode}: {detail}"
+        return ""
 
     def read(self, path: str) -> str | None:
         """The text of the blob at `path`, which for a symbolic link (`links`) is
-        the path it names; None when the revision tracks no such file."""
+        the path it names; None when the revision tracks no such file. Raises
+        `GitUnavailable` when git does not hand over the whole blob."""
         oid = self.blobs.get(path)
         if oid is None:
             return None
         if path not in self._texts:
-            if self._reader is None:
-                self._reader = subprocess.Popen(
-                    ["git", "-C", str(self.repo), "cat-file", "--batch"],
-                    stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            reader = self._reader
-            assert reader.stdin is not None and reader.stdout is not None
+            self._texts[path] = self._blob(path, oid).decode("utf-8", errors="replace")
+        return self._texts[path]
+
+    def _blob(self, path: str, oid: str) -> bytes:
+        """The bytes of one blob, checked against the frame `cat-file --batch`
+        prints: `<oid> blob <size>`, the content, a line feed."""
+        if self._reader is None:
+            self._errors = tempfile.TemporaryFile()
+            self._reader = subprocess.Popen(
+                ["git", "--no-replace-objects", "-C", str(self.repo), "cat-file", "--batch"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self._errors)
+        reader = self._reader
+        assert reader.stdin is not None and reader.stdout is not None
+        late = threading.Event()
+
+        def overdue() -> None:
+            late.set()
+            reader.kill()
+
+        expired = threading.Timer(self.deadline, overdue)
+        expired.start()
+        problem = ""
+        body = b""
+        try:
             reader.stdin.write(f"{oid}\n".encode())
             reader.stdin.flush()
-            size = int(reader.stdout.readline().split()[2])
-            self._texts[path] = reader.stdout.read(size + 1)[:size].decode(
-                "utf-8", errors="replace")
-        return self._texts[path]
+            header = reader.stdout.readline().split()
+            if len(header) != 3 or header[:2] != [oid.encode(), b"blob"] \
+                    or not header[2].isdigit():
+                answer = b" ".join(header).decode("utf-8", errors="replace")
+                problem = f"git answered {answer!r}"
+            else:
+                size = int(header[2])
+                body = reader.stdout.read(size + 1)
+                if len(body) != size + 1:
+                    problem = f"git sent {len(body)} of the {size + 1} bytes its header announces"
+                elif not body.endswith(b"\n"):
+                    problem = "git did not end the content with a line feed"
+        except OSError as error:
+            problem = f"the pipe failed: {error}"
+        finally:
+            expired.cancel()
+        if late.is_set():
+            problem = f"git did not answer within {self.deadline} s"
+        if problem:
+            ending = self._finish(reader)
+            raise unavailable(f"git could not read {path} ({oid}) at {self.repo}: "
+                              + "; ".join(filter(None, (problem, ending))))
+        return body[:-1]
 
     @functools.cached_property
     def index(self) -> PathIndex:
@@ -1311,7 +1407,7 @@ class Mount:
 
 def attribute_paths(tokens: list[tuple[str, str]], head: str) -> tuple[list[str], list[str]]:
     """The `path = "..."` values one outer attribute sets: (`#[path]`, `cfg_attr`)."""
-    found = [literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
+    found = [path_literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
              if tokens[index] == ("word", "path") and tokens[index + 1] == ("punct", "=")
              and tokens[index + 2][0] == "string"]
     return (found, []) if head == "path" else ([], found) if head == "cfg_attr" else ([], [])
@@ -1347,7 +1443,7 @@ def mod_declarations(text: str) -> tuple[tuple[Mount, ...], tuple[str, ...]]:
         if ((kind, word) == ("word", "include") and len(after) == 3 and after[0] == ("punct", "!")
                 and after[1] in (("punct", "("), ("punct", "["), ("punct", "{"))
                 and after[2][0] == "string"):
-            included.append(literal(after[2][1]))
+            included.append(path_literal(after[2][1]))
             index += 4
             continue
         if ((kind, word) == ("word", "mod") and len(after) >= 2 and after[0][0] == "word"
@@ -1420,6 +1516,112 @@ def mounted(text: str, directory: str, stem: str | None) -> list[tuple[str, str 
     return found
 
 
+# Windows reads a name differently from the spelling written, and the hook runs on
+# Windows: "Naming Files, Paths, and Namespaces",
+# https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file (read 2026-11-27).
+# A name must not end in a space or a period ("Do not end a file or directory name
+# with a space or a period"), a colon names a drive or a stream, `NUL.txt` "is
+# equivalent to NUL", and a long name may be opened by its 8.3 alias. rustc 1.97.0 on
+# Windows loads `src/cast.rs` for `#[path = "cast.rs."]`, `"cast.rs "` and
+# `"cast.rs::$DATA"` (atlas805-2 G1, observed there). The gate does not model these
+# rewrites: it refuses a path it cannot read as every host does.
+DEVICE_NAME = re.compile(r"(?i)(?:con|prn|aux|nul|(?:com|lpt)[0-9¹²³])(?:\..*)?")
+SHORT_ALIAS = re.compile(r"~[0-9]")
+
+
+def windows_rewrites(value: str) -> str | None:
+    """Why a Windows host may open another file than the one the path `value`
+    names, or None when it reads `value` as a Linux host does (up to case and
+    the backslash, which `path_key` reads as Windows does)."""
+    if ":" in value:
+        return "holds a colon, which Windows reads as a drive or a data stream"
+    for component in re.split(r"[\\/]", value):
+        if component in ("", ".", ".."):
+            continue
+        if component.endswith((".", " ")):
+            return (f"has the component {component!r}, whose trailing dot or space "
+                    "Windows drops")
+        if DEVICE_NAME.fullmatch(component):
+            return f"has the component {component!r}, which Windows reads as a device"
+        if SHORT_ALIAS.search(component):
+            return f"has the component {component!r}, which may be an 8.3 alias of another name"
+    return None
+
+
+def path_values(text: str) -> list[str]:
+    """The `#[path]`, `cfg_attr` path and `include!` literals `text` loads
+    files through, as `mod_declarations` reads them."""
+    mounts, included = mod_declarations(text)
+    values = list(included)
+    for mount in mounts:
+        for module in (mount.module, *mount.enclosing):
+            values += (*module.paths, *module.conditional)
+    return list(dict.fromkeys(values))
+
+
+def path_refusals(text: str) -> list[str]:
+    """One line per path literal of `text` that `windows_rewrites` refuses,
+    naming the line it is written on and its value."""
+    refused = {value: reason for value in path_values(text)
+               if (reason := windows_rewrites(value))}
+    if not refused:
+        return []
+    lines: dict[str, int] = {}
+    tokens = [(kind, text[start:end], start) for kind, start, end in spans(text)
+              if kind not in ("space", "comment")]
+    for index, (kind, word, start) in enumerate(tokens):
+        before = [token[1] for token in tokens[max(index - 4, 0):index]]
+        if kind == "string" and (before[-2:] == ["path", "="] or (
+                before[-3:-1] == ["include", "!"] and before[-1] in ("(", "[", "{"))):
+            lines.setdefault(path_literal(word), text.count("\n", 0, start) + 1)
+    return [f"line {lines.get(value, 1)}: the path {value!r} {reason}"
+            for value, reason in refused.items()]
+
+
+def discovery_errors(manifest: dict, directory: str, index: PathIndex) -> dict[str, str]:
+    """Why `target_roots` cannot be trusted to find every crate target of a
+    package, by path: a tracked symbolic link at a discovery folder (`src/bin`,
+    `tests`, `examples`, `benches`), on the way to a default crate root or to a
+    target path the manifest declares, or at a directory target (`tests/name`
+    holding a `main.rs`); and a declared target path `windows_rewrites` refuses.
+
+    Cargo lists a discovery folder with `read_dir`, which a Linux checkout
+    with links resolves, and Windows opens the declared path under the name it
+    rewrites. `target_roots` reads tracked paths, so a target beyond a link, or
+    under a spelling it does not read, is absent from it, silently. A link to a
+    file is not here: the walk follows it (`compiled_files`). Where a link leads
+    is not read: the gate names it rather than guess a layout it cannot see.
+    """
+    package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
+    lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
+    declared = [value for value in (lib.get("path"), package.get("build"))
+                if isinstance(value, str)]
+    for key in ("bin", "test", "example", "bench"):
+        entries = manifest.get(key)
+        declared += [entry["path"] for entry in entries if isinstance(entry, dict)
+                     and isinstance(entry.get("path"), str)] if isinstance(entries, list) else []
+    errors: dict[str, str] = {}
+    for value in declared:
+        if reason := windows_rewrites(value):
+            errors[posixpath.join(directory, "Cargo.toml")] = f"the target path {value!r} {reason}"
+    folders = ["src/bin", "tests", "examples", "benches"]
+    spots = [*((folder, True) for folder in folders),
+             *((file, False) for file in ["src/lib.rs", "src/main.rs", "build.rs", *declared])]
+    found: dict[str, str] = {}
+    for spot, whole in spots:
+        parts = path_clean(spot).split("/")
+        for depth in range(1, len(parts) + int(whole)):
+            for link in index.links.intersection(index.at(posixpath.join(directory, *parts[:depth]))):
+                found.setdefault(link, f"a symbolic link on the way to `{spot}`")
+    for folder in folders:
+        parent = path_key(posixpath.join(directory, folder))
+        for link in sorted(index.links):
+            if posixpath.dirname(path_key(link)) == parent and not link.endswith(".rs"):
+                found.setdefault(link, f"a symbolic link in `{folder}`, where a target directory is found")
+    return errors | {link: f"{reason}; the gate does not read through a link there, and a "
+                           "Linux checkout follows it" for link, reason in sorted(found.items())}
+
+
 def compiled_files(index: PathIndex, read: Callable[[str], str | None],
                    root: str) -> tuple[set[str], dict[str, str]]:
     """The files the crate root `root` compiles, and why any could not be read:
@@ -1447,9 +1649,11 @@ def compiled_files(index: PathIndex, read: Callable[[str], str | None],
     finds, whose children resolve beside the link (rustc keeps a module's path
     as written: recalled, not compiled here). A link that leads to no tracked
     file is an error where the walk reaches it or a path through it: the gate
-    does not read through a linked directory, nor does `target_roots`
-    discover a target through one. Not followed: a `mod` a macro writes, and
-    `include!` of anything but a literal.
+    does not read through a linked directory (`discovery_errors` names one
+    where Cargo discovers targets). A file with a path literal that
+    `windows_rewrites` refuses is an error too, though its modules are still
+    walked: the gate does not model the rewrite. Not followed: a `mod` a macro
+    writes, and `include!` of anything but a literal.
     """
     files: set[str] = set()
     errors: dict[str, str] = {}
@@ -1478,6 +1682,8 @@ def compiled_files(index: PathIndex, read: Callable[[str], str | None],
                 files.add(source)
                 try:
                     pending += mounted(text, posixpath.dirname(real), stem)
+                    if refusals := path_refusals(text):
+                        errors[source] = "; ".join(refusals)
                 except ValueError as error:
                     errors[source] = str(error)
     return files, errors
@@ -1748,6 +1954,46 @@ def literal(text: str) -> str:  # the body of a string literal token
     return re.sub(r'^[bc]?r?#*"|"#*$', "", text)
 
 
+ESCAPE = re.compile(r"\\(?:x([0-9a-fA-F]{2})|u\{([0-9a-fA-F_]+)\}|(\r?\n[ \t\r\n]*)|(.))", re.S)
+SIMPLE_ESCAPES = {"n": "\n", "r": "\r", "t": "\t", "\\": "\\", "0": "\0", "'": "'", '"': '"'}
+
+
+def path_literal(token: str) -> str:
+    """The string a string-literal token spells, as rustc reads it: the body of
+    a raw string as written, the escapes of any other decoded.
+
+    Specification: the Rust Reference, "String literals" in
+    https://doc.rust-lang.org/reference/tokens.html (read 2026-11-27). The
+    escapes are `\\'`, `\\"`, `\\n`, `\\r`, `\\t`, `\\\\`, `\\0`, `\\x` and two hex
+    digits up to 7F, and `\\u{..}` with one to six hex digits (underscores
+    allowed) naming a scalar value; a backslash before a line break skips the
+    break and the white space after it. Any other escape is no literal rustc
+    compiles, and raises. `#[path = "ca\\x73t.rs"]` loads `cast.rs` (rustc
+    1.97.0 `--emit=dep-info`), a file the body as written would not name.
+    """
+    body = literal(token)
+    if re.match(r"[bc]?r", token):
+        return body
+
+    def decode(match: re.Match[str]) -> str:
+        byte, scalar, continuation, other = match.groups()
+        if continuation is not None:
+            return ""
+        if byte is not None and int(byte, 16) < 0x80:
+            return chr(int(byte, 16))
+        if scalar is not None:
+            digits = scalar.replace("_", "")
+            if 0 < len(digits) <= 6 and (code := int(digits, 16)) <= 0x10FFFF \
+                    and not 0xD800 <= code < 0xE000:
+                return chr(code)
+        elif other in SIMPLE_ESCAPES:
+            return SIMPLE_ESCAPES[other]
+        raise ValueError(f"the string literal {token} holds the escape {match.group()!r}, "
+                         "which is no escape of a Rust string")
+
+    return ESCAPE.sub(decode, body)
+
+
 def cast_module_fault(text: str | None) -> str | None:
     """Why `text` is not a cast module; None when it is one: it copies no cast
     (`copying_fault`) and opens, before any item, with exactly one inner
@@ -1895,8 +2141,11 @@ def check(args: argparse.Namespace) -> int:
     except ManifestError as error:
         # No candidate is shown absent from the base, so each is held to its
         # count there: a package the push adds is then held to zero until the
-        # manifest parses, and a push that raises no count is not refused.
-        held = frozenset(args.base_package)
+        # manifest parses, and a push that raises no count is not refused. Only
+        # a pushed package is compared to its count, so a `--base-package` that
+        # is not also a `--package` stays unproven: its cast module is not read
+        # as one with a base count.
+        held = frozenset(args.base_package) & frozenset(args.package)
         print(f"cast gate: {error}; every `--base-package` is held to its count at "
               "the pushed base", file=sys.stderr)
     held |= frozenset(args.zero_base_package)
