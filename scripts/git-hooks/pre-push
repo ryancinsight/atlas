@@ -2260,7 +2260,7 @@ MESSAGE
 # packages, which then join the base comparison.
 cast_base_step() {
   local relative="$1" wanted="$2" present="" package_name names sites
-  [ -n "$base_export" ] || return 0
+  [ -n "$base_reasons" ] && [ -n "$base_export" ] || return 0
   sites="$(mktemp "$tmp_base/pg-casts.XXXXXX")"
   run_temps+=("$sites")
   printf '[]' > "$sites"
