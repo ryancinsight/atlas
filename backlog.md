@@ -127,4 +127,6 @@
 <a id="atlas-dependency-cohort-20261127"></a>- [ATLAS-DEPENDENCY-COHORT-20261127](backlog/atlas-dependency-cohort-20261127.md) — Land the Melinoe 0.10.1 dependency cohort [patch] — blocked
 <a id="atlas-conformance-installed-state"></a>- [ATLAS-CONFORMANCE-INSTALLED-STATE](backlog/atlas-conformance-installed-state.md) — The conformance scan asserts no installed state: hook path, config include, target dir [verification] [patch] — todo
 <a id="atlas-semver-foreign-supertrait"></a>- [ATLAS-SEMVER-FOREIGN-SUPERTRAIT](backlog/atlas-semver-foreign-supertrait.md) — The SemVer gate reports no break when a published trait drops a foreign supertrait [verification] [patch] — todo
-<a id="atlas-registry-identity-tail"></a>- [ATLAS-REGISTRY-IDENTITY-TAIL](backlog/atlas-registry-identity-tail.md) — Registry owner schema, strict transport, drift reader and artifact identity [minor] — todo
+<a id="atlas-registry-identity-tail"></a>- [ATLAS-REGISTRY-IDENTITY-TAIL](backlog/atlas-registry-identity-tail.md) — Bind expected crate artifacts, gate tags on registry identity, and hold the pin mechanics [minor] — todo
+<a id="atlas-registry-slice-006"></a>- [ATLAS-REGISTRY-SLICE-006](backlog/atlas-registry-slice-006.md) — Require a strict owner schema [patch] — todo
+<a id="atlas-registry-transport-tail"></a>- [ATLAS-REGISTRY-TRANSPORT-TAIL](backlog/atlas-registry-transport-tail.md) — Strict registry transport and the drift reader [patch] — todo
