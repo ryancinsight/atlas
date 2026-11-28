@@ -1687,6 +1687,21 @@ done <<< "$gate_changed"
 if [ "$root_resolution_changed" -eq 1 ]; then
   local root_selected_packages="$gate_packages"
   local non_root_paths non_root_owners dependency_status dependency_packages
+  if [ "$root_lock_changed" -eq 1 ]; then
+    local all_member_paths all_member_owners
+    all_member_paths="$(mktemp "$tmp_base/pg-cargo-inputs-all-members.XXXXXX")"
+    run_temps+=("$all_member_paths")
+    printf '%s\n' "$workspace_manifest" > "$all_member_paths"
+    if ! all_member_owners="$(
+      printf '%s\n' "$workspace_metadata" | "$python_bin" "$cargo_input_owner" \
+        --root "$gate_command_cwd" --workspace-manifest "$workspace_manifest" \
+        --changed-paths "$all_member_paths"
+    )"; then
+      echo "pre-push: cargo metadata could not establish lockfile fallback ownership" >&2
+      exit 1
+    fi
+    root_selected_packages="$(printf '%s\n' "$all_member_owners" | awk -F '\t' '$1 == "package" { printf " %s", $2 }')"
+  fi
   non_root_paths="$(mktemp "$tmp_base/pg-cargo-inputs-without-root.XXXXXX")"
   run_temps+=("$non_root_paths")
   printf '%s\n' "$gate_changed" | awk -v root="$workspace_manifest" -v lock="$workspace_lockfile" '$0 != root && $0 != lock' > "$non_root_paths"
@@ -1721,19 +1736,8 @@ if [ "$root_resolution_changed" -eq 1 ]; then
         esac
       done <<< "$dependency_packages"
       if [ "$root_lock_changed" -eq 1 ] && [ -z "${gate_packages// /}" ]; then
-        all_member_paths="$(mktemp "$tmp_base/pg-cargo-inputs-all-members.XXXXXX")"
-        run_temps+=("$all_member_paths")
-        printf '%s\n' "$workspace_manifest" > "$all_member_paths"
-        if ! all_member_owners="$(
-          printf '%s\n' "$workspace_metadata" | "$python_bin" "$cargo_input_owner" \
-            --root "$gate_command_cwd" --workspace-manifest "$workspace_manifest" \
-            --changed-paths "$all_member_paths"
-        )"; then
-          echo "pre-push: cargo metadata could not establish lockfile fallback ownership" >&2
-          exit 1
-        fi
         echo "pre-push: lockfile resolution changed without a member closure; gating every workspace member" >&2
-        gate_packages="$(printf '%s\n' "$all_member_owners" | awk -F '\t' '$1 == "package" { printf " %s", $2 }')"
+        gate_packages="$root_selected_packages"
       fi
       ;;
     3)

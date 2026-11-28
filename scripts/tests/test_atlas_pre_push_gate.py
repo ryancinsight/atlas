@@ -552,6 +552,9 @@ class GateFixture:
             "fi\n"
             'if [ "$1" = "metadata" ]; then\n'
             '  echo "$@" >> "$FIXTURE_ROOT/metadata-calls.log"\n'
+            '  if grep -Fq \'version = "0.62.1"\' "$here/Cargo.lock" 2>/dev/null; then\n'
+            '    sed "s|@ROOT@|$here|g" "$FIXTURE_ROOT/bin/metadata-base.json"; exit 0\n'
+            "  fi\n"
             '  case "$*" in */base-*)\n'
             '    if [ -f "$FIXTURE_ROOT/bin/metadata-base.json" ]; then\n'
             '      sed "s|@ROOT@|$here|g" "$FIXTURE_ROOT/bin/metadata-base.json"; exit 0\n'
@@ -1063,7 +1066,10 @@ class PackageMapperTestCase(unittest.TestCase):
             '[workspace.metadata.atlas]\ndocumentation-phase = "pre-merge"\n'
         )
         _write(fixture.root / "Cargo.toml", manifest)
-        _write(fixture.root / "Cargo.lock", "version = 4\n")
+        _write(
+            fixture.root / "Cargo.lock",
+            'version = 4\n[[package]]\nname = "windows"\nversion = "0.62.1"\n',
+        )
         _write(
             fixture.root / "crates" / "foo" / "Cargo.toml",
             '[package]\nname = "foo"\nversion = "0.1.0"\nedition = "2024"\n'
@@ -1136,7 +1142,10 @@ class PackageMapperTestCase(unittest.TestCase):
             )
         paths = ["Cargo.toml"]
         if lock_only:
-            _write(fixture.root / "Cargo.lock", "version = 4\n# locked provider update\n")
+            _write(
+                fixture.root / "Cargo.lock",
+                'version = 4\n[[package]]\nname = "windows"\nversion = "0.62.2"\n',
+            )
             paths = ["Cargo.lock"]
         else:
             _write(fixture.root / "Cargo.toml", tip_manifest)
@@ -1179,7 +1188,7 @@ class PackageMapperTestCase(unittest.TestCase):
             code, stderr = fixture.run_hook(fixture.push_line_new_branch())
 
             self.assertEqual(code, 0, stderr)
-            self._assert_gated_packages(stderr, {"foo", "unrelated-member"})
+            self._assert_gated_packages(stderr, {"foo"})
 
     def test_workspace_dependency_selection_unions_source_owner(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1202,6 +1211,18 @@ class PackageMapperTestCase(unittest.TestCase):
     def test_resolved_change_fallback_gates_every_member(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = self._workspace_dependency_push(temp, resolved_exit=3)
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("fixture resolved-changes exit 3", stderr)
+            self._assert_gated_packages(stderr, {"foo", "unrelated-member"})
+
+    def test_lock_only_resolution_fallback_gates_every_member(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(
+                temp, lock_only=True, resolved_exit=3
+            )
 
             code, stderr = fixture.run_hook(fixture.push_line_new_branch())
 

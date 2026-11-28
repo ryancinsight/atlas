@@ -621,7 +621,8 @@ def read_resolution(export: pathlib.Path, manifest: str,
     return resolution(json.loads(out), export)
 
 
-def changed_table_packages(base_text: str | None, tip_text: str | None) -> frozenset[str]:
+def changed_table_packages(base_text: str | None, tip_text: str | None,
+                           *, feature_only: bool = False) -> frozenset[str]:
     """The package names of every `[workspace.dependencies]` entry the range
     adds, removes or changes, at either side (`package = ...` renames)."""
     def table(text: str | None) -> dict:
@@ -634,10 +635,19 @@ def changed_table_packages(base_text: str | None, tip_text: str | None) -> froze
         renamed = entry.get("package") if isinstance(entry, dict) else None
         return renamed if isinstance(renamed, str) else key
 
+    def feature_selection(entry: object) -> tuple[object, bool]:
+        if not isinstance(entry, dict):
+            return (), True
+        features = entry.get("features", ())
+        return features, entry.get("default-features", True)
+
     base, tip = table(base_text), table(tip_text)
     return frozenset(
         package_name(key, side[key])
-        for key in base.keys() | tip.keys() if base.get(key) != tip.get(key)
+        for key in base.keys() | tip.keys()
+        if base.get(key) != tip.get(key)
+        and (not feature_only or feature_selection(base.get(key))
+             != feature_selection(tip.get(key)))
         for side in (base, tip) if key in side
     )
 
@@ -701,22 +711,29 @@ def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathl
     if not manifest_changed and not lock_changed:
         return None, f"{root_manifest} or {root_lock} is not changed by the pushed range"
     entries: set[str] = set()
+    feature_entries: frozenset[str] = frozenset()
     if manifest_changed:
         base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
         try:
             if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
                 return None, f"{root_manifest} changes beyond [workspace.dependencies]"
             entries = changed_table_packages(base_text, tip_text)
+            feature_entries = changed_table_packages(base_text, tip_text, feature_only=True)
         except tomllib.TOMLDecodeError as error:
             return None, f"{root_manifest} does not parse as TOML here ({error})"
-    touched = set(entries)
-    for name in entries:
-        touched |= base_resolution.reach.get(name, frozenset())
-        touched |= tip_resolution.reach.get(name, frozenset())
     base_packages = base_resolution.members
-    return frozenset(
+    signature_changes = {
         name for name, package in tip_resolution.members.items()
         if name not in base_packages or base_packages[name].signature != package.signature
+    }
+    touched = set(entries)
+    for name in entries:
+        if name in feature_entries:
+            touched |= base_resolution.reach.get(name, frozenset())
+            touched |= tip_resolution.reach.get(name, frozenset())
+    return frozenset(
+        name for name, package in tip_resolution.members.items()
+        if name in signature_changes
         or name in touched or package.reaches & touched
         or base_packages[name].reaches & touched
     ), ""
