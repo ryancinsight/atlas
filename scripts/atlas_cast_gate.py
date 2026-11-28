@@ -88,6 +88,7 @@ does not change, which would make a second module.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import pathlib
@@ -100,7 +101,7 @@ import tempfile
 import threading
 import time
 import tomllib
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import IO
 
@@ -753,6 +754,51 @@ def git_file(repo: pathlib.Path, revision: str, path: str) -> str | None:
     return run.stdout.decode("utf-8", errors="replace")
 
 
+def path_clean(path: str) -> str:
+    """`path` with a backslash read as a separator, as Windows reads it, and
+    its `.` and `..` components collapsed."""
+    return posixpath.normpath(path.replace("\\", "/"))
+
+
+def path_key(path: str) -> str:
+    """The key a path is looked up under: `path_clean` with case folded, as
+    NTFS compares names. Names a Linux host tells apart, by case or by a
+    backslash it reads as part of a name, share a key."""
+    return path_clean(path).casefold()
+
+
+@dataclass(frozen=True)
+class PathIndex:
+    """Tracked paths by `path_key`, and which of them are symbolic links.
+
+    A key holds every tracked path that differs from its spelling only by what
+    Windows folds: case, and a backslash read as a separator. Linux does
+    neither, so two names under one key are two files there, and rustc compiles
+    the one its host resolves. A lookup yields them all: one path too many
+    widens a scan, one too few hides a file from it. The other rewrites Windows
+    makes (a trailing dot or space, a colon, a device name, an 8.3 alias) are
+    not keyed: a spelling that holds one is refused (`windows_rewrites`)."""
+
+    named: Mapping[str, tuple[str, ...]]
+    links: frozenset[str] = frozenset()
+
+    def at(self, path: str) -> tuple[str, ...]:
+        """The tracked paths a host could open as `path`, whether it collapses
+        `..` after reading a backslash as a separator (Windows) or before
+        folding the name into its key (Linux, where `a\\b/..` is `.`)."""
+        spellings = (path, posixpath.normpath(path)) if "\\" in path else (path,)
+        keys = dict.fromkeys(map(path_key, spellings))
+        return tuple(found for key in keys for found in self.named.get(key, ()))
+
+
+def path_index(paths: Iterable[str], links: Iterable[str] = ()) -> PathIndex:
+    """`PathIndex` of the tracked `paths`, of which `links` are symbolic links."""
+    named: dict[str, list[str]] = {}
+    for path in paths:
+        named.setdefault(path_key(path), []).append(path)
+    return PathIndex({key: tuple(found) for key, found in named.items()}, frozenset(links))
+
+
 class ManifestError(ValueError):
     """A manifest `tomllib` rejects. Cargo accepts TOML that `tomllib` does not
     (a multi-line inline table), so the gate cannot tell which package the
@@ -903,6 +949,11 @@ class Revision:
                               + "; ".join(filter(None, (problem, ending))))
         return body[:-1]
 
+    @functools.cached_property
+    def index(self) -> PathIndex:
+        """The tracked paths and links as `path_index` holds them."""
+        return path_index(self.paths, self.links)
+
     def manifest_at(self, path: str) -> dict | None:
         """The parsed manifest at `path`; None when none is tracked there; an
         unparseable one raises `ManifestError`."""
@@ -1011,6 +1062,355 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
                 if name:
                     packages.add(name)
         return frozenset(packages)
+
+
+def target_roots(manifest: dict, directory: str, index: PathIndex) -> list[str]:
+    """The crate-root files of one package: library, build script, bins, tests,
+    examples and benches among the tracked paths `index`, every path a host
+    could open under each name (Cargo lists `tests` on NTFS whatever its case).
+
+    Specification: the Cargo Book, "Target auto-discovery" in
+    https://doc.rust-lang.org/cargo/reference/cargo-targets.html and
+    https://doc.rust-lang.org/cargo/guide/project-layout.html. The defaults
+    are `src/lib.rs`, `build.rs`, `src/main.rs`, and in `src/bin`, `tests`,
+    `examples` and `benches` each `<name>.rs` and each `<name>/main.rs`; the
+    `autolib`, `autobins`, `autotests`, `autoexamples` and `autobenches` keys
+    switch the discovery off, and `[lib]`, `[[bin]]`, `[[test]]`, `[[example]]`
+    and `[[bench]]` add targets, a missing `path` being inferred from the name.
+    The build script is a root: clippy-driver wraps every rustc call of a
+    workspace package, the script's included (recalled, not run here).
+    """
+    prefix = f"{path_key(directory)}/" if directory else ""
+    package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
+    lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
+    own = [key.removeprefix(prefix) for key in index.named if key.startswith(prefix)]
+    found = []
+    if "lib" in manifest or package.get("autolib", True) is not False:
+        found.append(lib["path"] if isinstance(lib.get("path"), str) else "src/lib.rs")
+    if package.get("build", True) is not False:
+        found.append(package["build"] if isinstance(package.get("build"), str) else "build.rs")
+    for key, folder, auto in (("bin", "src/bin", "autobins"), ("test", "tests", "autotests"),
+                              ("example", "examples", "autoexamples"),
+                              ("bench", "benches", "autobenches")):
+        entries = manifest.get(key)
+        for entry in entries if isinstance(entries, list) else []:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if isinstance(entry.get("path"), str):
+                found.append(entry["path"])
+            elif isinstance(name, str):
+                found += [f"{folder}/{name}.rs", f"{folder}/{name}/main.rs"]
+                if key == "bin" and name == package.get("name"):
+                    found.append("src/main.rs")
+        if package.get(auto, True) is not False:
+            if key == "bin":
+                found.append("src/main.rs")
+            found += [path for path in own
+                      if re.fullmatch(rf"{folder}/([^/]+|[^/]+/main)\.rs", path)]
+    roots = [path for name in found for path in index.at(posixpath.join(directory, name))]
+    return list(dict.fromkeys(roots))
+
+
+@dataclass(frozen=True)
+class Module:
+    """A `mod` item as written: its name, its `#[path]` values, and the values
+    under `cfg_attr`, whose predicate is not evaluated."""
+
+    name: str
+    paths: tuple[str, ...] = ()
+    conditional: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Mount:
+    """A `mod name;` declaration and the inline modules around it, outermost first."""
+
+    module: Module
+    enclosing: tuple[Module, ...]
+
+
+def attribute_paths(tokens: list[tuple[str, str]], head: str) -> tuple[list[str], list[str]]:
+    """The `path = "..."` values one outer attribute sets: (`#[path]`, `cfg_attr`)."""
+    found = [path_literal(tokens[index + 2][1]) for index in range(len(tokens) - 2)
+             if tokens[index] == ("word", "path") and tokens[index + 1] == ("punct", "=")
+             and tokens[index + 2][0] == "string"]
+    return (found, []) if head == "path" else ([], found) if head == "cfg_attr" else ([], [])
+
+
+@functools.cache
+def mod_declarations(text: str) -> tuple[tuple[Mount, ...], tuple[str, ...]]:
+    """The `mod name;` declarations and the `include!("path")` literals of one
+    file, read from its token stream.
+
+    An inline `mod name { ... }` is an enclosing module of what it holds; any
+    other brace is none. A `mod` the tokens show is seen wherever it stands,
+    macro body included, and a `mod` a macro writes from `$` is not.
+    """
+    tokens = lex(text)
+    starts = {start: (end, inner, head) for start, end, inner, head in attributes(tokens)}
+    found: list[Mount] = []
+    included: list[str] = []
+    inline: list[Module | None] = []
+    plain: list[str] = []
+    conditional: list[str] = []
+    index = 0
+    while index < len(tokens):
+        if index in starts:
+            end, inner, head = starts[index]
+            if not inner:
+                paths, conditions = attribute_paths(tokens[index:end], head)
+                plain, conditional = plain + paths, conditional + conditions
+            index = end
+            continue
+        kind, word = tokens[index]
+        after = tokens[index + 1:index + 4]
+        if ((kind, word) == ("word", "include") and len(after) == 3 and after[0] == ("punct", "!")
+                and after[1] in (("punct", "("), ("punct", "["), ("punct", "{"))
+                and after[2][0] == "string"):
+            included.append(path_literal(after[2][1]))
+            index += 4
+            continue
+        if ((kind, word) == ("word", "mod") and len(after) >= 2 and after[0][0] == "word"
+                and after[1] in (("punct", ";"), ("punct", "{"))):
+            module = Module(after[0][1].removeprefix("r#"), tuple(plain), tuple(conditional))
+            if after[1][1] == ";":
+                found.append(Mount(module, tuple(m for m in inline if m)))
+            else:
+                inline.append(module)
+            plain, conditional, index = [], [], index + 3
+            continue
+        if kind == "punct" and word in "{};":
+            if word == "{":
+                inline.append(None)
+            elif word == "}" and inline:
+                inline.pop()
+            plain, conditional = [], []
+        index += 1
+    return tuple(found), tuple(included)
+
+
+def module_directories(states: set[tuple[str, str | None]],
+                       module: Module) -> set[tuple[str, str | None]]:
+    """The (directory, stem) states inside the inline `module` of each state in
+    `states`: its `#[path]` values joined to the directory, and without one its
+    name after the directory and stem."""
+    found: set[tuple[str, str | None]] = set()
+    for directory, stem in states:
+        found |= {(posixpath.join(directory, path), None)
+                  for path in (*module.paths, *module.conditional)}
+        if not module.paths:
+            found.add((posixpath.join(directory, *filter(None, [stem]), module.name), None))
+    return found
+
+
+def link_files(index: PathIndex, read: Callable[[str], str | None], link: str) -> set[str]:
+    """The tracked files the symbolic link `link` leads to through any chain of
+    links: none when it dangles, leaves the tree, names a directory or loops."""
+    found: set[str] = set()
+    seen: set[str] = set()
+    pending = [link]
+    while pending:
+        path = pending.pop()
+        if path not in index.links:
+            found.add(path)
+        elif path not in seen:
+            seen.add(path)
+            pending += index.at(posixpath.join(posixpath.dirname(path), read(path) or ""))
+    return found
+
+
+def mounted(text: str, directory: str, stem: str | None) -> list[tuple[str, str | None]]:
+    """The (path, stem) candidates the file `text` loads as a module with
+    `directory` and `stem`; a text that does not lex raises."""
+    mounts, included = mod_declarations(text)
+    found: list[tuple[str, str | None]] = [
+        (posixpath.join(directory, path), None) for path in included]
+    for mount in mounts:
+        states = {(directory, stem)}
+        for module in mount.enclosing:
+            states = module_directories(states, module)
+        module = mount.module
+        for here, here_stem in states:
+            found += [(posixpath.join(here, path), None)
+                      for path in (*module.paths, *module.conditional)]
+            if not module.paths:
+                base = posixpath.join(here, *filter(None, [here_stem]))
+                found += [(posixpath.join(base, f"{module.name}.rs"), module.name),
+                          (posixpath.join(base, module.name, "mod.rs"), None)]
+    return found
+
+
+# Windows reads a name differently from the spelling written, and the hook runs on
+# Windows: "Naming Files, Paths, and Namespaces",
+# https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file (read 2026-11-27).
+# A name must not end in a space or a period ("Do not end a file or directory name
+# with a space or a period"), a colon names a drive or a stream, `NUL.txt` "is
+# equivalent to NUL", and a long name may be opened by its 8.3 alias. rustc 1.97.0 on
+# Windows loads `src/cast.rs` for `#[path = "cast.rs."]`, `"cast.rs "` and
+# `"cast.rs::$DATA"` (atlas805-2 G1, observed there). The gate does not model these
+# rewrites: it refuses a path it cannot read as every host does.
+DEVICE_NAME = re.compile(r"(?i)(?:con|prn|aux|nul|(?:com|lpt)[0-9¹²³])(?:\..*)?")
+SHORT_ALIAS = re.compile(r"~[0-9]")
+
+
+def windows_rewrites(value: str) -> str | None:
+    """Why a Windows host may open another file than the one the path `value`
+    names, or None when it reads `value` as a Linux host does (up to case and
+    the backslash, which `path_key` reads as Windows does)."""
+    if ":" in value:
+        return "holds a colon, which Windows reads as a drive or a data stream"
+    for component in re.split(r"[\\/]", value):
+        if component in ("", ".", ".."):
+            continue
+        if component.endswith((".", " ")):
+            return (f"has the component {component!r}, whose trailing dot or space "
+                    "Windows drops")
+        if DEVICE_NAME.fullmatch(component):
+            return f"has the component {component!r}, which Windows reads as a device"
+        if SHORT_ALIAS.search(component):
+            return f"has the component {component!r}, which may be an 8.3 alias of another name"
+    return None
+
+
+def path_values(text: str) -> list[str]:
+    """The `#[path]`, `cfg_attr` path and `include!` literals `text` loads
+    files through, as `mod_declarations` reads them."""
+    mounts, included = mod_declarations(text)
+    values = list(included)
+    for mount in mounts:
+        for module in (mount.module, *mount.enclosing):
+            values += (*module.paths, *module.conditional)
+    return list(dict.fromkeys(values))
+
+
+def path_refusals(text: str) -> list[str]:
+    """One line per path literal of `text` that `windows_rewrites` refuses,
+    naming the line it is written on and its value."""
+    refused = {value: reason for value in path_values(text)
+               if (reason := windows_rewrites(value))}
+    if not refused:
+        return []
+    lines: dict[str, int] = {}
+    tokens = lex_spans(text)
+    for index, (kind, word, start) in enumerate(tokens):
+        before = [token[1] for token in tokens[max(index - 4, 0):index]]
+        if kind == "string" and (before[-2:] == ["path", "="] or (
+                before[-3:-1] == ["include", "!"] and before[-1] in ("(", "[", "{"))):
+            lines.setdefault(path_literal(word), text.count("\n", 0, start) + 1)
+    return [f"line {lines.get(value, 1)}: the path {value!r} {reason}"
+            for value, reason in refused.items()]
+
+
+def discovery_errors(manifest: dict, directory: str, index: PathIndex) -> dict[str, str]:
+    """Why `target_roots` cannot be trusted to find every crate target of a
+    package, by path: a tracked symbolic link at a discovery folder (`src/bin`,
+    `tests`, `examples`, `benches`), on the way to a default crate root or to a
+    target path the manifest declares, or at a directory target (`tests/name`
+    holding a `main.rs`); and a declared target path `windows_rewrites` refuses.
+
+    Cargo lists a discovery folder with `read_dir`, which a Linux checkout
+    with links resolves, and Windows opens the declared path under the name it
+    rewrites. `target_roots` reads tracked paths, so a target beyond a link, or
+    under a spelling it does not read, is absent from it, silently. A link to a
+    file is not here: the walk follows it (`compiled_files`). Where a link leads
+    is not read: the gate names it rather than guess a layout it cannot see.
+    """
+    package = manifest.get("package") if isinstance(manifest.get("package"), dict) else {}
+    lib = manifest.get("lib") if isinstance(manifest.get("lib"), dict) else {}
+    declared = [value for value in (lib.get("path"), package.get("build"))
+                if isinstance(value, str)]
+    for key in ("bin", "test", "example", "bench"):
+        entries = manifest.get(key)
+        declared += [entry["path"] for entry in entries if isinstance(entry, dict)
+                     and isinstance(entry.get("path"), str)] if isinstance(entries, list) else []
+    errors: dict[str, str] = {}
+    for value in declared:
+        if reason := windows_rewrites(value):
+            errors[posixpath.join(directory, "Cargo.toml")] = f"the target path {value!r} {reason}"
+    folders = ["src/bin", "tests", "examples", "benches"]
+    spots = [*((folder, True) for folder in folders),
+             *((file, False) for file in ["src/lib.rs", "src/main.rs", "build.rs", *declared])]
+    found: dict[str, str] = {}
+    for spot, whole in spots:
+        parts = path_clean(spot).split("/")
+        for depth in range(1, len(parts) + int(whole)):
+            for link in index.links.intersection(index.at(posixpath.join(directory, *parts[:depth]))):
+                found.setdefault(link, f"a symbolic link on the way to `{spot}`")
+    for folder in folders:
+        parent = path_key(posixpath.join(directory, folder))
+        for link in sorted(index.links):
+            if posixpath.dirname(path_key(link)) == parent and not link.endswith(".rs"):
+                found.setdefault(link, f"a symbolic link in `{folder}`, where a target directory is found")
+    return errors | {link: f"{reason}; the gate does not read through a link there, and a "
+                           "Linux checkout follows it" for link, reason in sorted(found.items())}
+
+
+def compiled_files(index: PathIndex, read: Callable[[str], str | None],
+                   root: str) -> tuple[set[str], dict[str, str]]:
+    """The files the crate root `root` compiles, and why any could not be read:
+    (tracked paths, error by path). `index` is `path_index` of the tracked
+    paths and `read` yields a tracked file's text.
+
+    Specification: the Rust Reference, "Module source filenames" and "The
+    path attribute" in https://doc.rust-lang.org/reference/items/modules.html,
+    and rustc 1.97.0 `--emit=dep-info` where the Reference is silent. A module
+    has a directory and, for a file that is not `mod.rs`, a stem: `mod name;`
+    loads `<directory>/<stem>/name.rs` or `.../name/mod.rs`, and each inline
+    module adds a component. `#[path]` on `mod name;` is joined to the
+    directory without the stem, and an inline module's own `#[path]` replaces
+    its component, joined likewise (`#[path = "num"] mod m { mod cast; }`
+    in `src/a.rs` loads `src/num/cast.rs`). A file loaded through `#[path]` or
+    `include!("literal")`, the latter relative to the file holding the call,
+    resolves its children beside itself. A `cfg_attr` path counts as both
+    outcomes, since its predicate is not evaluated.
+
+    A candidate names every tracked path `PathIndex.at` yields, and each is
+    walked from its own directory, once per stem: the states are tracked paths
+    and declared names, so the walk ends however a path respells a directory.
+    A symbolic link is read both ways: as the file holding its target path,
+    which a checkout without links compiles, and as each file `link_files`
+    finds, whose children resolve beside the link (rustc keeps a module's path
+    as written: recalled, not compiled here). A link that leads to no tracked
+    file is an error where the walk reaches it or a path through it: the gate
+    does not read through a linked directory (`discovery_errors` names one
+    where Cargo discovers targets). A file with a path literal that
+    `windows_rewrites` refuses is an error too, though its modules are still
+    walked: the gate does not model the rewrite. Not followed: a `mod` a macro
+    writes, and `include!` of anything but a literal.
+    """
+    files: set[str] = set()
+    errors: dict[str, str] = {}
+    seen: set[tuple[str, str | None]] = set()
+    pending: list[tuple[str, str | None]] = [(root, None)]
+    while pending:
+        file, stem = pending.pop()
+        parts = file.replace("\\", "/").split("/") if index.links else []
+        for depth in range(1, len(parts)):
+            for link in index.links.intersection(index.at("/".join(parts[:depth]))):
+                if not link_files(index, read, link):
+                    errors[link] = f"a symbolic link to no tracked file, on the path to {file}"
+        for real in index.at(file):
+            if (real, stem) in seen:
+                continue
+            seen.add((real, stem))
+            sources = {real}
+            if real in index.links:
+                sources |= link_files(index, read, real)
+                if len(sources) == 1:
+                    errors[real] = "a symbolic link to no tracked file"
+            for source in sorted(sources):
+                text = read(source)
+                if text is None:
+                    continue
+                files.add(source)
+                try:
+                    pending += mounted(text, posixpath.dirname(real), stem)
+                    if refusals := path_refusals(text):
+                        errors[source] = "; ".join(refusals)
+                except ValueError as error:
+                    errors[source] = str(error)
+    return files, errors
 
 
 def held_to_base(repo: pathlib.Path, base: str, candidates: Iterable[str],
@@ -1202,7 +1602,12 @@ CAST_LINTS = frozenset(f"clippy::{name}" for name in (
 def lex(text: str) -> list[tuple[str, str]]:
     """The (kind, text) Rust tokens of `text`, comments (nested) and space
     dropped. An unclosed literal or comment, or a stray character, raises."""
-    tokens: list[tuple[str, str]] = []
+    return [(kind, word) for kind, word, _ in lex_spans(text)]
+
+
+def lex_spans(text: str) -> list[tuple[str, str, int]]:
+    """`lex`, each token with the offset it starts at."""
+    tokens: list[tuple[str, str, int]] = []
     index = 0
     while index < len(text):
         if text.startswith("/*", index):
@@ -1215,7 +1620,7 @@ def lex(text: str) -> list[tuple[str, str]]:
                                 else (depth - 1, close + 2))
         elif match := TOKEN.match(text, index):
             if match.lastgroup not in ("space", "comment"):
-                tokens.append((match.lastgroup, match.group()))
+                tokens.append((match.lastgroup, match.group(), index))
             index = match.end()
         else:
             raise ValueError(f"no token at offset {index}")
@@ -1270,6 +1675,46 @@ def copying_fault(tokens: list[tuple[str, str]],
 
 def literal(text: str) -> str:  # the body of a string literal token
     return re.sub(r'^[bc]?r?#*"|"#*$', "", text)
+
+
+ESCAPE = re.compile(r"\\(?:x([0-9a-fA-F]{2})|u\{([0-9a-fA-F_]+)\}|(\r?\n[ \t\r\n]*)|(.))", re.S)
+SIMPLE_ESCAPES = {"n": "\n", "r": "\r", "t": "\t", "\\": "\\", "0": "\0", "'": "'", '"': '"'}
+
+
+def path_literal(token: str) -> str:
+    """The string a string-literal token spells, as rustc reads it: the body of
+    a raw string as written, the escapes of any other decoded.
+
+    Specification: the Rust Reference, "String literals" in
+    https://doc.rust-lang.org/reference/tokens.html (read 2026-11-27). The
+    escapes are `\\'`, `\\"`, `\\n`, `\\r`, `\\t`, `\\\\`, `\\0`, `\\x` and two hex
+    digits up to 7F, and `\\u{..}` with one to six hex digits (underscores
+    allowed) naming a scalar value; a backslash before a line break skips the
+    break and the white space after it. Any other escape is no literal rustc
+    compiles, and raises. `#[path = "ca\\x73t.rs"]` loads `cast.rs` (rustc
+    1.97.0 `--emit=dep-info`), a file the body as written would not name.
+    """
+    body = literal(token)
+    if re.match(r"[bc]?r", token):
+        return body
+
+    def decode(match: re.Match[str]) -> str:
+        byte, scalar, continuation, other = match.groups()
+        if continuation is not None:
+            return ""
+        if byte is not None and int(byte, 16) < 0x80:
+            return chr(int(byte, 16))
+        if scalar is not None:
+            digits = scalar.replace("_", "")
+            if 0 < len(digits) <= 6 and (code := int(digits, 16)) <= 0x10FFFF \
+                    and not 0xD800 <= code < 0xE000:
+                return chr(code)
+        elif other in SIMPLE_ESCAPES:
+            return SIMPLE_ESCAPES[other]
+        raise ValueError(f"the string literal {token} holds the escape {match.group()!r}, "
+                         "which is no escape of a Rust string")
+
+    return ESCAPE.sub(decode, body)
 
 
 def cast_module_fault(text: str | None) -> str | None:

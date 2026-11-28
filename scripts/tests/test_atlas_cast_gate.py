@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import posixpath
 import random
 import shutil
 import subprocess
@@ -2652,3 +2653,395 @@ def test_a_base_manifest_only_cargo_parses_holds_every_package_to_its_base_count
     assert said.startswith(f"cast gate: {unparsed} does not parse as TOML here (")
     assert said.endswith("; every `--base-package` is held to its count at the pushed base")
     assert (code, problems) == expected
+
+
+ROOT_TREE = frozenset({
+    "Cargo.toml", "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs",
+    "src/bin/multi/main.rs", "src/bin/multi/util.rs", "src/bin/deep/er/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "tests/m/helper.rs", "tests/n/o/main.rs",
+    "examples/e.rs", "examples/e2/main.rs", "benches/b.rs", "benches/b2/main.rs",
+    "alt/lib.rs", "alt/x.rs", "scripts/b.rs",
+})
+DEFAULT_ROOTS = {
+    "build.rs", "src/lib.rs", "src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs",
+    "tests/a.rs", "tests/m/main.rs", "examples/e.rs", "examples/e2/main.rs",
+    "benches/b.rs", "benches/b2/main.rs",
+}
+AUTO_OFF = {"src/main.rs", "src/bin/tool.rs", "src/bin/multi/main.rs", "tests/a.rs",
+            "tests/m/main.rs"}
+
+
+@pytest.mark.parametrize("manifest, expected", [
+    ({}, DEFAULT_ROOTS),
+    ({"package": {"autobins": False, "autotests": False}}, DEFAULT_ROOTS - AUTO_OFF),
+    ({"package": {"autolib": False}}, DEFAULT_ROOTS - {"src/lib.rs"}),
+    ({"package": {"autolib": False}, "lib": {}}, DEFAULT_ROOTS),
+    ({"lib": {"path": "alt/lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+    ({"package": {"autotests": False}, "test": [{"name": "x", "path": "alt/x.rs"}]},
+     DEFAULT_ROOTS - {"tests/a.rs", "tests/m/main.rs"} | {"alt/x.rs"}),
+    ({"package": {"name": "p", "autobins": False}, "bin": [{"name": "p"}, {"name": "tool"}]},
+     DEFAULT_ROOTS - {"src/bin/multi/main.rs"}),
+    ({"package": {"build": False}}, DEFAULT_ROOTS - {"build.rs"}),
+    ({"package": {"build": "scripts/b.rs"}}, DEFAULT_ROOTS - {"build.rs"} | {"scripts/b.rs"}),
+    ({"lib": {"path": "alt\\lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+    ({"lib": {"path": "ALT/Lib.rs"}}, DEFAULT_ROOTS - {"src/lib.rs"} | {"alt/lib.rs"}),
+])
+def test_target_roots_follow_cargo_discovery_and_the_manifest(manifest, expected):
+    assert set(gate.target_roots(manifest, "", gate.path_index(ROOT_TREE))) == expected
+    nested = frozenset(f"pkg/{path}" for path in ROOT_TREE)
+    assert set(gate.target_roots(manifest, "pkg", gate.path_index(nested))) == {
+        f"pkg/{p}" for p in expected}
+
+
+def walk(root, files):
+    return gate.compiled_files(gate.path_index(files), files.get, root)
+
+
+@pytest.mark.parametrize("root, files, expected", [
+    ("src/lib.rs", {"src/lib.rs": "pub(crate) mod util;", "src/util.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod util;", "src/util/mod.rs": "mod config;",
+                    "src/util/config.rs": ""}, {"src/util/mod.rs", "src/util/config.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": '#[path = "foo.rs"]\nmod c;', "src/a/foo.rs": "",
+                    "src/a/b/foo.rs": ""}, {"src/a/mod.rs", "src/a/b.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": '#[path = "foo.rs"] mod c;',
+                    "src/a/foo.rs": ""}, {"src/a/mod.rs", "src/a/foo.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs": "mod b;",
+                    "src/a/b.rs": 'mod inline {\n    #[path = "other.rs"]\n    mod inner;\n}',
+                    "src/a/b/inline/other.rs": ""},
+     {"src/a/mod.rs", "src/a/b.rs", "src/a/b/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a/mod.rs":
+                    'mod inline { #[path = "other.rs"] mod inner; }',
+                    "src/a/inline/other.rs": ""}, {"src/a/mod.rs", "src/a/inline/other.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "thread_files"]\nmod thread {\n'
+                    '    #[path = "tls.rs"]\n    mod local_data;\n}',
+                    "src/thread_files/tls.rs": ""}, {"src/thread_files/tls.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "x/y.rs"] mod y;', "src/x/y.rs": "mod z;",
+                    "src/x/z.rs": "", "src/x/y/z.rs": ""}, {"src/x/y.rs", "src/x/z.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod r#cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(unix, path = "a.rs")]\nmod m;', "src/a.rs": "",
+                    "src/m.rs": ""}, {"src/a.rs", "src/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '// mod cast;\n/* mod cast; */\nconst S: &str = "mod cast;";',
+                    "src/cast.rs": ""}, set()),
+    ("src/lib.rs", {"src/lib.rs": "mod cli { pub mod cast; }", "src/cli/cast.rs": "",
+                    "src/cast.rs": ""}, {"src/cli/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "lib.rs"]\nmod me;'}, set()),
+    ("tests/x.rs", {"tests/x.rs": "mod cast;", "tests/cast/mod.rs": "", "src/cast.rs": ""},
+     {"tests/cast/mod.rs"}),
+    # an inline module's `#[path]` is joined to the directory, not to the stem's
+    ("src/lib.rs", {"src/lib.rs": '#[path = "."] mod m { mod cast; }', "src/cast.rs": "",
+                    "src/m/cast.rs": ""}, {"src/cast.rs"}),
+    ("tests/x.rs", {"tests/x.rs": '#[path = "../src"] mod shared { mod cast; }',
+                    "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[cfg_attr(all(), path = ".")] mod m { mod cast; }',
+                    "src/cast.rs": "", "src/m/cast.rs": ""}, {"src/cast.rs", "src/m/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a.rs": '#[path = "num"] mod m { mod cast; }',
+                    "src/num/cast.rs": "", "src/a/num/cast.rs": ""},
+     {"src/a.rs", "src/num/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;",
+                    "src/a.rs": 'mod x { #[path = "p"] mod y { mod cast; } }',
+                    "src/a/x/p/cast.rs": "", "src/x/p/cast.rs": "", "src/a/p/cast.rs": ""},
+     {"src/a.rs", "src/a/x/p/cast.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;",
+                    "src/a.rs": '#[path = "num"] mod m { #[path = "q.rs"] mod z; }',
+                    "src/num/q.rs": "", "src/a/num/q.rs": ""}, {"src/a.rs", "src/num/q.rs"}),
+    # `#[path]` loads a file of any extension, and `include!("literal")` one beside its caller
+    ("src/lib.rs", {"src/lib.rs": '#[path = "hidden.inc"] mod hidden;', "src/hidden.inc": ""},
+     {"src/hidden.inc"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!("hidden.in");', "src/hidden.in": ""},
+     {"src/hidden.in"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!("sub/inc.in");', "src/sub/inc.in": "mod m;",
+                    "src/sub/m.rs": "", "src/m.rs": ""}, {"src/sub/inc.in", "src/sub/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": "mod a;", "src/a.rs": 'include!("inc.in");',
+                    "src/inc.in": "mod m;", "src/m.rs": "", "src/a/m.rs": ""},
+     {"src/a.rs", "src/inc.in", "src/m.rs"}),
+    ("src/lib.rs", {"src/lib.rs": 'include!(concat!("hid", "den.in"));', "src/hidden.in": ""},
+     set()),
+    # candidates are normalised before the lookup, and matched as the Windows host does
+    ("tests/x/main.rs", {"tests/x/main.rs": '#[path = r"..\\..\\src\\cast.rs"]\nmod cast;',
+                         "src/cast.rs": ""}, {"src/cast.rs"}),
+    ("src/main.rs", {"src/main.rs": '#[path = "CAST.rs"] mod c;', "src/cast.rs": ""},
+     {"src/cast.rs"}),
+    ("src/main.rs", {"src/main.rs": "mod Cast;", "src/cast.rs": ""}, {"src/cast.rs"}),
+    # names a Linux host tells apart are each walked, from their own directory
+    ("src/lib.rs", {"src/lib.rs": "mod cast;", "src/cast.rs": "", "src/Cast.rs": "mod k;",
+                    "src/Cast/k.rs": ""}, {"src/cast.rs", "src/Cast.rs", "src/Cast/k.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = "../gen/H.inc"]\nmod h;', "gen/h.inc": "",
+                    "gen/H.inc": ""}, {"gen/h.inc", "gen/H.inc"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = r"a\\b.rs"] mod x;\nmod a;', "src/a.rs": "mod b;",
+                    "src/a/b.rs": "", "src/a\\b.rs": "mod c;", "src/c.rs": "", "src/a/c.rs": ""},
+     {"src/a.rs", "src/a/b.rs", "src/a\\b.rs", "src/c.rs"}),
+    ("src/lib.rs", {"src/lib.rs": '#[path = r"x\\y/../c.rs"] mod c;', "src/c.rs": "",
+                    "src/x/c.rs": ""}, {"src/c.rs", "src/x/c.rs"}),
+])
+def test_modules_resolve_as_the_rust_reference_and_rustc_load_them(root, files, expected):
+    assert walk(root, files) == ({root, *expected}, {})
+
+
+def test_a_reached_file_that_does_not_lex_is_reported_with_its_path():
+    files = {"src/lib.rs": "mod a;\nmod b;", "src/a.rs": "/* open", "src/b.rs": ""}
+    assert walk("src/lib.rs", files) == (
+        {"src/lib.rs", "src/a.rs", "src/b.rs"}, {"src/a.rs": "an unclosed block comment"})
+
+
+DOT = "has the component {0!r}, whose trailing dot or space Windows drops"
+COLON = "holds a colon, which Windows reads as a drive or a data stream"
+DEVICE = "has the component {0!r}, which Windows reads as a device"
+ALIAS = "has the component {0!r}, which may be an 8.3 alias of another name"
+
+
+@pytest.mark.parametrize("text, value, reason", [
+    ('#[path = "cast.rs."]\nmod c;', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = "cast.rs "]\nmod c;', "cast.rs ", DOT.format("cast.rs ")),
+    ('#[path = "cast.rs::$DATA"]\nmod c;', "cast.rs::$DATA", COLON),
+    ('#[path = "src./cast.rs"]\nmod c;', "src./cast.rs", DOT.format("src.")),
+    ('#[path = "../gen/h.inc."]\nmod h;', "../gen/h.inc.", DOT.format("h.inc.")),
+    ('#[path = "../gen/dir /h.inc"]\nmod h;', "../gen/dir /h.inc", DOT.format("dir ")),
+    ('#[cfg_attr(unix, path = "cast.rs.")]\nmod c;', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = "sub."]\nmod m { mod cast; }', "sub.", DOT.format("sub.")),
+    ('include!("cast.rs.");', "cast.rs.", DOT.format("cast.rs.")),
+    ('#[path = r"gen\\h.inc "]\nmod h;', "gen\\h.inc ", DOT.format("h.inc ")),
+    ('#[path = "c:cast.rs"]\nmod c;', "c:cast.rs", COLON),
+    ('#[path = "nul.rs"]\nmod c;', "nul.rs", DEVICE.format("nul.rs")),
+    ('#[path = "x/COM1"]\nmod c;', "x/COM1", DEVICE.format("COM1")),
+    ('#[path = "CAST~1.RS"]\nmod c;', "CAST~1.RS", ALIAS.format("CAST~1.RS")),
+])
+def test_a_path_a_windows_host_reads_as_another_file_is_refused_naming_line_and_value(
+        text, value, reason):
+    # `src/lib.rs` line 3 holds the literal; line 1 mentions the same value in a comment
+    source = f"// {value}\npub fn f() {{}}\n{text}"
+    files = {"src/lib.rs": source, "src/cast.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1] == {
+        "src/lib.rs": f"line 3: the path {value!r} {reason}"}
+
+
+@pytest.mark.parametrize("text", [
+    '#[path = "cast.rs"]\nmod c;', '#[path = "./cast.rs"]\nmod c;', '#[path = "../src/cast.rs"]\nmod c;',
+    '#[path = "a b.rs"]\nmod c;', '#[path = "dir.d/x.rs"]\nmod c;', '#[path = "x..y.rs"]\nmod c;',
+    '#[path = r"..\\src\\cast.rs"]\nmod c;', 'include!("sub/inc.in");',
+    'let path = "x.";\nlet other = r#"#[path = "y."] mod z;"#;',
+    '// #[path = "x."]\n/* include!("y."); */\nmod c;',
+    '#[doc(path = "x.")]\nfn f() {}',
+])
+def test_a_path_every_host_reads_alike_is_not_refused(text):
+    files = {"src/lib.rs": text, "src/cast.rs": "", "src/x..y.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1] == {}
+
+
+def test_a_refused_path_leaves_the_rest_of_the_walk_to_run():
+    files = {"src/lib.rs": '#[path = "cast.rs."] mod c;\nmod a;', "src/a.rs": "mod b;",
+             "src/a/b.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert (reached, list(errors)) == ({"src/lib.rs", "src/a.rs", "src/a/b.rs"}, ["src/lib.rs"])
+
+
+@pytest.mark.parametrize("text", [
+    r'#[path = "ca\x73t.rs"] mod c;',
+    r'#[path = "ca\u{73}t.rs"] mod c;',
+    r'#[path = "ca\u{0073}t.rs"] mod c;',
+    r'#[path = "ca\u{7_3}t.rs"] mod c;',
+    '#[path = "ca\\\n        st.rs"] mod c;',
+    '#[path = "ca\\\r\n        st.rs"] mod c;',
+    r'#[path = "\x2e/cast.rs"] mod c;',
+    r'#[path = "..\\src\\cast.rs"] mod c;',
+    r'#[path = "../src/ca\x73t.rs"] mod c;',
+    r'#[cfg_attr(unix, path = "ca\x73t.rs")] mod c;',
+    r'include!("ca\x73t.rs");',
+    r'#[path = "\x2e"] mod m { mod cast; }',
+])
+def test_a_path_literal_is_read_with_its_escapes_decoded_as_rustc_does(text):
+    files = {"src/lib.rs": text, "src/cast.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert (reached, errors) == ({"src/lib.rs", "src/cast.rs"}, {})
+
+
+@pytest.mark.parametrize("text", [
+    r'#[path = r"ca\x73t.rs"] mod c;',      # a raw string has no escapes
+    r'#[path = r#"ca\u{73}t.rs"#] mod c;',
+])
+def test_a_raw_path_literal_is_read_as_written(text):
+    files = {"src/lib.rs": text, "src/cast.rs": ""}
+    assert gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+
+
+@pytest.mark.parametrize("token", [
+    r'"ca\qt.rs"', r'"\x80"', r'"\x7"', r'"\u{D800}"', r'"\u{110000}"', r'"\u{1234567}"',
+    r'"\u{}"', r'"\u{"', r'"\101"',
+])
+def test_a_path_literal_with_an_escape_rust_does_not_have_is_refused(token):
+    files = {"src/lib.rs": f"#[path = {token}] mod c;", "src/cast.rs": ""}
+    reached, errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")
+    assert reached == {"src/lib.rs"}
+    assert list(errors) == ["src/lib.rs"]
+    assert errors["src/lib.rs"].startswith(f"the string literal {token} holds the escape ")
+
+
+@pytest.mark.parametrize("token, value", [
+    (r'"cast.rs\x2e"', "cast.rs."), (r'"cast.rs\u{20}"', "cast.rs "),
+    (r'"cast.rs\u{3A}\x3a$DATA"', "cast.rs::$DATA"),
+])
+def test_a_refused_path_is_named_as_it_decodes_and_where_it_is_written(token, value):
+    files = {"src/lib.rs": f"// {token}\n\n#[path = {token}] mod c;", "src/cast.rs": ""}
+    errors = gate.compiled_files(gate.path_index(files), files.get, "src/lib.rs")[1]
+    assert errors["src/lib.rs"].startswith(f"line 3: the path {value!r} ")
+
+
+LINK_NOTE = "; the gate does not read through a link there, and a Linux checkout follows it"
+
+
+@pytest.mark.parametrize("manifest, directory, tracked, links, expected", [
+    ({}, "", {"Cargo.toml", "t2/x.rs"}, {"tests"}, {"tests": "a symbolic link on the way to "
+                                                              "`tests`"}),
+    ({}, "", {"Cargo.toml"}, {"src/bin"}, {"src/bin": "a symbolic link on the way to `src/bin`"}),
+    ({}, "", {"Cargo.toml"}, {"Examples"}, {"Examples": "a symbolic link on the way to "
+                                                        "`examples`"}),
+    ({}, "", {"Cargo.toml"}, {"benches"}, {"benches": "a symbolic link on the way to "
+                                                      "`benches`"}),
+    ({}, "", {"Cargo.toml"}, {"src"}, {"src": "a symbolic link on the way to `src/bin`"}),
+    ({}, "pkg", {"pkg/Cargo.toml"}, {"pkg/tests"}, {"pkg/tests": "a symbolic link on the way "
+                                                                 "to `tests`"}),
+    ({"test": [{"name": "x", "path": "t/x.rs"}]}, "", {"Cargo.toml"}, {"t"},
+     {"t": "a symbolic link on the way to `t/x.rs`"}),
+    ({"lib": {"path": "gen/lib.rs"}}, "", {"Cargo.toml"}, {"gen"},
+     {"gen": "a symbolic link on the way to `gen/lib.rs`"}),
+    ({}, "", {"Cargo.toml"}, {"examples/e"},
+     {"examples/e": "a symbolic link in `examples`, where a target directory is found"}),
+    ({}, "", {"Cargo.toml"}, {"src/bin/tool"},
+     {"src/bin/tool": "a symbolic link in `src/bin`, where a target directory is found"}),
+])
+def test_a_link_where_cargo_discovers_targets_is_named(manifest, directory, tracked, links,
+                                                       expected):
+    index = gate.path_index(tracked | links, links)
+    assert gate.discovery_errors(manifest, directory, index) == {
+        link: reason + LINK_NOTE for link, reason in expected.items()}
+
+
+@pytest.mark.parametrize("manifest, directory, tracked, links, expected", [
+    ({}, "", {"Cargo.toml", "tests/x.rs", "src/lib.rs"}, set(), {}),  # the control: real files
+    ({}, "", {"Cargo.toml", "tests/x.rs"}, {"tests/x.rs"}, {}),      # a link to a file is walked
+    ({}, "", {"Cargo.toml", "src/lib.rs"}, {"src/lib.rs"}, {}),
+    ({}, "", {"Cargo.toml", "docs/x.rs"}, {"docs"}, {}),             # no target is found there
+    ({}, "pkg", {"pkg/Cargo.toml"}, {"other/tests"}, {}),
+])
+def test_a_link_off_the_discovery_paths_is_not_named(manifest, directory, tracked, links,
+                                                     expected):
+    index = gate.path_index(tracked | links, links)
+    assert gate.discovery_errors(manifest, directory, index) == expected
+
+
+@pytest.mark.parametrize("manifest, directory, errors", [
+    ({"lib": {"path": "src/lib.rs."}}, "",
+     {"Cargo.toml": "the target path 'src/lib.rs.' " + DOT.format("lib.rs.")}),
+    ({"bin": [{"name": "t", "path": "src/t.rs "}]}, "pkg",
+     {"pkg/Cargo.toml": "the target path 'src/t.rs ' " + DOT.format("t.rs ")}),
+    ({"package": {"build": "build.rs::$DATA"}}, "",
+     {"Cargo.toml": "the target path 'build.rs::$DATA' " + COLON}),
+    ({"lib": {"path": "src/lib.rs"}, "bin": [{"name": "t", "path": "src/t.rs"}]}, "", {}),
+])
+def test_a_declared_target_path_a_windows_host_rewrites_is_named(manifest, directory, errors):
+    index = gate.path_index({posixpath.join(directory, "Cargo.toml")})
+    assert gate.discovery_errors(manifest, directory, index) == errors
+
+
+def test_a_revision_names_a_linked_discovery_folder(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    (repo / "t2").mkdir()
+    (repo / "t2" / "x.rs").write_bytes(b'#[path = "../src/cast.rs"]\nmod cast;\n')
+    (repo / "Cargo.toml").write_bytes(b'[package]\nname = "core"\n')
+    commit(repo, "files")
+    tip = track_link(repo, tmp_path, "tests", "t2")
+    with gate.Revision(repo, tip) as tree:
+        assert gate.discovery_errors({}, "", tree.index) == {
+            "tests": "a symbolic link on the way to `tests`" + LINK_NOTE}
+        assert gate.target_roots({}, "", tree.index) == []
+
+
+def test_target_roots_are_every_tracked_path_a_host_could_open_under_a_name():
+    roots = {"src/lib.rs", "src/Lib.rs", "Tests/a.rs", "tests/A.rs", "Examples/e/Main.rs",
+             "SRC/BIN/t.rs"}
+    assert set(gate.target_roots({}, "", gate.path_index({"Cargo.toml", *roots}))) == roots
+    nested = gate.path_index({"Pkg/Cargo.toml", *(f"PKG/{path}" for path in roots)})
+    assert set(gate.target_roots({}, "Pkg", nested)) == {f"PKG/{path}" for path in roots}
+
+
+@pytest.mark.parametrize("source", [
+    '#[cfg(any())] #[path = "."] mod m { mod lib; }\npub fn f() {}',
+    '#[path = "../src"] mod m { mod lib; }',
+    'macro_rules! never { () => { #[path = "./."] mod m { mod lib; } } }',
+    '#[cfg_attr(unix, path = "x/..")] mod m { #[path = "."] mod n { mod lib; } }',
+])
+def test_an_inline_module_that_respells_its_directory_ends_the_walk(source):
+    files = {"src/lib.rs": source}
+    reads: list[str] = []
+
+    def read(path):
+        reads.append(path)
+        assert len(reads) < 10, "the walk revisits one state under a longer spelling"
+        return files.get(path)
+
+    assert gate.compiled_files(gate.path_index(files), read, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+    assert reads == ["src/lib.rs"] * 2  # as the crate root, and as the module `lib`
+
+
+NO_FILE = "a symbolic link to no tracked file"
+
+
+@pytest.mark.parametrize("files, links, expected, errors", [
+    # the link's target is the module's text, and its children resolve beside the link
+    ({"src/lib.rs": "mod a;", "src/a.rs": "../gen/a.inc", "gen/a.inc": "mod b;",
+      "src/a/b.rs": "", "gen/b.rs": "", "gen/a/b.rs": ""}, {"src/a.rs"},
+     {"src/a.rs", "gen/a.inc", "src/a/b.rs"}, {}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "b.lnk", "src/b.lnk": "..\\GEN\\a.inc",
+      "gen/a.inc": ""}, {"src/a.rs", "src/b.lnk"}, {"src/a.rs", "gen/a.inc"}, {}),
+    # a checkout without links compiles the target path as the module's text
+    ({"src/lib.rs": "mod a;", "src/a.rs": "mod x;", "src/a/x.rs": ""}, {"src/a.rs"},
+     {"src/a.rs", "src/a/x.rs"}, {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "../gen/none.rs"}, {"src/a.rs"}, {"src/a.rs"},
+     {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "/etc/a.rs"}, {"src/a.rs"}, {"src/a.rs"},
+     {"src/a.rs": NO_FILE}),
+    ({"src/lib.rs": "mod a;", "src/a.rs": "b.rs", "src/b.rs": "a.rs"}, {"src/a.rs", "src/b.rs"},
+     {"src/a.rs"}, {"src/a.rs": NO_FILE}),
+    # a linked directory is not read through, on a path that names it or backs out of it
+    ({"src/lib.rs": "mod sub;", "src/sub": "../gen", "gen/mod.rs": ""}, {"src/sub"}, set(),
+     {"src/sub": NO_FILE + ", on the path to src/sub/mod.rs"}),
+    ({"src/lib.rs": '#[path = "sub/../x.rs"] mod x;', "src/sub": "../gen", "src/x.rs": ""},
+     {"src/sub"}, {"src/x.rs"}, {"src/sub": NO_FILE + ", on the path to src/sub/../x.rs"}),
+    # a link to a file is no directory, so no path leads through it
+    ({"src/lib.rs": "mod a;", "src/a.rs": "", "src/a": "a.rs"}, {"src/a"}, {"src/a.rs"}, {}),
+])
+def test_a_symbolic_link_is_followed_to_its_tracked_file_or_reported(
+        files, links, expected, errors):
+    assert gate.compiled_files(gate.path_index(files, links), files.get, "src/lib.rs") == (
+        {"src/lib.rs", *expected}, errors)
+
+
+def test_a_revision_walks_a_linked_module_to_its_target(tmp_path):
+    repo = tmp_path / "repo"
+    init(repo)
+    for path, text in {"src/lib.rs": "mod a;\n", "gen/a.inc": "pub fn a() {}\n"}.items():
+        (repo / path).parent.mkdir(parents=True)
+        (repo / path).write_bytes(text.encode())
+    commit(repo, "files")
+    tip = track_link(repo, tmp_path, "src/a.rs", "../gen/a.inc")
+    with gate.Revision(repo, tip) as tree:
+        assert gate.compiled_files(tree.index, tree.read, "src/lib.rs") == (
+            {"src/lib.rs", "src/a.rs", "gen/a.inc"}, {})
+
+
+def test_a_path_cycle_that_respells_its_directory_is_walked_once():
+    files = {"src/lib.rs": '#[path = "../src/lib.rs"]\nmod me;'}
+    reads: list[str] = []
+
+    def read(path):
+        reads.append(path)
+        assert len(reads) < 10, "the walk revisits one state under a longer spelling"
+        return files.get(path)
+
+    assert gate.compiled_files(gate.path_index(files), read, "src/lib.rs") == (
+        {"src/lib.rs"}, {})
+    assert reads == ["src/lib.rs"]
