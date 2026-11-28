@@ -2596,17 +2596,86 @@ fi
 echo "pre-push: $gate_phase phase passed" >&2
 }
 
+# The gate's export mirrors the stack configs above the repository with their
+# `[patch]` tables removed, and a `[patch."<url>"]` table redirects only
+# dependencies sourced from that URL. A change confined to `.cargo/config.toml`
+# `[patch]` tables (the generated development overlay) therefore reaches a
+# nested workspace only when its manifest or lock names a patched source; a
+# workspace resolving crates.io alone is untouched, and gating it costs its
+# whole clippy, test and rustdoc sequence. Any other config difference, an
+# unreadable side, a missing base, a non-URL patch key, or a workspace without
+# a readable lock selects the workspace as before.
 select_meta_cargo_owners() {
   local changed_file="$1" base_manifests="$2" candidate_manifests="$3" output="$4"
-  "$python_bin" - "$changed_file" "$base_manifests" "$candidate_manifests" "$output" <<'PY'
+  local base_revision="${5:-}" tip_revision="${6:-}"
+  "$python_bin" - "$changed_file" "$base_manifests" "$candidate_manifests" "$output" \
+    "$base_revision" "$tip_revision" <<'PY'
 import pathlib
+import re
+import subprocess
 import sys
+import tomllib
 
 changed = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
 base = set(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8").splitlines())
 candidate = set(pathlib.Path(sys.argv[3]).read_text(encoding="utf-8").splitlines())
+base_revision, tip_revision = sys.argv[5], sys.argv[6]
 all_manifests = base | candidate
 selected = {}
+url_token = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://[^\s\"'<>]+")
+
+def revision_text(revision, path):
+    if not revision:
+        return None
+    shown = subprocess.run(
+        ["git", "--no-replace-objects", "show", f"{revision}:{path}"],
+        capture_output=True, stdin=subprocess.DEVNULL, check=False,
+    )
+    if shown.returncode != 0:
+        return None
+    try:
+        return shown.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+def source_identity(url):
+    """The scheme-, query-, fragment-, case- and `.git`-insensitive source name."""
+    text = url.strip().lower().split("://", 1)[-1]
+    text = text.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    return text.removesuffix(".git")
+
+def patched_sources():
+    """Source names whose `[patch]` tables differ, or None when anything else does."""
+    old_text = revision_text(base_revision, ".cargo/config.toml")
+    new_text = revision_text(tip_revision, ".cargo/config.toml")
+    if old_text is None or new_text is None:
+        return None
+    try:
+        old, new = tomllib.loads(old_text), tomllib.loads(new_text)
+    except tomllib.TOMLDecodeError:
+        return None
+    old_patch, new_patch = old.pop("patch", {}), new.pop("patch", {})
+    if old != new or not isinstance(old_patch, dict) or not isinstance(new_patch, dict):
+        return None
+    differing = {
+        key for key in old_patch.keys() | new_patch.keys()
+        if old_patch.get(key) != new_patch.get(key)
+    }
+    if any("://" not in key for key in differing):
+        return None
+    return {source_identity(key) for key in differing}
+
+def names_a_patched_source(manifest, sources):
+    """Whether the pushed manifest or lock of this workspace names a patched source."""
+    directory = pathlib.PurePosixPath(manifest).parent
+    texts = [
+        revision_text(tip_revision, manifest),
+        revision_text(tip_revision, (directory / "Cargo.lock").as_posix()),
+    ]
+    if any(text is None for text in texts):
+        return True
+    named = {source_identity(token) for text in texts for token in url_token.findall(text)}
+    return not named.isdisjoint(sources)
 
 def owner(path):
     directory = pathlib.PurePosixPath(path).parent
@@ -2628,8 +2697,10 @@ for path in changed:
     if path in {"Cargo.toml", "Cargo.lock"}:
         raise SystemExit(f"the Atlas meta root cannot own {path}; Cargo workspaces live below tools/")
     if path in global_inputs or path.startswith(".cargo/"):
+        sources = patched_sources() if path == ".cargo/config.toml" else None
         for manifest in candidate:
-            selected.setdefault(manifest, set()).add("Cargo.toml")
+            if sources is None or names_a_patched_source(manifest, sources):
+                selected.setdefault(manifest, set()).add("Cargo.toml")
         continue
     manifest = owner(path)
     if manifest is None:
@@ -2676,7 +2747,8 @@ if [ "$stack_member" = "<meta>" ]; then
     exit 1
   fi
   if ! select_meta_cargo_owners \
-    "$meta_changed" "$meta_base_manifests" "$meta_candidate_manifests" "$meta_owners"; then
+    "$meta_changed" "$meta_base_manifests" "$meta_candidate_manifests" "$meta_owners" \
+    "$gate_base" "$gate_sha"; then
     echo "pre-push: BLOCKED -- could not select the Atlas meta root's Cargo workspace owners" >&2
     exit 1
   fi

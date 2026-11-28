@@ -1731,7 +1731,10 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
         "version-guard",
     )
 
-    def _fixture(self, temp: str) -> tuple[GateFixture, pathlib.Path, pathlib.Path]:
+    def _fixture(
+        self, temp: str, default_files: dict[str, str] | None = None
+    ) -> tuple[GateFixture, pathlib.Path, pathlib.Path]:
+        """A meta stack on `feat`; `default_files` are already on its fetched default."""
         stack = pathlib.Path(temp)
         fixture = GateFixture(stack, layout="meta")
         fixture.stack = stack
@@ -1763,11 +1766,33 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
         )
         _write(stack / "scripts" / "atlas_stack.py", "ROOT = None  # honours ATLAS_STACK_ROOT\n")
         _publish_stack_scripts(stack)
+        if default_files:
+            for path, text in default_files.items():
+                _write(stack / path, text)
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "add", "--", *default_files], check=True
+            )
+            subprocess.run(
+                ["git", "-C", str(stack), *_IDENT, "commit", "-q", "-m", "default files"],
+                check=True,
+            )
+            _git(stack, "update-ref", "refs/remotes/origin/main", _git(stack, "rev-parse", "HEAD"))
         subprocess.run(
             ["git", "-C", str(stack), *_IDENT, "checkout", "-q", "-b", "feat"],
             check=True,
         )
         return fixture, content_log, identity_log
+
+    @staticmethod
+    def _gated_workspaces(identity_log: pathlib.Path) -> set[str]:
+        """The `tools/` workspaces whose source-identity sequence ran."""
+        if not identity_log.exists():
+            return set()
+        invocations = [json.loads(line) for line in identity_log.read_text(encoding="utf-8").splitlines()]
+        return {
+            pathlib.Path(item["argv"][item["argv"].index("--manifest") + 1]).parent.name
+            for item in invocations
+        }
 
     @staticmethod
     def _commit(fixture: GateFixture, *paths: str) -> None:
@@ -1926,6 +1951,169 @@ class MetaRootCargoGateTestCase(unittest.TestCase):
                 for item in invocations
             }
             self.assertEqual(manifests, set(self.workspaces))
+
+    _OVERLAY_URL = "https://github.com/ryancinsight/leto"
+
+    @classmethod
+    def _config(cls, patch: str, profile: str = "") -> str:
+        """A root `.cargo/config.toml`: shared keys, then the generated `[patch]` overlay."""
+        return (
+            '[build]\ntarget-dir = "target"\n\n'
+            + profile
+            + "# >>> atlas stack development overlay (generated) >>>\n"
+            + patch
+            + "# <<< atlas stack development overlay (generated) <<<\n"
+        )
+
+    @classmethod
+    def _overlay(cls, *crates: str) -> str:
+        return (
+            f'[patch."{cls._OVERLAY_URL}"]\n'
+            + "".join(f'{crate} = {{ path = "repos/{crate}" }}\n' for crate in crates)
+            + "\n"
+        )
+
+    def test_overlay_only_config_change_with_pins_and_boards_gates_no_workspace(self) -> None:
+        """Gitlink, waiver and board paths plus a regenerated overlay own no Cargo workspace.
+
+        The overlay patches first-party git sources; the four `tools/` workspaces
+        resolve crates.io alone, so no clippy, test or rustdoc sequence applies.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, content_log, identity_log = self._fixture(
+                temp, {".cargo/config.toml": self._config(self._overlay("leto"))}
+            )
+            _write(
+                fixture.root / ".cargo" / "config.toml",
+                self._config(self._overlay("leto", "leto-ops")),
+            )
+            _write(fixture.root / "scripts" / "pin-drift-waivers.json", "{}\n")
+            _write(fixture.root / "backlog.md", "# board\n")
+            self._commit(
+                fixture, ".cargo/config.toml", "scripts/pin-drift-waivers.json", "backlog.md"
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("native gate not applicable", stderr)
+            self.assertEqual(self._gated_workspaces(identity_log), set())
+            self.assertFalse(fixture.calls.exists())
+            self.assertEqual(len(content_log.read_text(encoding="utf-8").splitlines()), 3)
+
+    def test_comment_only_config_change_gates_no_workspace(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(
+                temp, {".cargo/config.toml": self._config(self._overlay("leto"))}
+            )
+            _write(
+                fixture.root / ".cargo" / "config.toml",
+                "# reworded header\n" + self._config(self._overlay("leto")),
+            )
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(self._gated_workspaces(identity_log), set())
+
+    def test_overlay_change_gates_exactly_the_workspaces_naming_a_patched_source(self) -> None:
+        """Positive control: a lock or manifest naming the patched URL keeps its gate."""
+        sourced = (
+            'version = 4\n\n[[package]]\nname = "leto"\nversion = "0.1.0"\n'
+            f'source = "git+{self._OVERLAY_URL}.git?rev=abc#def"\n'
+        )
+        manifest = (
+            '[package]\nname = "gitlink-coherence"\nversion = "0.1.0"\nedition = "2024"\n'
+            f'\n[dependencies]\nleto = {{ git = "{self._OVERLAY_URL}" }}\n'
+            "\n[workspace]\n"
+        )
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(
+                temp,
+                {
+                    ".cargo/config.toml": self._config(self._overlay("leto")),
+                    "tools/criterion-regression/Cargo.lock": sourced,
+                    "tools/gitlink-coherence/Cargo.toml": manifest,
+                },
+            )
+            _write(
+                fixture.root / ".cargo" / "config.toml",
+                self._config(self._overlay("leto", "leto-ops")),
+            )
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(
+                self._gated_workspaces(identity_log),
+                {"criterion-regression", "gitlink-coherence"},
+            )
+
+    def test_overlay_change_beside_another_config_key_gates_all_four_workspaces(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(
+                temp, {".cargo/config.toml": self._config(self._overlay("leto"))}
+            )
+            _write(
+                fixture.root / ".cargo" / "config.toml",
+                self._config(
+                    self._overlay("leto", "leto-ops"),
+                    profile="[profile.dev]\nopt-level = 1\n\n",
+                ),
+            )
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(self._gated_workspaces(identity_log), set(self.workspaces))
+
+    def test_registry_patch_change_gates_all_four_workspaces(self) -> None:
+        """A `[patch.crates-io]` entry can redirect any workspace's registry dependency."""
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(
+                temp, {".cargo/config.toml": self._config(self._overlay("leto"))}
+            )
+            _write(
+                fixture.root / ".cargo" / "config.toml",
+                self._config(
+                    self._overlay("leto") + '[patch.crates-io]\nserde = { path = "serde" }\n'
+                ),
+            )
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(self._gated_workspaces(identity_log), set(self.workspaces))
+
+    def test_unparseable_config_gates_all_four_workspaces(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(
+                temp, {".cargo/config.toml": self._config(self._overlay("leto"))}
+            )
+            _write(fixture.root / ".cargo" / "config.toml", "[patch\n")
+            self._commit(fixture, ".cargo/config.toml")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(self._gated_workspaces(identity_log), set(self.workspaces))
+
+    def test_other_cargo_directory_file_gates_all_four_workspaces(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
+            fixture, _, identity_log = self._fixture(
+                temp, {".cargo/config.toml": self._config(self._overlay("leto"))}
+            )
+            _write(fixture.root / ".cargo" / "config", "[build]\nincremental = false\n")
+            self._commit(fixture, ".cargo/config")
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(self._gated_workspaces(identity_log), set(self.workspaces))
 
     def test_two_workspaces_run_before_a_later_stage_failure_propagates(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-meta-gate-") as temp:
