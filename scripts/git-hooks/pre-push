@@ -1727,26 +1727,22 @@ if [ "$root_resolution_changed" -eq 1 ]; then
   fi
   case "$dependency_status" in
     0)
+      local selected_packages="${gate_packages} $(printf '%s' "$dependency_packages" | tr '\r\n' ' ')"
       local ordered_dependency_packages=""
       for workspace_package in $root_selected_packages; do
-        case " $dependency_packages " in
+        case " $selected_packages " in
           *" $workspace_package "*)
             ordered_dependency_packages="$ordered_dependency_packages $workspace_package"
             ;;
         esac
       done
-      for workspace_package in $dependency_packages; do
+      for workspace_package in $selected_packages; do
         case " $ordered_dependency_packages " in
           *" $workspace_package "*) ;;
           *) ordered_dependency_packages="$ordered_dependency_packages $workspace_package" ;;
         esac
       done
-      for workspace_package in $ordered_dependency_packages; do
-        case " $gate_packages " in
-          *" $workspace_package "*) ;;
-          *) gate_packages="$gate_packages $workspace_package" ;;
-        esac
-      done
+      gate_packages="$ordered_dependency_packages"
       if [ "$root_lock_changed" -eq 1 ] && [ -z "${gate_packages// /}" ]; then
         echo "pre-push: lockfile resolution changed without a member closure; gating every workspace member" >&2
         gate_packages="$root_selected_packages"
