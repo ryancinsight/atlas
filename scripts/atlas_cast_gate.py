@@ -695,15 +695,20 @@ def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathl
     root_manifest = base_resolution.root_manifest
     if tip_resolution.root_manifest != root_manifest:
         return None, "the workspace root moved"
-    if root_manifest not in paths:
-        return None, f"{root_manifest} is not changed by the pushed range"
-    base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
-    try:
-        if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
-            return None, f"{root_manifest} changes beyond [workspace.dependencies]"
-        entries = changed_table_packages(base_text, tip_text)
-    except tomllib.TOMLDecodeError as error:
-        return None, f"{root_manifest} does not parse as TOML here ({error})"
+    root_lock = str(pathlib.PurePosixPath(root_manifest).with_name("Cargo.lock"))
+    manifest_changed = root_manifest in paths
+    lock_changed = root_lock in paths
+    if not manifest_changed and not lock_changed:
+        return None, f"{root_manifest} or {root_lock} is not changed by the pushed range"
+    entries: set[str] = set()
+    if manifest_changed:
+        base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
+        try:
+            if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
+                return None, f"{root_manifest} changes beyond [workspace.dependencies]"
+            entries = changed_table_packages(base_text, tip_text)
+        except tomllib.TOMLDecodeError as error:
+            return None, f"{root_manifest} does not parse as TOML here ({error})"
     touched = set(entries)
     for name in entries:
         touched |= base_resolution.reach.get(name, frozenset())
