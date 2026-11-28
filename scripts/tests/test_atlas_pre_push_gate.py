@@ -1056,8 +1056,18 @@ class PackageMapperTestCase(unittest.TestCase):
         source_owner: bool = False,
         global_change: bool = False,
         lock_only: bool = False,
+        lock_unrelated_package: bool = False,
+        recorded_gates: bool = False,
         resolved_exit: int | None = None,
     ) -> GateFixture:
+        """A stacked member whose candidate commit changes the workspace root.
+
+        `lock_unrelated_package` keeps every locked version and appends a
+        package no member reaches, so the resolved closure is empty.
+        `recorded_gates` runs the gate commands through the passthrough
+        identity checker, so each `cargo` call reaches the fixture stub and
+        `calls.log` records the selection it was given.
+        """
         fixture = _stacked_fixture(temp)
         manifest = (
             '[workspace]\nresolver = "3"\n'
@@ -1100,6 +1110,12 @@ class PackageMapperTestCase(unittest.TestCase):
             check=True,
         )
         _install_real_identity(fixture.stack)
+        if recorded_gates:
+            _write(
+                fixture.stack / "scripts" / "atlas-build-identity.py",
+                PASSTHROUGH_IDENTITY,
+                executable=True,
+            )
         resolution_gate = fixture.stack / "scripts" / "atlas_cast_gate_resolution.py"
         shutil.copy2(fixture.stack / "scripts" / "atlas_cast_gate.py", resolution_gate)
         if resolved_exit is None:
@@ -1147,6 +1163,13 @@ class PackageMapperTestCase(unittest.TestCase):
                 'version = 4\n[[package]]\nname = "windows"\nversion = "0.62.2"\n',
             )
             paths = ["Cargo.lock"]
+        elif lock_unrelated_package:
+            _write(
+                fixture.root / "Cargo.lock",
+                'version = 4\n[[package]]\nname = "windows"\nversion = "0.62.1"\n'
+                '[[package]]\nname = "other"\nversion = "1.0.0"\n',
+            )
+            paths = ["Cargo.lock"]
         else:
             _write(fixture.root / "Cargo.toml", tip_manifest)
         if source_owner:
@@ -1169,6 +1192,18 @@ class PackageMapperTestCase(unittest.TestCase):
             if line.startswith("pre-push: gating ")
         )
         self.assertEqual(set(selection), expected, stderr)
+
+    @staticmethod
+    def _recorded_clippy_selections(fixture: GateFixture) -> list[list[str]]:
+        """The `-p` values of each clippy call the cargo stub recorded, in order."""
+        selections = []
+        for line in fixture.calls.read_text(encoding="utf-8").splitlines():
+            words = line.split()
+            if words[0] == "clippy":
+                selections.append(
+                    [words[i + 1] for i, word in enumerate(words) if word == "-p"]
+                )
+        return selections
 
     def test_workspace_dependency_change_gates_only_resolved_members(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -1230,6 +1265,52 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertIn("fixture resolved-changes exit 3", stderr)
             self._assert_gated_packages(stderr, {"foo", "unrelated-member"})
 
+    def test_lock_only_empty_closure_gates_every_member(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(
+                temp, lock_unrelated_package=True, recorded_gates=True
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertIn(
+                "lockfile resolution changed without a member closure", stderr
+            )
+            self.assertEqual(
+                self._recorded_clippy_selections(fixture),
+                [["foo", "unrelated-member"]],
+                stderr,
+            )
+
+    def test_lock_selection_follows_workspace_member_order(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(
+                temp, lock_only=True, source_owner=True, recorded_gates=True
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(
+                self._recorded_clippy_selections(fixture),
+                [["foo", "unrelated-member"]],
+                stderr,
+            )
+
+    def test_lock_only_push_runs_no_base_clippy(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = self._workspace_dependency_push(
+                temp, lock_only=True, recorded_gates=True
+            )
+
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+
+            self.assertEqual(code, 0, stderr)
+            self.assertEqual(
+                self._recorded_clippy_selections(fixture), [["foo"]], stderr
+            )
+
     def test_resolved_change_failure_refuses_push(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
             fixture = self._workspace_dependency_push(temp, resolved_exit=2)
@@ -1238,8 +1319,9 @@ class PackageMapperTestCase(unittest.TestCase):
 
             self.assertEqual(code, 1, stderr)
             self.assertIn("fixture resolved-changes exit 2", stderr)
-            calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
-            self.assertNotIn("clippy ", calls)
+            self.assertFalse(
+                fixture.calls.exists(), "a refused push ran no cargo gate step"
+            )
 
     def test_merged_default_assets_do_not_expand_the_feature_gate(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
