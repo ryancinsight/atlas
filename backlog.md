@@ -115,7 +115,6 @@
 <a id="atlas-cast-gate-cfg-clippy"></a>- [ATLAS-CAST-GATE-CFG-CLIPPY](backlog/atlas-cast-gate-cfg-clippy.md) — The cast gate exits 0 on code it cannot see: `cfg(not(clippy))` and a second crate target [patch] — todo
 <a id="atlas-export-tree-freshness-residuals"></a>- [ATLAS-EXPORT-TREE-FRESHNESS-RESIDUALS](backlog/atlas-export-tree-freshness-residuals.md) — Four residuals of the fresh-export fix: a chance-passing test, an unstamped auditor export, a peel rule in two places, a peer build that still masks a failing SemVer side [verification] — todo
 <a id="atlas-cast-check-member-ci"></a>- [ATLAS-CAST-CHECK-MEMBER-CI](backlog/atlas-cast-check-member-ci.md) — The cast `check` verdict runs only in the pre-push hook [verification] [patch] — todo
-<a id="atlas-conformance-landed-rows"></a>- [ATLAS-CONFORMANCE-LANDED-ROWS](backlog/atlas-conformance-landed-rows.md) — Conformance baseline rows sit above the counts that landed members measure [tightening] [patch] — todo
 <a id="atlas-hook-commit-msg"></a>- [ATLAS-HOOK-COMMIT-MSG](backlog/atlas-hook-commit-msg.md) — No commit-msg hook is installed anywhere in the stack [verification] [patch] — todo
 <a id="atlas-hook-provider-bump-gate"></a>- [ATLAS-HOOK-PROVIDER-BUMP-GATE](backlog/atlas-hook-provider-bump-gate.md) — A provider-bump push gates every workspace member, cold-builds each export, and runs past the 600 s deadline [tightening] [patch] — todo
 <a id="atlas-hook-released-gate-changes"></a>- [ATLAS-HOOK-RELEASED-GATE-CHANGES](backlog/atlas-hook-released-gate-changes.md) — Replay released hook changes [patch] — todo
@@ -138,3 +137,4 @@
 <a id="atlas-held-gitlinks-cfdrs-kwavers"></a>- [ATLAS-HELD-GITLINKS-CFDRS-KWAVERS](backlog/atlas-held-gitlinks-cfdrs-kwavers.md) — The CFDrs and kwavers gitlinks trail their member defaults under two pin-drift waivers [verification] [patch] — todo
 <a id="atlas-lock-duplicates-report"></a>- [ATLAS-LOCK-DUPLICATES-REPORT](backlog/atlas-lock-duplicates-report.md) — No command reports crate versions duplicated across member locks [verification] [patch] — todo
 <a id="atlas-tool-pin-manifest"></a>- [ATLAS-TOOL-PIN-MANIFEST](backlog/atlas-tool-pin-manifest.md) — Gate tool versions are written at their install sites, not in one manifest [verification] [patch] — todo
+<a id="atlas-judge-status-workflow"></a>- [ATLAS-JUDGE-STATUS-WORKFLOW](backlog/atlas-judge-status-workflow.md) — No stack workflow posts the `judge` commit status [verification] [patch] — todo
