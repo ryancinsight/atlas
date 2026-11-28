@@ -14,8 +14,8 @@
   "waivers": [
     {
       "member": "kwavers",
-      "reason": "ATLAS-HELD-PINS-CONFORMANCE-20261127: kwavers default 34fa3f47ae raises 8 debt classes above the committed conformance baseline: oversized_files 103 -> 108, manifest_implementation 273 -> 275, allow_sites 297 -> 305, existence_only_assertions 0 -> 7, type_suffixed_fns 5 -> 7, reexport_shims 6 -> 7, pm_lines_over_budget 3366 -> 3391 and scattered_containers 45 -> 55 (measured 2026-11-27 with `atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision 34fa3f47ae`: 8 regressions). This independent conformance hold is not part of the Melinoe/Horae/RITK provider closure.",
-      "reopen": "`python scripts/atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision <default tip>`, run from the Atlas root, exits 0; then advance the gitlink and delete this entry"
+      "reason": "ATLAS-HELD-PINS-CONFORMANCE-20261127: kwavers default 711b3f262add raises 10 debt classes above the committed conformance baseline, which the ratchet rejects: oversized_files 103 -> 110, manifest_implementation 273 -> 276, allow_sites 297 -> 306, existence_only_assertions 0 -> 7, type_suffixed_fns 5 -> 7, reexport_shims 6 -> 7, orphan_modules 0 -> 1, pm_lines_over_budget 3366 -> 3391, scattered_containers 45 -> 55, items_over_budget 0 -> 2 (measured 2026-11-27 against the baseline at atlas 911e10461a6f: `atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision 711b3f262add`, 10 regression(s)).",
+      "reopen": "`python scripts/atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision <default tip>`, run from the atlas root, exits 0 (kwavers's default tip passes the conformance check), then advance the gitlink and delete this entry"
     }
   ]
 }
