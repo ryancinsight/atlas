@@ -901,3 +901,66 @@ Re-open trigger: a second cancellation at the bound, or the fast job's median pa
 ## Finding 2026-11-15: the member hook fleet restores locks unsynchronized and follows the checked-out branch
 
 Risk: (1) the hook's `Cargo.lock` snapshot and restore is unsynchronized, so concurrent hooks can restore over each other; the selector and publisher fixes do not serialize it, and members whose stale hook refuses or times out the sync push are published through the git data API with the same bytes. (2) 25 members set `core.hooksPath=.githooks`, so the hook version follows the checked-out branch: `repos/CFDrs` on 2026-09-28 sat 80 commits behind and its pre-push failed on the `python3` Store stub until a peer switched the tree; only one member points at `D:/atlas/scripts/git-hooks`. Owner: [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog.md#hook-fleet-duplication). Re-open trigger: a lock restored over a peer's, or a refused push traced to a stale member checkout.
+
+<a id="cast-gate-undeclared-package"></a>
+## Finding 2026-11-27: a pushed package no tracked manifest names passes the cast gate's cfg scan with nothing scanned
+
+Risk: `check --package <p>` passes with nothing scanned when no tracked `Cargo.toml` names `<p>` and none is unparsed (`package_sources`, `unparsed_manifests`), so a `#[cfg(not(clippy))]` bare cast in it goes unread. The hook takes `--package` from cargo metadata, so only a manifest the gate's listing misses opens this, and `is_manifest` (line 1299) compares the basename to `Cargo.toml` exactly. Witnesses at origin/main d0c92fbcf73d36bb3cbe8fbd89a3a5cb76088a9d: `crates/q/cargo.toml` beside a parsed member `p`, the cast in q's source, `--package q`: exit 0 (tracked as `Cargo.toml`: exit 1); a gitlink at `crates/s`, `--package s`: exit 0. That cargo reads the lowercase name on a case-insensitive host is recalled, not run. No member has either (judge of atlas#822, 28 members' HEADs). [ATLAS-CAST-GATE-CFG-CLIPPY](backlog.md#atlas-cast-gate-cfg-clippy) does not close before this is carried: its outcome, never passing `check` unmeasured, is false while this stands.
+
+Catching check: `--package q` named by no manifest, the `cargo.toml` fixture and the gitlink fixture each exit 1 naming the package; `test_check_judges_a_pushed_range_end_to_end`, `test_check_reads_the_base_sites` and the last call of `test_a_cast_module_exempts_only_its_own_lines_under_a_base_count` track a manifest for each package they push.
+
+Re-open trigger: a member tracks a gitlink or a manifest not spelled `Cargo.toml`.
+
+<a id="cast-gate-glob-member-decoy"></a>
+## Finding 2026-11-27: `members = ["crates/**"]` may let a nested decoy manifest count as the built package
+
+Risk: with `members = ["crates/**"]`, a parsed manifest nested under a member (`crates/q/tests/fixtures/p`, package `p`) matches the glob, so `built_packages` (line 1371) counts `p` as built and the unparsed `crates/p/Cargo.toml`, whose `[[bin]] path` reaches outside its directory, is not refused. Witness at origin/main d0c92fbcf73d36bb3cbe8fbd89a3a5cb76088a9d, a predicate in the bin's file: exit 0; without the decoy: exit 1; one parsed `p` under `crates/**` beside an unrelated unparsed manifest: exit 0. The judge of atlas#822 recalls that cargo rejects two workspace members named `p`, so the hook's cargo metadata would fail first; not run.
+
+Catching check (the settling method, and the next step): in a lane under D:/atlas, run `cargo metadata --no-deps --format-version 1 --manifest-path <fixture>/Cargo.toml` under a ten-minute deadline, with and without the decoy. If cargo refuses the decoy, a test skipped without cargo pins that and this entry deletes. If it accepts, the fixture must exit 1 and the control keep exiting 0; the remedy is a judge call, and counting names carried by exactly one member does not close it (`crates/p` does not parse, so the decoy is the one parsed `p`).
+
+Re-open trigger: the metadata run, or a member whose `members` holds a `**` glob.
+
+<a id="cast-gate-path-dep-member"></a>
+## Finding 2026-11-27: a package built only as a path dependency of a member is refused beside an unrelated unparsed manifest
+
+Risk: `built_packages` (line 1371) holds the root package and each parsed workspace member, so a pushed package the root builds only as a path dependency of a member is not counted, and any unparsed manifest elsewhere refuses its push (fails closed). Witness at origin/main d0c92fbcf73d36bb3cbe8fbd89a3a5cb76088a9d: root `members = ["crates/a"]`, `crates/a` depends on `b = { path = "../b" }`, `crates/b` parses, `tools/x/Cargo.toml` does not; `--package b`: exit 1 refusing `tools/x/Cargo.toml`. That cargo makes a path dependency inside the workspace directory a member is recalled from the Cargo book, not run. No member pays it (judge of atlas#822: 0 unparsed manifests at the 28 members' HEADs).
+
+Catching check: that fixture exits 0 with `tools/x` named once on standard output, while a parsed `b` at `fixtures/b` that no member depends on stays at exit 1 (both exit 1 today); reverting to "any parsed manifest of the name declares" passes the first and fails the existing decoy fixture. First step: confirm the Cargo rule with `cargo metadata --no-deps` on the fixture in a lane.
+
+Re-open trigger: a member's HEAD holds an unparsed manifest.
+
+<a id="cast-gate-root-built-text"></a>
+## Finding 2026-11-27: the unparsed-manifest messages say a parsed manifest declares a package, while the rule is that the root builds it
+
+Risk: the refusal (line 646), the note (line 648) and the module docstring (line 31) of `scripts/atlas_cast_gate.py` say "no manifest that parses declares" and "a manifest that parses declares", while `built_packages` counts only manifests the root builds; in the decoy fixture (unparsed `crates/p`, parsed `fixtures/p`) a parsed manifest carries the name, so the refusal is false. The docstrings of `unparsed_manifests` and `built_packages` also leave out that a repository with no root `Cargo.toml` builds nothing (`built_packages` returns an empty set), and the excluded standalone crate's refusal follows only from two adjacent sentences. Witnesses at origin/main d0c92fbcf73d36bb3cbe8fbd89a3a5cb76088a9d: no root `Cargo.toml` beside an unparsed `tools/x`, `--package p`: exit 1 (0 without `tools/x`); an excluded crate `q` beside it: exit 1 (0 without it).
+
+Catching check: the decoy refusal and the unrelated-manifest note contain "root builds" and not "parses declares", `git grep -n "parses declares" -- scripts/atlas_cast_gate.py` lists nothing, and both docstrings state the no-root and excluded-crate refusals, each pinned by a test.
+
+Re-open trigger: any change to `built_packages` or to those messages.
+
+<a id="cast-gate-root-second-mount"></a>
+## Finding 2026-11-27: an unparsed root manifest's targets are reported as a member's second cast-module mount
+
+Risk: the second-mount walk (`target_mounts`, line 687; `second_target_problems`, line 711) attributes every registered cast module under an unparsed root's directory to the root, so root targets that mount a member's module are reported as the member's second target. Witness at origin/main d0c92fbcf73d36bb3cbe8fbd89a3a5cb76088a9d: root `[package] name = "top"` plus `[workspace] members = ["crates/core"]` plus a table `tomllib` rejects, root `src/lib.rs` and `src/main.rs` each mounting `../crates/core/src/cast.rs`, `core` parsing and mounting it once, `--package top`: exit 1 with two lines, the root-manifest refusal and "core: cast module crates/core/src/cast.rs is compiled by more than one crate target (src/lib.rs, src/main.rs)". The push is refused either way, so the harm is a misattributed line (over-refusal, derived, not run).
+
+Catching check: that fixture exits 1 with the root-manifest line and no line naming `core`; skipping the report for every module under an unparsed manifest's directory is the wrong fix, since the acceptance case (unparsed member `crates/core`, `lib.rs` and `main.rs` mounting `src/cast.rs`, `--package core`) must still name `core`'s two targets (it does at that commit).
+
+Re-open trigger: a change to `target_mounts` or `second_target_problems`, or a member root manifest `tomllib` rejects (0 at the member HEADs, judge of atlas#833).
+
+<a id="cast-gate-cfg-macro-forms"></a>
+## Finding 2026-11-27: a `cfg` predicate naming `clippy` that a macro assembles is not seen by the cast gate's cfg scan
+
+Risk: the module docstring of `scripts/atlas_cast_gate.py` states that a predicate built by macro substitution has no `cfg(` token and is not seen. Witnesses at origin/main d0c92fbcf73d36bb3cbe8fbd89a3a5cb76088a9d, a bare `as` cast beneath each in a member `p`: `macro_rules! g { ($($t:tt)*) => { #[cfg($($t)*)] ... } }` with `g!(not(clippy));`: exit 0; the same through `$m:meta` (`#[cfg($m)]`): exit 0; `#[cfg_attr($($t)*)]` with `g!(clippy, cfg(any()));`, which leaves the item to rustc and hides it from clippy: exit 0, and its expansion written directly: exit 1; the direct `#[cfg(not(clippy))]`: exit 1; a macro with no `cfg` fragment: exit 0. `include!(concat!(..))` and a macro-written `mod` are the same class (judge of atlas#805, F4; not run). Owning item: [ATLAS-CAST-GATE-CFG-CLIPPY](backlog.md#atlas-cast-gate-cfg-clippy).
+
+Catching check: the three macro fixtures exit nonzero naming the file and line while the direct and no-`cfg` controls keep exit 1 and 0; matching the literal transcriber `$($t:tt)*` closes the first only. Refusing a `macro_rules!` whose transcriber puts a `$` fragment inside `cfg` or `cfg_attr`, versus reading the macro-expanded crate, is a judge call.
+
+Re-open trigger: `git grep -E 'cfg(_attr)?[[:space:]]*\([^;{]*\$' -- '*.rs'` matches in a member (0 at the member HEADs, judge of atlas#833).
+
+<a id="cast-gate-outside-file-push"></a>
+## Finding 2026-11-27: a push that changes only a file outside every package, mounted by a package, runs no cast gate
+
+Risk: `cargo_input_owners` (`scripts/atlas_cargo_inputs.py`, line 56) walks a changed path up for a `Cargo.toml`; for `shared/extra.rs` in a virtual workspace it finds none and selects no package, and `scripts/git-hooks/pre-push` returns at "no package owns the changed files" (line 1863) before the cast gate runs, so a package's `#[path]` or `include!` mount of that file is never judged. Observed at origin/main d0c92fbcf73d36bb3cbe8fbd89a3a5cb76088a9d: `cargo_input_owners` on a synthetic virtual workspace with member `core` mounting `shared/extra.rs` selects `()` for `shared/extra.rs`, `shared/unmounted.rs` and `README.md`, and `('core',)` for `crates/core/src/lib.rs`; the hook's early return was read, not run. The judge of atlas#786 derived the gap (F3).
+
+Catching check: in `scripts/tests/test_atlas_cargo_inputs.py`, `shared/extra.rs` selects `("core",)` while `shared/unmounted.rs` and `README.md` still select `()`; selecting every package for any outside path is the wrong fix, since it fails the second. Where the mounted-file set comes from (`compiled_files` in `scripts/atlas_cast_gate.py`, or cargo metadata's target roots) is a judge call.
+
+Re-open trigger: a push is observed to end at that message with a changed file a package mounts.
