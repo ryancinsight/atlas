@@ -16,7 +16,8 @@ on a new cast. This gate is the enforcement:
   module (`cast_modules`) is counted like any other file, so a cast moved
   into it neither raises nor lowers the package's count. Its added lines pass
   only under `cast_module_fault`, no file of its package mounted twice
-  (`clippy::duplicate_mod`, force-warned), and the base count;
+  (`clippy::duplicate_mod`, force-warned), the module compiled by exactly one
+  crate target of its package (`second_target_problems`), and the base count;
 - a pushed package whose Rust text holds a `cfg` or `cfg_attr` predicate, or a
   `cfg_select!` arm head, naming `clippy` fails (`cfg_clippy_problems`):
   clippy-driver sets `cfg(clippy)` and rustc does not, so code under
@@ -59,6 +60,18 @@ on a new cast. This gate is the enforcement:
 Sites are deduplicated by span, since `--all-targets` reports a library site
 once per target. The exclusion is by path only: `--force-warn` output does not
 say whether a site sits under an `#[expect]`.
+
+A cast module that two crate targets of one package compile (`lib`, `bin`,
+`tests/`, `examples/`, `benches/`, the build script) is counted once there
+and linted once, so `second_target_problems` walks each target root's module
+tree over the pushed tip's files and names the package and every root that
+reaches the module. It follows `mod name;` as rustc resolves it, `#[path]`,
+both outcomes of a `cfg_attr(.., path = ..)`, and `include!("literal")`
+(rustc 1.97.0 rejects an `include!` of a module that opens with its inner
+`#![expect]`, so that mount is a fault either way). A `mod` a macro writes is
+not followed, and a mount from another package's target is outside the rule.
+A cast module under the directory of a manifest `tomllib` rejects is walked
+from that directory's default targets, whichever package the pushed range names.
 
 The tip's clippy run is the hook's own: `clippy` runs it under the
 source-identity leases in place of the plain step, writing each diagnostic's
@@ -669,6 +682,61 @@ def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
             for line in lines
         ]
     return problems
+
+
+def target_mounts(tip: Revision, package: str, cast: str, manifest: dict,
+                  directory: str) -> list[str]:
+    """The problems of one package's crate targets (the manifest's, found from
+    `directory`) with respect to its registered cast module `cast`: a target
+    the gate cannot read, and a second target that compiles `cast`."""
+    roots: list[str] = []
+    unreadable = discovery_errors(manifest, directory, tip.index)
+    for root in target_roots(manifest, directory, tip.index):
+        reached, failed = compiled_files(tip.index, tip.read, root)
+        unreadable |= failed
+        if cast in reached:
+            roots.append(root)
+    problems = [f"{package}: {file}: {error}, so the gate cannot tell whether {cast} is "
+                "compiled by more than one crate target"
+                for file, error in sorted(unreadable.items())]
+    if len(roots) > 1:
+        problems.append(
+            f"{package}: cast module {cast} is compiled by more than one crate "
+            f"target ({', '.join(roots)}); clippy::duplicate_mod cannot see a "
+            "second target"
+        )
+    return problems
+
+
+def second_target_problems(tip: Revision, cast_modules: Mapping[str, str]) -> list[str]:
+    """One problem per package whose registered cast module (`cast_modules`
+    maps a package to its path) more than one of its crate targets compile.
+
+    `clippy::duplicate_mod` works per crate, and `sites()` merges a span two
+    builds report, so a second target that mounts the module is counted once
+    and linted once. A file the walk reaches and cannot read fails the package:
+    the gate cannot tell what that file mounts.
+
+    A registered package is walked through the manifest that declares it. A
+    manifest `tomllib` rejects declares an unknown package, so a registered
+    cast module under its directory is walked from that directory's default
+    targets (`src/lib.rs`, `src/main.rs`, `build.rs`, `src/bin`, `tests`,
+    `examples`, `benches`) as if the manifest declared the registered package:
+    a parsed manifest elsewhere with the same name does not take the module out
+    of the walk, and a push of another package does not escape a second mount
+    its files add.
+    """
+    walked = [(posixpath.dirname(path), manifest, package, cast_modules[package])
+              for path, manifest in tip.manifests[0].items()
+              if (package := package_name(manifest)) in cast_modules]
+    for path in tip.manifests[1]:
+        directory = posixpath.dirname(path)
+        prefix = f"{directory}/" if directory else ""
+        walked += [(directory, {}, package, cast) for package, cast in sorted(cast_modules.items())
+                   if cast.startswith(prefix)]
+    return list(dict.fromkeys(
+        problem for directory, manifest, package, cast in walked
+        for problem in target_mounts(tip, package, cast, manifest, directory)))
 
 
 def pushed_diff(repo: pathlib.Path, base: str | None, tip: str, form: list[str]) -> bytes:
@@ -2169,6 +2237,8 @@ def check(args: argparse.Namespace) -> int:
         refusals, notes = unparsed_manifests(tip, args.package)
         problems += refusals
         problems += cfg_clippy_problems(tip, args.package)
+        problems += second_target_problems(
+            tip, {package: path for package, (path, _) in modules.items()})
     # Standard error holds what fails the push and the base line above. A note
     # fails nothing and goes to standard output, which the pre-push hook sends
     # to the same terminal (`check ... >&2`).
