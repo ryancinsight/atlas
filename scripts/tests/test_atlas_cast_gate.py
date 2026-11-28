@@ -1582,7 +1582,9 @@ def test_resolved_changes_name_the_members_a_dependency_table_reaches(tmp_path):
     changed, reason = gate.resolved_changes(repo, configured, edited,
                                             export(configured, "configured-base"),
                                             export(edited, "edited"), "Cargo.toml")
-    assert (changed, reason) == (None, "Cargo.toml is not changed by the pushed range")
+    assert (changed, reason) == (
+        None, "Cargo.toml or Cargo.lock is not changed by the pushed range"
+    )
 
 
 def test_resolved_changes_gate_everything_when_cargo_cannot_resolve(tmp_path, monkeypatch,
