@@ -488,10 +488,10 @@ and [runtime release](https://github.com/ryancinsight/Moirai/actions/runs/446066
 <a id="board-headroom"></a>
 ## Finding 2026-11-15: the atlas board has no headroom for a new item
 
-Risk: `backlog.md` plus `backlog/*.md` hold 993 of the 1000-line budget after the 2026-11-16b filing sweep (948 at origin/main a74897f8c4b3, 999 on 2026-11-15), so the ratchet admits one more item of the smallest size (3 lines plus 1 index line) and filings must amend existing items.
-Evidence: the sweep dropped seven findings of this file, six promoted to items (ATLAS-HOOK-SAFETY-RATCHET-NAME, ATLAS-CAST-CHECK-MEMBER-CI, ATLAS-HOOK-PROVIDER-BUMP-GATE, ATLAS-CONFORMANCE-LANDED-ROWS, ATLAS-MEMBER-BOARD-SCHEMA, ATLAS-HOOK-COMMIT-MSG) and one folded into ATLAS-STANDALONE-CRATES-BUILD, and filed two more (ATLAS-TEST-MAINTENANCE-RACE, ATLAS-HOOK-RELEASED-GATE-CHANGES), using 45 of the 52 free lines; `atlas-board-compact.py --dry-run` reports 141 items, 0 would delete. Remaining levers (judge /869): the 13 `ATLAS-REGISTRY-SLICE-*` items (about 95 lines, dependent slices of closed PR 587) and the four `ATLAS-SEMVER-*` follow-ups, which share one test module and pin sources.
-Fix direction: consolidate the registry slices and the SemVer follow-ups, or deliver and delete items, so a filing sweep can add items; no budget raise.
-Re-open trigger: a filing refused by the budget, or the slices' consolidation landing.
+Risk: `backlog.md` plus `backlog/*.md` hold 964 of the 1000-line budget with the registry fold (993 at origin/main 3b2c9f52aa54 before it), so the ratchet admits nine more items of the smallest size (3 lines plus 1 index line) and larger filings must amend existing items.
+Evidence: the fold replaced the 13 `ATLAS-REGISTRY-SLICE-*` items (95 lines, dependent slices of closed PR 587) with 6 slice items (001, 002, 004, 005, 006, 008) and two folded items, ATLAS-REGISTRY-TRANSPORT-TAIL and ATLAS-REGISTRY-IDENTITY-TAIL (66 lines including their index lines); `scripts/atlas-artifact-budget.py` `board_lines()` gives the counts. The remaining lever is the five `ATLAS-SEMVER-*` items under `backlog/` (an earlier entry recorded four sharing one test module and pin sources; not re-checked).
+Fix direction: consolidate the SemVer follow-ups, or deliver and delete items, so a filing sweep can add items; no budget raise.
+Re-open trigger: a filing refused by the budget, or the SemVer consolidation landing.
 
 <a id="leaseless-peer-write"></a>
 ## Finding 2026-11-13: a leaseless peer write reaches a gate record

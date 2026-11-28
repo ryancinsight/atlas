@@ -95,15 +95,7 @@
 <a id="atlas-registry-slice-002"></a>- [ATLAS-REGISTRY-SLICE-002](backlog/atlas-registry-slice-002.md) — Compact the publication pipeline record (ADR 0035, part 2) [patch] — todo
 <a id="atlas-registry-slice-004"></a>- [ATLAS-REGISTRY-SLICE-004](backlog/atlas-registry-slice-004.md) — Share the registry reader and policy in release identity [patch] — todo
 <a id="atlas-registry-slice-005"></a>- [ATLAS-REGISTRY-SLICE-005](backlog/atlas-registry-slice-005.md) — Pend through the shared registry policy [patch] — todo
-<a id="atlas-registry-slice-006"></a>- [ATLAS-REGISTRY-SLICE-006](backlog/atlas-registry-slice-006.md) — Require a strict owner schema [patch] — todo
-<a id="atlas-registry-slice-007"></a>- [ATLAS-REGISTRY-SLICE-007](backlog/atlas-registry-slice-007.md) — Read drift through the shared registry policy [patch] — todo
 <a id="atlas-registry-slice-008"></a>- [ATLAS-REGISTRY-SLICE-008](backlog/atlas-registry-slice-008.md) — Add the registry HTTP line grammar [patch] — todo
-<a id="atlas-registry-slice-009"></a>- [ATLAS-REGISTRY-SLICE-009](backlog/atlas-registry-slice-009.md) — Parse registry status and headers strictly [patch] — todo
-<a id="atlas-registry-slice-010"></a>- [ATLAS-REGISTRY-SLICE-010](backlog/atlas-registry-slice-010.md) — Classify registry transport failures [patch] — todo
-<a id="atlas-registry-slice-011"></a>- [ATLAS-REGISTRY-SLICE-011](backlog/atlas-registry-slice-011.md) — Bound chunked registry framing [patch] — todo
-<a id="atlas-registry-slice-012"></a>- [ATLAS-REGISTRY-SLICE-012](backlog/atlas-registry-slice-012.md) — Bound the registry request lifetime [patch] — todo
-<a id="atlas-registry-slice-013"></a>- [ATLAS-REGISTRY-SLICE-013](backlog/atlas-registry-slice-013.md) — Bind expected crate artifacts [minor] — todo
-<a id="atlas-registry-slice-014"></a>- [ATLAS-REGISTRY-SLICE-014](backlog/atlas-registry-slice-014.md) — Gate tags on registry artifact identity [minor] — todo
 <a id="atlas-board-lint-book-citations"></a>- [ATLAS-BOARD-LINT-BOOK-CITATIONS](backlog/atlas-board-lint-book-citations.md) — Hash citations in book chapters are never resolved [patch] — todo
 <a id="atlas-changelog-generator"></a>- [ATLAS-CHANGELOG-GENERATOR](backlog/atlas-changelog-generator.md) — No stack member generates its changelog and no decision selects a generator [patch] — todo
 <a id="atlas-hook-rename-row-strength"></a>- [ATLAS-HOOK-RENAME-ROW-STRENGTH](backlog/atlas-hook-rename-row-strength.md) — The `src/lib.rs` to `backlog/lib.rs` rename row no longer tests rename handling [patch] — todo
@@ -133,3 +125,6 @@
 <a id="atlas-workflow-bound-sources"></a>- [ATLAS-WORKFLOW-BOUND-SOURCES](backlog/atlas-workflow-bound-sources.md) — Run-sourced timeout bounds name runs outside their stated window, and pytest-fast's inner deadline equals its job bound [verification] [patch] — todo
 <a id="atlas-conformance-installed-state"></a>- [ATLAS-CONFORMANCE-INSTALLED-STATE](backlog/atlas-conformance-installed-state.md) — The conformance scan asserts no installed state: hook path, config include, target dir [verification] [patch] — todo
 <a id="atlas-semver-foreign-supertrait"></a>- [ATLAS-SEMVER-FOREIGN-SUPERTRAIT](backlog/atlas-semver-foreign-supertrait.md) — The SemVer gate reports no break when a published trait drops a foreign supertrait [verification] [patch] — todo
+<a id="atlas-registry-identity-tail"></a>- [ATLAS-REGISTRY-IDENTITY-TAIL](backlog/atlas-registry-identity-tail.md) — Bind expected crate artifacts, gate tags on registry identity, and hold the pin mechanics [minor] — todo
+<a id="atlas-registry-slice-006"></a>- [ATLAS-REGISTRY-SLICE-006](backlog/atlas-registry-slice-006.md) — Require a strict owner schema [patch] — todo
+<a id="atlas-registry-transport-tail"></a>- [ATLAS-REGISTRY-TRANSPORT-TAIL](backlog/atlas-registry-transport-tail.md) — Strict registry transport and the drift reader [patch] — todo
