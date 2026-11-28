@@ -191,26 +191,6 @@ consus-raster = { path = "repos/consus/crates/consus-raster" }
 consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 consus-zip = { path = "repos/consus/crates/consus-zip" }
 
-[patch."https://github.com/ryancinsight/harmonia"]
-harmonia = { path = "repos/harmonia" }
-
-[patch."https://github.com/ryancinsight/harmonia.git"]
-harmonia = { path = "repos/harmonia" }
-
-[patch."https://github.com/ryancinsight/hephaestus"]
-hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
-hephaestus-cuda = { path = "repos/hephaestus/crates/hephaestus-cuda" }
-hephaestus-metal = { path = "repos/hephaestus/crates/hephaestus-metal" }
-hephaestus-rocm = { path = "repos/hephaestus/crates/hephaestus-rocm" }
-hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
-
-[patch."https://github.com/ryancinsight/hephaestus.git"]
-hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
-hephaestus-cuda = { path = "repos/hephaestus/crates/hephaestus-cuda" }
-hephaestus-metal = { path = "repos/hephaestus/crates/hephaestus-metal" }
-hephaestus-rocm = { path = "repos/hephaestus/crates/hephaestus-rocm" }
-hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
-
 [patch."https://github.com/ryancinsight/hermes"]
 hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
 
@@ -218,10 +198,10 @@ hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
 hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
 
 [patch."https://github.com/ryancinsight/horae"]
-horae-time = { path = "repos/horae" }
+horae-civil-time = { path = "repos/horae/crates/horae-civil-time" }
 
 [patch."https://github.com/ryancinsight/horae.git"]
-horae-time = { path = "repos/horae" }
+horae-civil-time = { path = "repos/horae/crates/horae-civil-time" }
 
 [patch."https://github.com/ryancinsight/iris"]
 iris-viz = { path = "repos/iris" }
@@ -231,11 +211,9 @@ iris-viz = { path = "repos/iris" }
 
 [patch."https://github.com/ryancinsight/leto"]
 leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
 
 [patch."https://github.com/ryancinsight/leto.git"]
 leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
 
 [patch."https://github.com/ryancinsight/melinoe"]
 melinoe = { path = "repos/melinoe" }
@@ -270,7 +248,6 @@ moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-pal = { path = "repos/moirai/moirai-pal" }
 moirai-quic = { path = "repos/moirai/moirai-quic" }
 moirai-runtime = { path = "repos/moirai/moirai" }
-moirai-sync = { path = "repos/moirai/moirai-sync" }
 moirai-transport = { path = "repos/moirai/moirai-transport" }
 moirai-webview = { path = "repos/moirai/moirai-webview" }
 
@@ -283,15 +260,8 @@ moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-pal = { path = "repos/moirai/moirai-pal" }
 moirai-quic = { path = "repos/moirai/moirai-quic" }
 moirai-runtime = { path = "repos/moirai/moirai" }
-moirai-sync = { path = "repos/moirai/moirai-sync" }
 moirai-transport = { path = "repos/moirai/moirai-transport" }
 moirai-webview = { path = "repos/moirai/moirai-webview" }
-
-[patch."https://github.com/ryancinsight/proteus"]
-proteus-mat = { path = "repos/proteus" }
-
-[patch."https://github.com/ryancinsight/proteus.git"]
-proteus-mat = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/themis"]
 themis-topology = { path = "repos/themis" }
