@@ -567,18 +567,7 @@ Risk: the cohort audit now catches untyped trait getters, spanning requirements 
 
 ## Finding 2026-10-21: lanes on worktreeConfig members misresolve into the gitdir
 
-Risk: members with `extensions.worktreeConfig=true` (hermes, coeus, leto) resolve a linked lane's shared relative `core.worktree` against the per-worktree gitdir, so `--show-toplevel` becomes `.git/modules/repos/<m>` and checkout writes land in the gitdir while tracked files read deleted (observed 2026-10-21 on three lanes; commits intact). Re-open/check: lane creation writes a per-lane absolute `core.worktree`, asserted by a conformance row over every `worktrees/*` admin dir. Owner: unfiled; pair with ATLAS-IDENTITY-LEASE-STARVATION.
-
-## Finding 2026-10-20: duplicate Release publication needs full artifact identity [patch]
-
-The shared Release publisher requests OIDC and uploads after validation even
-when another lane already published the version. A private pinned helper now
-requires exact clean HEAD/path, verified committed package source, complete
-archive bytes and consistent API/index/download checks before skipping both.
-Unknown or inconsistent results fail closed. Exact-final-head acceptance remains
-open in PR #547; pending publisher/SemVer owner files are untouched. Comparison
-fixtures fetch origin bytes without mutating shallow/blobless checkouts.
-See [bounded design](docs/pr/crate-release-identity.md).
+Risk: members with `extensions.worktreeConfig=true` (hermes, coeus, leto) resolve a linked lane's shared relative `core.worktree` against the per-worktree gitdir, so `--show-toplevel` becomes `.git/modules/repos/<m>` and checkout writes land in the gitdir while tracked files read deleted (observed 2026-10-21 on three lanes; commits intact). Re-open/check: lane creation writes a per-lane absolute `core.worktree`, asserted by a conformance row over every `worktrees/*` admin dir. Owner: unfiled.
 
 ## Finding 2026-10-16: pending publication has no package scope
 
@@ -671,16 +660,6 @@ per-member `target-dir` (e.g. asclepius) also defeats sharing while reading
 as 0. Re-open trigger: any `repos/<member>/target*` satisfies
 `is_cargo_target_dir` again, or the class is moved out of
 `HOST_OBSERVED_CLASSES`.
-
-## Finding 2026-08-20: Kwavers distributed queue remains externally gated
-
-[Kwavers PR #427](https://github.com/ryancinsight/kwavers/pull/427) has `mergeStateStatus=DIRTY` with no
-required provider verification; the primary checkout is detached at that head
-with nine peer-owned edits, and excess `worktrees/kwavers-*` lanes remain.
-Atlas's Kwavers gitlink already matches hosted-green default `9cf62aa9`.
-Rebasing, switching, or advancing would overwrite peer work. Owner: kwavers
-PR author. Re-open trigger: PR #427 resolves or its branch goes stale under
-the one-hour sweep.
 
 ## Finding 2026-08-19: Apollo PR #107 benchmark remains red
 
@@ -790,24 +769,6 @@ recurrence cause (no incremental-disable on clean CI runners, ~950 leaf
 binary targets per ATLAS-BUILD-STRUCTURE-001) is unfixed. Re-open trigger:
 the next clean Kwavers architecture run, to compare artifact bytes and peak
 memory against the preferred 10 GiB clean-build budget.
-
-## Finding 2026-08-18: three provider-consumer PRs unmergeable
-
-Apollo PR #104/#106 (apollo-fft 0.26→0.27 lock drift; #106 has the fix, local
-evidence green, hosted pending), Kwavers PR #402 (benchmark green, full
-matrix red across architecture/validation/security/coverage/CUDA/wheel), and
-Helios PR #64 (draft; Rust/Python/book green, benchmark in progress). No
-Atlas gitlink advances from any of these until their own hosted gates are
-terminal green. Re-open trigger: each PR's own hosted result.
-
-## Finding 2026-09-24: member pre-push reads the secret scanner from the live stack tree
-
-`scripts/git-hooks/pre-push` runs the scanner checked out in the local stack
-tree, not the one its debt ratchet extracts from the fetched default; a tree
-on a branch older than the scanner lets member pushes skip the scan (CFDrs
-#459, kwavers #850, Moirai #471 all did on 2026-09-24). Re-open trigger: the
-hook extracts the scanner from `$stack_baseline`, as `sync-hooks --check`
-already does.
 
 ## Finding 2026-09-25: cfd-math `ParallelAssembly::from_elements` is dead public surface
 
