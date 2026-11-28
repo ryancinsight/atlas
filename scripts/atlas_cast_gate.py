@@ -70,6 +70,8 @@ both outcomes of a `cfg_attr(.., path = ..)`, and `include!("literal")`
 (rustc 1.97.0 rejects an `include!` of a module that opens with its inner
 `#![expect]`, so that mount is a fault either way). A `mod` a macro writes is
 not followed, and a mount from another package's target is outside the rule.
+A cast module under the directory of a manifest `tomllib` rejects is walked
+from that directory's default targets, whichever package the pushed range names.
 
 The tip's clippy run is the hook's own: `clippy` runs it under the
 source-identity leases in place of the plain step, writing each diagnostic's
@@ -672,6 +674,30 @@ def cfg_clippy_problems(tip: Revision, packages: Iterable[str]) -> list[str]:
     return problems
 
 
+def target_mounts(tip: Revision, package: str, cast: str, manifest: dict,
+                  directory: str) -> list[str]:
+    """The problems of one package's crate targets (the manifest's, found from
+    `directory`) with respect to its registered cast module `cast`: a target
+    the gate cannot read, and a second target that compiles `cast`."""
+    roots: list[str] = []
+    unreadable = discovery_errors(manifest, directory, tip.index)
+    for root in target_roots(manifest, directory, tip.index):
+        reached, failed = compiled_files(tip.index, tip.read, root)
+        unreadable |= failed
+        if cast in reached:
+            roots.append(root)
+    problems = [f"{package}: {file}: {error}, so the gate cannot tell whether {cast} is "
+                "compiled by more than one crate target"
+                for file, error in sorted(unreadable.items())]
+    if len(roots) > 1:
+        problems.append(
+            f"{package}: cast module {cast} is compiled by more than one crate "
+            f"target ({', '.join(roots)}); clippy::duplicate_mod cannot see a "
+            "second target"
+        )
+    return problems
+
+
 def second_target_problems(tip: Revision, cast_modules: Mapping[str, str]) -> list[str]:
     """One problem per package whose registered cast module (`cast_modules`
     maps a package to its path) more than one of its crate targets compile.
@@ -679,33 +705,28 @@ def second_target_problems(tip: Revision, cast_modules: Mapping[str, str]) -> li
     `clippy::duplicate_mod` works per crate, and `sites()` merges a span two
     builds report, so a second target that mounts the module is counted once
     and linted once. A file the walk reaches and cannot read fails the package:
-    the gate cannot tell what that file mounts. A registered package no
-    manifest that parses declares is not walked: `unparsed_manifests` refuses
-    the push when that package is pushed and names the manifest otherwise.
+    the gate cannot tell what that file mounts.
+
+    A registered package is walked through the manifest that declares it. A
+    manifest `tomllib` rejects declares an unknown package, so a registered
+    cast module under its directory is walked from that directory's default
+    targets (`src/lib.rs`, `src/main.rs`, `build.rs`, `src/bin`, `tests`,
+    `examples`, `benches`) as if the manifest declared the registered package:
+    a parsed manifest elsewhere with the same name does not take the module out
+    of the walk, and a push of another package does not escape a second mount
+    its files add.
     """
-    problems = []
-    for path, manifest in tip.manifests[0].items():
-        package = package_name(manifest)
-        cast = cast_modules.get(package) if package else None
-        if cast is None:
-            continue
-        roots: list[str] = []
-        unreadable: dict[str, str] = {}
-        for root in target_roots(manifest, posixpath.dirname(path), tip.index):
-            reached, failed = compiled_files(tip.index, tip.read, root)
-            unreadable |= failed
-            if cast in reached:
-                roots.append(root)
-        problems += [f"{package}: {file}: {error}, so the gate cannot tell whether {cast} is "
-                     "compiled by more than one crate target"
-                     for file, error in sorted(unreadable.items())]
-        if len(roots) > 1:
-            problems.append(
-                f"{package}: cast module {cast} is compiled by more than one crate "
-                f"target ({', '.join(roots)}); clippy::duplicate_mod cannot see a "
-                "second target"
-            )
-    return problems
+    walked = [(posixpath.dirname(path), manifest, package, cast_modules[package])
+              for path, manifest in tip.manifests[0].items()
+              if (package := package_name(manifest)) in cast_modules]
+    for path in tip.manifests[1]:
+        directory = posixpath.dirname(path)
+        prefix = f"{directory}/" if directory else ""
+        walked += [(directory, {}, package, cast) for package, cast in sorted(cast_modules.items())
+                   if cast.startswith(prefix)]
+    return list(dict.fromkeys(
+        problem for directory, manifest, package, cast in walked
+        for problem in target_mounts(tip, package, cast, manifest, directory)))
 
 
 def pushed_diff(repo: pathlib.Path, base: str | None, tip: str, form: list[str]) -> bytes:

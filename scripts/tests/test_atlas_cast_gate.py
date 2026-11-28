@@ -3421,12 +3421,17 @@ def test_an_unreadable_file_naming_clippy_is_refused_once(tmp_path, capsys):
     assert err.count("src/bad.rs: cannot be read as Rust (an unclosed block comment)") == 1
 
 
+CORE_MANIFEST = '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n'
+
+
 def _cast_target_repo(tmp_path, files, manifest_extra="", cast="src/cast.rs"):
+    return _registered_repo(
+        tmp_path, {"Cargo.toml": CORE_MANIFEST + manifest_extra, **files}, cast)
+
+
+def _registered_repo(tmp_path, files, cast):
     repo = tmp_path / "repo"
     init(repo)
-    (repo / "Cargo.toml").write_bytes(
-        ('[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n'
-         + manifest_extra).encode())
     for name, text in files.items():
         path = repo / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -3440,10 +3445,10 @@ def _cast_target_repo(tmp_path, files, manifest_extra="", cast="src/cast.rs"):
     return repo, tip, rules, sites
 
 
-def _check_targets(repo, tip, rules, sites):
+def _check_targets(repo, tip, rules, sites, package="core"):
     return gate.main(["--baseline", str(rules), "check", "--member", "m",
                       "--repo", str(repo), "--tip", tip,
-                      "--package", "core", "--sites", str(sites)])
+                      "--package", package, "--sites", str(sites)])
 
 
 CAST_FIXTURE = '#![expect(clippy::as_conversions, reason = "fixture")]\npub fn x() {}\n'
@@ -3535,14 +3540,14 @@ def test_a_registered_package_whose_manifest_only_cargo_parses_is_refused(tmp_pa
 
 
 # `core` mounts its cast module from two targets and the push is of `p` alone.
-# While the manifest of `core` parses, the second mount fails the push; once
-# only cargo parses it, the walk cannot find `core` and the run names the
-# manifest instead of refusing a push of another package for it.
+# The second mount fails the push whether the manifest of `core` parses or only
+# cargo parses it; in the second case the run also names the manifest.
 @pytest.mark.parametrize("manifest_extra, code, problem, note", [
     ("", 1, "cast gate: core: cast module src/cast.rs is compiled by more than one", ""),
-    (MULTILINE_TABLE, 0, "", f"cast gate: Cargo.toml{UNPARSED}"),
+    (MULTILINE_TABLE, 1, "cast gate: core: cast module src/cast.rs is compiled by more than one",
+     f"cast gate: Cargo.toml{UNPARSED}"),
 ])
-def test_a_registered_package_not_pushed_is_walked_only_while_its_manifest_parses(
+def test_a_registered_package_not_pushed_has_its_second_mount_refused_either_way(
         tmp_path, capsys, manifest_extra, code, problem, note):
     files = {**ONE_MOUNT, "src/main.rs": "mod cast;\n" + MAIN_FN,
              "other/Cargo.toml": MEMBER_MANIFEST, "other/src/lib.rs": FINE}
@@ -3553,3 +3558,83 @@ def test_a_registered_package_not_pushed_is_walked_only_while_its_manifest_parse
     said = capsys.readouterr()
     assert (said.err.startswith(problem), said.out.startswith(note)) == (True, True)
     assert (bool(said.err), bool(said.out)) == (bool(problem), bool(note))
+
+
+CORE_CAST = "crates/core/src/cast.rs"
+DECOY_CORE = {  # crates/core's manifest only cargo parses; a manifest that parses is also `core`
+    "Cargo.toml": '[workspace]\nmembers = ["crates/core"]\n',
+    "crates/core/Cargo.toml": CORE_MANIFEST + MULTILINE_TABLE,
+    CORE_CAST: CAST_FIXTURE,
+    "crates/core/src/lib.rs": "mod cast;\n",
+    "crates/core/src/main.rs": "mod cast;\n" + MAIN_FN,
+    "fixtures/core/Cargo.toml": CORE_MANIFEST,
+    "fixtures/core/src/lib.rs": FINE,
+}
+MOUNTED_TWICE = (f"core: cast module {CORE_CAST} is compiled by more than one crate target "
+                 "(crates/core/src/lib.rs, crates/core/src/main.rs)")
+
+
+@pytest.mark.parametrize("files, code, problem", [
+    # the real manifest does not parse and another manifest that parses is also `core`
+    (DECOY_CORE, 1, MOUNTED_TWICE),
+    # the same files with every manifest parsing
+    ({**DECOY_CORE, "crates/core/Cargo.toml": CORE_MANIFEST}, 1, MOUNTED_TWICE),
+    # controls: one mount, and a second target that does not mount it
+    ({k: v for k, v in DECOY_CORE.items() if k != "crates/core/src/main.rs"}, 0, ""),
+    ({**DECOY_CORE, "crates/core/src/main.rs": MAIN_FN}, 0, ""),
+    ({**{k: v for k, v in DECOY_CORE.items() if k != "crates/core/src/main.rs"},
+      "crates/core/tests/x.rs": '#[path = "../src/cast.rs"]\nmod cast;\n'}, 1,
+     f"core: cast module {CORE_CAST} is compiled by more than one crate target "
+     "(crates/core/src/lib.rs, crates/core/tests/x.rs)"),
+])
+def test_a_second_mount_is_found_under_a_manifest_only_cargo_parses_whoever_else_is_named_core(
+        tmp_path, capsys, files, code, problem):
+    repo, tip, rules, sites = _registered_repo(tmp_path, files, CORE_CAST)
+    assert _check_targets(repo, tip, rules, sites) == code
+    err = capsys.readouterr().err
+    assert problem in err
+    assert ("more than one crate target" in err) is bool(problem)
+
+
+def test_a_push_of_another_package_does_not_escape_a_second_mount_its_files_add(
+        tmp_path, capsys):
+    # `p` is the only package pushed and `shared/extra.rs` adds the second mount of
+    # `core`'s cast module, through a test target of `core`.
+    files = {k: v for k, v in DECOY_CORE.items() if k != "crates/core/src/main.rs"}
+    files |= {"crates/core/tests/x.rs": '#[path = "../../../shared/extra.rs"]\nmod extra;\n',
+              "shared/extra.rs": '#[path = "../crates/core/src/cast.rs"]\nmod cast;\n',
+              "other/Cargo.toml": MEMBER_MANIFEST, "other/src/lib.rs": FINE}
+    repo, tip, rules, sites = _registered_repo(tmp_path, files, CORE_CAST)
+    assert _check_targets(repo, tip, rules, sites, package="p") == 1
+    assert (f"core: cast module {CORE_CAST} is compiled by more than one crate target "
+            "(crates/core/src/lib.rs, crates/core/tests/x.rs)") in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("mount, refused", [
+    ('#[path = "../src/cast.rs."]\nmod c;\n', True),
+    ('#[path = "../src/cast.rs "]\nmod c;\n', True),
+    ('#[path = "../src/cast.rs::$DATA"]\nmod c;\n', True),
+    ('#[path = "../src/ca\\x73t.rs"]\nmod c;\n', False),  # decoded: a plain second mount
+])
+def test_a_windows_spelling_or_an_escape_of_the_cast_module_is_not_a_clean_second_target(
+        tmp_path, capsys, mount, refused):
+    files = {**ONE_MOUNT, "tests/x.rs": mount}
+    repo, tip, rules, sites = _cast_target_repo(tmp_path, files)
+    assert _check_targets(repo, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert ("core: tests/x.rs: line 1: the path " in err) is refused
+    assert ("so the gate cannot tell whether src/cast.rs is compiled by more than one" in err
+            ) is refused
+    assert ("core: cast module src/cast.rs is compiled by more than one crate target (src/lib.rs, "
+            "tests/x.rs)" in err) is not refused
+
+
+@pytest.mark.parametrize("link", ["tests", "benches", "examples"])
+def test_a_linked_discovery_folder_of_a_registered_package_is_refused(tmp_path, capsys, link):
+    repo, tip, rules, sites = _cast_target_repo(
+        tmp_path, {**ONE_MOUNT, "t2/x.rs": '#[path = "../src/cast.rs"]\nmod cast;\n'})
+    tip = track_link(repo, tmp_path, link, "t2")
+    assert _check_targets(repo, tip, rules, sites) == 1
+    err = capsys.readouterr().err
+    assert f"core: {link}: a symbolic link on the way to `{link}`" in err
+    assert "so the gate cannot tell whether src/cast.rs is compiled by more than one" in err
