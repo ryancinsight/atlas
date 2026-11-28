@@ -2321,7 +2321,7 @@ if [ -n "$cast_gate" ]; then
     echo "pre-push: cast counts are compared with the pushed base (${base_reasons%%$'\n'*})" >&2
     export_base_revision
   fi
-  if [ -n "$base_reasons" ] && [ -n "${gate_packages// /}" ]; then
+  if [ -n "${gate_packages// /}" ]; then
     cast_base_step Cargo.toml "$gate_packages"
   fi
   for standalone_manifest in $standalone_manifests; do
