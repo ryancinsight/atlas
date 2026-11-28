@@ -1582,7 +1582,9 @@ def test_resolved_changes_name_the_members_a_dependency_table_reaches(tmp_path):
     changed, reason = gate.resolved_changes(repo, configured, edited,
                                             export(configured, "configured-base"),
                                             export(edited, "edited"), "Cargo.toml")
-    assert (changed, reason) == (None, "Cargo.toml is not changed by the pushed range")
+    assert (changed, reason) == (
+        None, "Cargo.toml or Cargo.lock is not changed by the pushed range"
+    )
 
 
 def test_resolved_changes_gate_everything_when_cargo_cannot_resolve(tmp_path, monkeypatch,
@@ -1855,11 +1857,14 @@ def test_inputs_outside_any_resolution_gate_every_member(tmp_path, monkeypatch, 
 ROOT_TEXT = '[workspace]\nmembers = ["crates/*"]\n[workspace.dependencies]\nx = "1"\n'
 
 
-def scoped(monkeypatch, base, tip, *, roots=("Cargo.toml", "Cargo.toml"), reach=({}, {})):
+def scoped(monkeypatch, base, tip, *, roots=("Cargo.toml", "Cargo.toml"), reach=({}, {}),
+           feature_change=False):
     """Stub the range and both resolutions under a dependency-table-only edit."""
     resolutions = iter([gate.Resolution(roots[0], base, reach[0]),
                         gate.Resolution(roots[1], tip, reach[1])])
-    texts = (ROOT_TEXT, ROOT_TEXT.replace('"1"', '"2"'))
+    texts = (ROOT_TEXT, ROOT_TEXT.replace(
+        '"1"', '{ version = "1", features = ["feature"] }'
+        if feature_change else '"2"'))
     monkeypatch.setattr(gate, "changed_entries", lambda repo, b, t: [("Cargo.toml",)])
     monkeypatch.setattr(gate, "read_resolution",
                         lambda export, manifest, config=None: next(resolutions))
@@ -1916,9 +1921,23 @@ def test_a_changed_entry_gates_the_members_reaching_what_it_reaches(tmp_path, mo
     packages = {"app": reaching, "tool": other, "lone": apart}
     reach = [{"x": frozenset()}, {"x": frozenset()}]
     reach[side] = {"x": frozenset({"leaf"})}
-    scoped(monkeypatch, packages, packages, reach=tuple(reach))
+    scoped(monkeypatch, packages, packages, reach=tuple(reach), feature_change=True)
     assert gate.resolved_changes(tmp_path, "b", "t", tmp_path, tmp_path, "Cargo.toml") == (
         frozenset({"app", "tool"}), "")
+
+
+def test_a_provider_revision_does_not_expand_shared_dependencies(tmp_path, monkeypatch):
+    """Moved-provider consumers have changed resolved signatures already."""
+    old = gate.ResolvedPackage(("old",), frozenset({"harmonia", "shared"}))
+    moved = gate.ResolvedPackage(("new",), frozenset({"harmonia", "shared"}))
+    unchanged = gate.ResolvedPackage(("same",), frozenset({"shared"}))
+    base = {"first": old, "second": old, "unrelated": unchanged}
+    tip = {"first": moved, "second": moved, "unrelated": unchanged}
+    scoped(monkeypatch, base, tip,
+           reach=({"harmonia": frozenset({"shared"})},
+                  {"harmonia": frozenset({"shared"})}))
+    assert gate.resolved_changes(tmp_path, "b", "t", tmp_path, tmp_path, "Cargo.toml") == (
+        frozenset({"first", "second"}), "")
 
 
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
