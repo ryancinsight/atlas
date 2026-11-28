@@ -585,13 +585,18 @@ def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], d
     workspace member's directory contains: a file no `mod` reaches can still
     be compiled by a macro the walk does not read. A manifest that declares no
     package, is not a member, or does not parse fences nothing off. A package
-    no manifest names has no files (`unparsed_manifests` refuses the push).
+    no manifest names has no files: `unparsed_manifests` refuses the push when a
+    manifest that does not parse could be its own, and otherwise the package
+    passes with nothing scanned.
 
     A manifest `tomllib` rejects is scanned for every push, as if it declared a
     pushed package: the package it declares is unknown, and a parsed manifest of
     the same name elsewhere (a fixture, an excluded copy) would otherwise take
     the files of the real one out of the scan. The scan then holds that
-    directory's tracked `.rs` files and the module trees of its default targets.
+    directory's tracked `.rs` files and the module trees of its default targets;
+    a target the manifest declares by a path outside the defaults is out of
+    reach, and `unparsed_manifests` refuses the push when such a manifest may be
+    a pushed package's own.
     """
     manifests, refused = tip.manifests
     unparsed = {path: {} for path in refused}
@@ -621,15 +626,20 @@ def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str
     """The tracked manifests `tomllib` rejects, as (problems, notes): each is
     named once, in the first list when it refuses the push.
 
-    A manifest that does not parse may declare any package. When some pushed
-    package is declared by no manifest that parses, one of them may be its
-    own, and every such manifest is a problem.
-    When a manifest that parses declares each pushed package, the push is not
-    refused for a manifest it may not own: `package_sources` scans the
-    directory of each manifest that does not parse, and a note names it.
+    A manifest that does not parse may declare any package, and the targets it
+    declares may lie outside its directory, where the scan cannot find them. A
+    package counts as declared only by a manifest the root builds (`built_packages`):
+    a parsed manifest elsewhere that carries its name (a fixture, a copy the
+    workspace excludes) declares nothing. When some pushed package is not built
+    by a manifest that parses, one that does not parse may be its own, and every
+    such manifest is a problem. A pushed package that no manifest names, with no
+    manifest that fails to parse, is not refused and has no files scanned.
+    When the root builds each pushed package, the push is not refused for a
+    manifest it may not own: `package_sources` scans the directory of each
+    manifest that does not parse, and a note names it.
     """
     parsed, refused = tip.manifests
-    declared = {package_name(manifest) for manifest in parsed.values()}
+    declared = built_packages(parsed)
     unnamed = sorted(set(packages).difference(declared))
     if unnamed:
         names = ", ".join(f"`{name}`" for name in unnamed)
@@ -932,7 +942,8 @@ def read_resolution(export: pathlib.Path, manifest: str,
     return resolution(json.loads(out), export)
 
 
-def changed_table_packages(base_text: str | None, tip_text: str | None) -> frozenset[str]:
+def changed_table_packages(base_text: str | None, tip_text: str | None,
+                           *, feature_only: bool = False) -> frozenset[str]:
     """The package names of every `[workspace.dependencies]` entry the range
     adds, removes or changes, at either side (`package = ...` renames)."""
     def table(text: str | None) -> dict:
@@ -945,10 +956,19 @@ def changed_table_packages(base_text: str | None, tip_text: str | None) -> froze
         renamed = entry.get("package") if isinstance(entry, dict) else None
         return renamed if isinstance(renamed, str) else key
 
+    def feature_selection(entry: object) -> tuple[object, bool]:
+        if not isinstance(entry, dict):
+            return (), True
+        features = entry.get("features", ())
+        return features, entry.get("default-features", True)
+
     base, tip = table(base_text), table(tip_text)
     return frozenset(
         package_name(key, side[key])
-        for key in base.keys() | tip.keys() if base.get(key) != tip.get(key)
+        for key in base.keys() | tip.keys()
+        if base.get(key) != tip.get(key)
+        and (not feature_only or feature_selection(base.get(key))
+             != feature_selection(tip.get(key)))
         for side in (base, tip) if key in side
     )
 
@@ -1006,23 +1026,35 @@ def resolved_changes(repo: pathlib.Path, base: str, tip: str, base_export: pathl
     root_manifest = base_resolution.root_manifest
     if tip_resolution.root_manifest != root_manifest:
         return None, "the workspace root moved"
-    if root_manifest not in paths:
-        return None, f"{root_manifest} is not changed by the pushed range"
-    base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
-    try:
-        if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
-            return None, f"{root_manifest} changes beyond [workspace.dependencies]"
-        entries = changed_table_packages(base_text, tip_text)
-    except tomllib.TOMLDecodeError as error:
-        return None, f"{root_manifest} does not parse as TOML here ({error})"
-    touched = set(entries)
-    for name in entries:
-        touched |= base_resolution.reach.get(name, frozenset())
-        touched |= tip_resolution.reach.get(name, frozenset())
+    root_lock = str(pathlib.PurePosixPath(root_manifest).with_name("Cargo.lock"))
+    manifest_changed = root_manifest in paths
+    lock_changed = root_lock in paths
+    if not manifest_changed and not lock_changed:
+        return None, f"{root_manifest} or {root_lock} is not changed by the pushed range"
+    entries: set[str] = set()
+    feature_entries: frozenset[str] = frozenset()
+    if manifest_changed:
+        base_text, tip_text = git_file(repo, base, root_manifest), git_file(repo, tip, root_manifest)
+        try:
+            if without_workspace_dependencies(base_text) != without_workspace_dependencies(tip_text):
+                return None, f"{root_manifest} changes beyond [workspace.dependencies]"
+            entries = changed_table_packages(base_text, tip_text)
+            feature_entries = changed_table_packages(base_text, tip_text, feature_only=True)
+        except tomllib.TOMLDecodeError as error:
+            return None, f"{root_manifest} does not parse as TOML here ({error})"
     base_packages = base_resolution.members
-    return frozenset(
+    signature_changes = {
         name for name, package in tip_resolution.members.items()
         if name not in base_packages or base_packages[name].signature != package.signature
+    }
+    touched = set(entries)
+    for name in entries:
+        if name in feature_entries:
+            touched |= base_resolution.reach.get(name, frozenset())
+            touched |= tip_resolution.reach.get(name, frozenset())
+    return frozenset(
+        name for name, package in tip_resolution.members.items()
+        if name in signature_changes
         or name in touched or package.reaches & touched
         or base_packages[name].reaches & touched
     ), ""
@@ -1326,6 +1358,34 @@ def is_excluded(directory: str, pattern: str) -> bool:
     return directory == entry or directory.startswith(entry + "/")
 
 
+def root_members(workspace: dict, manifests: list[str]) -> list[str]:
+    """The manifests among `manifests` that the root workspace table `workspace`
+    names as members (`members` globs less `exclude`)."""
+    excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
+    named = [path for member in workspace.get("members", []) if isinstance(member, str)
+             for path in member_manifests(member, manifests)]
+    return [path for path in named
+            if not any(is_excluded(posixpath.dirname(path), entry) for entry in excluded)]
+
+
+def built_packages(manifests: Mapping[str, dict]) -> frozenset[str]:
+    """The packages the root manifest builds, among the manifests that parse
+    (`manifests` by path): the root's own package and each workspace member's.
+
+    A parsed manifest elsewhere that carries a package's name (a fixture, a copy
+    the workspace excludes) is not built by the root and declares nothing. A
+    root manifest that does not parse leaves nothing known to be built.
+    """
+    root = manifests.get("Cargo.toml")
+    if root is None:
+        return frozenset()
+    workspace = root.get("workspace")
+    named = [root]
+    if isinstance(workspace, dict):
+        named += [manifests[path] for path in root_members(workspace, list(manifests))]
+    return frozenset(name for manifest in named if (name := package_name(manifest)))
+
+
 def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
     """The packages the workspace at `base` had.
 
@@ -1345,18 +1405,11 @@ def base_workspace_packages(repo: pathlib.Path, base: str) -> frozenset[str]:
         name = package_name(data)
         if name:
             packages.add(name)
-        excluded = [entry for entry in workspace.get("exclude", []) if isinstance(entry, str)]
         manifests = [path for path in tree.paths if is_manifest(path)]
-        for member in workspace.get("members", []):
-            if not isinstance(member, str):
-                continue
-            for manifest in member_manifests(member, manifests):
-                directory = posixpath.dirname(manifest)
-                if any(is_excluded(directory, entry) for entry in excluded):
-                    continue
-                name = package_name(tree.manifest_at(manifest) or {})
-                if name:
-                    packages.add(name)
+        for manifest in root_members(workspace, manifests):
+            name = package_name(tree.manifest_at(manifest) or {})
+            if name:
+                packages.add(name)
         return frozenset(packages)
 
 

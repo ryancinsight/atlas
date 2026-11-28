@@ -1587,7 +1587,9 @@ def test_resolved_changes_name_the_members_a_dependency_table_reaches(tmp_path):
     changed, reason = gate.resolved_changes(repo, configured, edited,
                                             export(configured, "configured-base"),
                                             export(edited, "edited"), "Cargo.toml")
-    assert (changed, reason) == (None, "Cargo.toml is not changed by the pushed range")
+    assert (changed, reason) == (
+        None, "Cargo.toml or Cargo.lock is not changed by the pushed range"
+    )
 
 
 def test_resolved_changes_gate_everything_when_cargo_cannot_resolve(tmp_path, monkeypatch,
@@ -1860,11 +1862,14 @@ def test_inputs_outside_any_resolution_gate_every_member(tmp_path, monkeypatch, 
 ROOT_TEXT = '[workspace]\nmembers = ["crates/*"]\n[workspace.dependencies]\nx = "1"\n'
 
 
-def scoped(monkeypatch, base, tip, *, roots=("Cargo.toml", "Cargo.toml"), reach=({}, {})):
+def scoped(monkeypatch, base, tip, *, roots=("Cargo.toml", "Cargo.toml"), reach=({}, {}),
+           feature_change=False):
     """Stub the range and both resolutions under a dependency-table-only edit."""
     resolutions = iter([gate.Resolution(roots[0], base, reach[0]),
                         gate.Resolution(roots[1], tip, reach[1])])
-    texts = (ROOT_TEXT, ROOT_TEXT.replace('"1"', '"2"'))
+    texts = (ROOT_TEXT, ROOT_TEXT.replace(
+        '"1"', '{ version = "1", features = ["feature"] }'
+        if feature_change else '"2"'))
     monkeypatch.setattr(gate, "changed_entries", lambda repo, b, t: [("Cargo.toml",)])
     monkeypatch.setattr(gate, "read_resolution",
                         lambda export, manifest, config=None: next(resolutions))
@@ -1921,9 +1926,23 @@ def test_a_changed_entry_gates_the_members_reaching_what_it_reaches(tmp_path, mo
     packages = {"app": reaching, "tool": other, "lone": apart}
     reach = [{"x": frozenset()}, {"x": frozenset()}]
     reach[side] = {"x": frozenset({"leaf"})}
-    scoped(monkeypatch, packages, packages, reach=tuple(reach))
+    scoped(monkeypatch, packages, packages, reach=tuple(reach), feature_change=True)
     assert gate.resolved_changes(tmp_path, "b", "t", tmp_path, tmp_path, "Cargo.toml") == (
         frozenset({"app", "tool"}), "")
+
+
+def test_a_provider_revision_does_not_expand_shared_dependencies(tmp_path, monkeypatch):
+    """Moved-provider consumers have changed resolved signatures already."""
+    old = gate.ResolvedPackage(("old",), frozenset({"harmonia", "shared"}))
+    moved = gate.ResolvedPackage(("new",), frozenset({"harmonia", "shared"}))
+    unchanged = gate.ResolvedPackage(("same",), frozenset({"shared"}))
+    base = {"first": old, "second": old, "unrelated": unchanged}
+    tip = {"first": moved, "second": moved, "unrelated": unchanged}
+    scoped(monkeypatch, base, tip,
+           reach=({"harmonia": frozenset({"shared"})},
+                  {"harmonia": frozenset({"shared"})}))
+    assert gate.resolved_changes(tmp_path, "b", "t", tmp_path, tmp_path, "Cargo.toml") == (
+        frozenset({"first", "second"}), "")
 
 
 @pytest.mark.skipif(shutil.which("cargo") is None, reason="needs cargo")
@@ -3345,18 +3364,6 @@ def test_an_unparsed_manifest_is_scanned_though_a_manifest_that_parses_has_its_n
     assert f"cast gate: {where}: a `cfg` predicate names `clippy`" in said.err
 
 
-def test_an_unparsed_manifest_no_predicate_hides_behind_is_named_and_passes(tmp_path, capsys):
-    code, said = _scan_workspace(tmp_path, capsys, DECOYED,
-                                 {"crates/p/src/lib.rs": FINE + "pub fn more() {}\n"})
-    base_line, = said.err.splitlines()  # the base holds the same manifest: only that line
-    assert code == 0
-    assert base_line.startswith(f"cast gate: crates/p/Cargo.toml{UNPARSED}")
-    assert base_line.endswith("; every `--base-package` is held to its count at the pushed base")
-    note, = said.out.splitlines()
-    assert note.startswith(f"cast gate: crates/p/Cargo.toml{UNPARSED}")
-    assert note.endswith(NOT_REFUSED)
-
-
 @pytest.mark.parametrize("mount", [
     '#[path = "../gen/h.inc."]\nmod h;\n', '#[path = "../gen/h.inc "]\nmod h;\n',
     '#[path = "../gen/h.inc::$DATA"]\nmod h;\n', '#[path = "../gen/h.inc\\x2e"]\nmod h;\n',
@@ -3638,3 +3645,70 @@ def test_a_linked_discovery_folder_of_a_registered_package_is_refused(tmp_path, 
     err = capsys.readouterr().err
     assert f"core: {link}: a symbolic link on the way to `{link}`" in err
     assert "so the gate cannot tell whether src/cast.rs is compiled by more than one" in err
+
+
+BIN_OUTSIDE = '[[bin]]\nname = "b"\npath = "../../tools/b.rs"\n'
+OUTSIDE = {  # crates/p declares a bin outside its directory, and a parsed manifest elsewhere is `p`
+    "Cargo.toml": '[workspace]\nmembers = ["crates/p"]\n',
+    "crates/p/Cargo.toml": MEMBER_MANIFEST + BIN_OUTSIDE + MULTILINE_TABLE,
+    "crates/p/src/lib.rs": FINE,
+    "tools/b.rs": "fn main() {}\n",
+    "fixtures/p/Cargo.toml": MEMBER_MANIFEST,
+    "fixtures/p/src/lib.rs": FINE,
+}
+OUTSIDE_TIP = {"tools/b.rs": "fn main() {}\n" + HID, "crates/p/src/lib.rs": FINE + "pub fn also() {}\n"}
+
+
+@pytest.mark.parametrize("workspace, refused", [
+    (OUTSIDE, True),  # atlas822-1 G1: the declared path is unknown, and the decoy names `p`
+    ({k: v for k, v in OUTSIDE.items() if not k.startswith("fixtures/")}, True),  # no decoy
+    ({**OUTSIDE, "crates/p/Cargo.toml": MEMBER_MANIFEST + BIN_OUTSIDE}, False),  # all parse
+])
+def test_a_target_an_unparsed_manifest_declares_outside_its_directory_is_not_passed_unread(
+        tmp_path, capsys, workspace, refused):
+    code, said = _scan_workspace(tmp_path, capsys, workspace, OUTSIDE_TIP)
+    assert code == 1
+    refusal = [line for line in said.err.splitlines()
+               if line.startswith(f"cast gate: crates/p/Cargo.toml{UNPARSED}")
+               and line.endswith(UNDECLARED + "`p`")]
+    assert bool(refusal) is refused
+    if not refused:  # the manifest parses, so the declared target is read
+        assert "cast gate: tools/b.rs:2: a `cfg` predicate names `clippy`" in said.err
+
+
+def test_a_manifest_the_root_does_not_build_declares_no_package():
+    parsed = {
+        "Cargo.toml": {"workspace": {"members": ["crates/*", "tools/t"], "exclude": ["crates/x"]}},
+        "crates/a/Cargo.toml": {"package": {"name": "a"}},
+        "crates/x/Cargo.toml": {"package": {"name": "x"}},
+        "tools/t/Cargo.toml": {"package": {"name": "t"}},
+        "fixtures/a/Cargo.toml": {"package": {"name": "decoy"}},
+    }
+    assert gate.built_packages(parsed) == {"a", "t"}
+    rooted = {**parsed, "Cargo.toml": {"package": {"name": "top"}, **parsed["Cargo.toml"]}}
+    assert gate.built_packages(rooted) == {"top", "a", "t"}
+    assert gate.built_packages({k: v for k, v in parsed.items() if k != "Cargo.toml"}) == set()
+
+
+STRAY = {"tools/x/Cargo.toml": MEMBER_MANIFEST.replace('"p"', '"x"') + MULTILINE_TABLE,
+         "tools/x/src/lib.rs": FINE}
+
+
+def test_an_unparsed_manifest_no_pushed_package_needs_is_named_and_the_push_passes(
+        tmp_path, capsys):
+    code, said = _scan_workspace(tmp_path, capsys, {**REPARSED, **STRAY},
+                                 {"crates/p/src/lib.rs": FINE + "pub fn more() {}\n"})
+    assert (code, said.err) == (0, "")
+    note, = said.out.splitlines()
+    assert note.startswith(f"cast gate: tools/x/Cargo.toml{UNPARSED}")
+    assert note.endswith(NOT_REFUSED)
+
+
+def test_a_decoyed_package_with_no_predicate_is_refused_for_its_unparsed_manifest(
+        tmp_path, capsys):
+    code, said = _scan_workspace(tmp_path, capsys, DECOYED,
+                                 {"crates/p/src/lib.rs": FINE + "pub fn more() {}\n"})
+    assert code == 1
+    assert said.out == ""
+    assert any(line.startswith(f"cast gate: crates/p/Cargo.toml{UNPARSED}")
+               and line.endswith(UNDECLARED + "`p`") for line in said.err.splitlines())

@@ -11,5 +11,16 @@
     },
     "review": "Re-verify every entry against the member's current default before a sweep advances pins; an entry whose regression the member has since fixed is deleted, not renewed. Measure it the way these were measured: `git -C repos/<member> archive FETCH_HEAD` into a scratch directory, then `python scripts/atlas-conformance.py check --repo <member> --member-path <dir>`, which judges the default tip against the committed baseline without touching the member checkout."
   },
-  "waivers": []
+  "waivers": [
+    {
+      "member": "CFDrs",
+      "reason": "CFDrs default 3dbc3bfc6898 no longer regresses the conformance ratchet (`atlas-conformance.py check --baseline-rev a850dbc26a31 --repo CFDrs --member-path D:/atlas/repos/CFDrs --member-revision 3dbc3bfc6898`: 0 regression(s), measured 2026-11-27; the three board classes that held b76f00a72132 were repaired upstream). The hold that remains is its Cargo.lock, which still locks horae-time 0.2.2 (git source horae 40196ff641c4), a version the horae pin (0.4.0) cannot satisfy; the lock closure belongs to ATLAS-DEPENDENCY-COHORT-20261127, which advances CFDrs with its lock.",
+      "reopen": "CFDrs's default tip locks no horae-time 0.2.x record: from the atlas root in Git Bash, `git -C repos/CFDrs fetch origin && ! git -C repos/CFDrs show origin/HEAD:Cargo.lock | grep -A1 'name = \"horae-time\"' | grep -q 'version = \"0[.]2[.]'` exits 0 (it exits 1 while the lock records 0.2.2); then advance the gitlink and delete this entry"
+    },
+    {
+      "member": "kwavers",
+      "reason": "kwavers default 34fa3f47ae07 raises 8 debt classes above the committed conformance baseline, which the ratchet rejects: oversized_files 103 -> 108, manifest_implementation 273 -> 275, allow_sites 297 -> 305, existence_only_assertions 0 -> 7, type_suffixed_fns 5 -> 7, reexport_shims 6 -> 7, pm_lines_over_budget 3366 -> 3391, scattered_containers 45 -> 55 (measured 2026-11-27 against the baseline committed with this entry: `atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision 34fa3f47ae07`, 8 regression(s)).",
+      "reopen": "`python scripts/atlas-conformance.py check --repo kwavers --member-path repos/kwavers --member-revision <default tip>`, run from the atlas root, exits 0 (kwavers's default tip passes the conformance check), then advance the gitlink and delete this entry"
+    }
+  ]
 }
