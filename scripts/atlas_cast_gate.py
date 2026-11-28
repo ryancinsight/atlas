@@ -572,19 +572,26 @@ def package_sources(tip: Revision, packages: Iterable[str]) -> tuple[set[str], d
     workspace member's directory contains: a file no `mod` reaches can still
     be compiled by a macro the walk does not read. A manifest that declares no
     package, is not a member, or does not parse fences nothing off. A package
-    no parsed manifest names has no files (`unparsed_manifests` refuses the
-    push when a manifest that does not parse could be its own).
+    no manifest names has no files (`unparsed_manifests` refuses the push).
+
+    A manifest `tomllib` rejects is scanned for every push, as if it declared a
+    pushed package: the package it declares is unknown, and a parsed manifest of
+    the same name elsewhere (a fixture, an excluded copy) would otherwise take
+    the files of the real one out of the scan. The scan then holds that
+    directory's tracked `.rs` files and the module trees of its default targets.
     """
-    manifests = tip.manifests[0]
+    manifests, refused = tip.manifests
+    unparsed = {path: {} for path in refused}
     members = member_directories(manifests)
     wanted = frozenset(packages)
     files: set[str] = set()
     errors: dict[str, str] = {}
-    for path, manifest in manifests.items():
-        if package_name(manifest) not in wanted:
+    for path, manifest in [*manifests.items(), *unparsed.items()]:
+        if path not in unparsed and package_name(manifest) not in wanted:
             continue
         directory = posixpath.dirname(path)
         prefix = f"{directory}/" if directory else ""
+        errors |= discovery_errors(manifest, directory, tip.index)
         for root in target_roots(manifest, directory, tip.index):
             reached, unreadable = compiled_files(tip.index, tip.read, root)
             files |= reached
@@ -603,13 +610,10 @@ def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str
 
     A manifest that does not parse may declare any package. When some pushed
     package is declared by no manifest that parses, one of them may be its
-    own, `package_sources` then finds the package no files, and every such
-    manifest is a problem. When a manifest that parses declares each pushed
-    package, its targets and directory give the scan its files, and the
-    manifest that does not parse is not a workspace member the scan steps
-    around (`member_directories` reads parsed manifests), so the files under
-    it stay with the package around them: the push is not refused for a
-    manifest it may not own, and a note names the manifest.
+    own, and every such manifest is a problem.
+    When a manifest that parses declares each pushed package, the push is not
+    refused for a manifest it may not own: `package_sources` scans the
+    directory of each manifest that does not parse, and a note names it.
     """
     parsed, refused = tip.manifests
     declared = {package_name(manifest) for manifest in parsed.values()}
@@ -619,8 +623,8 @@ def unparsed_manifests(tip: Revision, packages: Iterable[str]) -> tuple[list[str
         return [f"{error}, and no manifest that parses declares the pushed package {names}"
                 for _, error in sorted(refused.items())], []
     return [], [f"{error}; a manifest that parses declares every pushed package, so the "
-                "push is not refused for it, and the files under its directory stay in "
-                "the scan of a pushed package whose directory holds them"
+                "push is not refused for it, and its directory and default targets are "
+                "scanned in every push"
                 for _, error in sorted(refused.items())]
 
 
